@@ -37,7 +37,7 @@ function devStart() { S.goal = GOALS.length; S.money = Math.max(S.money, 250000)
 function devInit() {
   if (!DEV) return;
   const el = $('#dev'), btn = (k, t) => '<button data-act="dev" data-k="' + k + '">' + t + '</button>';
-  el.innerHTML = '<button class="devhead" data-act="dev" data-k="hide" title="Ein- oder ausklappen">Dev-Modus' + IC.chev + '</button><div class="devbody">' +
+  el.innerHTML = '<button class="devhead" data-act="dev" data-k="hide" title="Ein- oder ausklappen"><span class="l">Dev-Modus</span><span class="s">Dev</span>' + IC.chev + '</button><div class="devbody">' +
     '<b>Geld und Fortschritt</b><div>' + btn('cash', '+10.000') + btn('rich', 'Unendlich Geld') + btn('unlock', 'Alles freischalten') + btn('lvl', 'Attraktionen +1 Stufe') + '</div>' +
     '<b>Gäste</b><div>' + btn('guests', '+25 Gäste') + btn('happy', 'Alle glücklich') + btn('litter', 'Abfall streuen') + btn('clean', 'Alles sauber') + '</div>' +
     '<b>Wetter und Zeit</b><div>' + btn('sun', 'Sonne') + btn('cloud', 'Wolken') + btn('rain', 'Regen') + btn('storm', 'Gewitter') + btn('time', '+6 Stunden') + btn('fast', 'Tempo ×10') + '</div>' +

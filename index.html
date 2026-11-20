@@ -44,6 +44,7 @@ button.stat{cursor:pointer}
 .stat.money svg{color:var(--ink)}
 .stat.money.neg{background:var(--candy);border-color:var(--candy-deep);color:var(--paper)}
 .ctrl{margin-left:auto;display:flex;gap:6px}
+#st-day{margin-left:-2px}
 .seg{display:inline-flex;height:36px;border-radius:18px;background:var(--ink-soft);border:2px solid var(--ink-3);overflow:hidden}
 .seg button{width:36px;border:0;background:none;display:grid;place-items:center;cursor:pointer;padding:0;color:var(--paper)}
 .seg button svg{width:18px;height:18px}
@@ -175,7 +176,23 @@ ol.goals .r{font-weight:900;color:var(--mint);white-space:nowrap}
   #toolbar .t{flex:1 1 150px}
   #cam{grid-template-columns:repeat(4,36px)}
 }
-@media (max-width:420px){ #st-day .hm{display:none} .card{width:98px} }
+@media (max-width:420px){ .card{width:98px} }
+/* Phones: the top is sorted into two rows that both run from edge to edge. First the three numbers, the money taking the
+   room that is left; below them the day on the left and the speed buttons with the menu on the right. */
+@media (max-width:605px){
+  #topbar{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px}
+  .stats{grid-column:1/-1;flex-wrap:nowrap}
+  .stats .stat{flex:1 1 auto;justify-content:center;min-width:0}
+  .stats .money{flex-grow:2}
+  .stats .money b{overflow:hidden;text-overflow:ellipsis}
+  #st-day{grid-column:1;margin-left:0;height:36px;min-width:0;justify-content:center}
+  #st-day b{overflow:hidden;text-overflow:ellipsis}
+  .ctrl{grid-column:2;margin-left:0}
+  #goal{align-self:stretch;max-width:none}
+}
+@media (max-width:369px){ #st-day .hm{display:none} }
+/* a little wider, everything fits into one row once the name of the park steps aside */
+@media (max-width:830px){ .brand{display:none} }
 @media (prefers-reduced-motion:reduce){ .toast{animation:none} #goal .bar i{transition:none} }
 
 /* currency, team, modes, mini games */
@@ -225,8 +242,21 @@ table.fin.team .meter{min-width:64px}
 #dev .devbody button{border:2px solid var(--ink-3);background:var(--ink);color:var(--paper);border-radius:8px;padding:5px 8px;font:800 12px/1.1 var(--font-ui);cursor:pointer}
 #dev .devbody button[aria-pressed="true"]{background:var(--bulb);color:var(--ink);border-color:var(--bulb-deep)}
 #hud.immersive #dev,#mid.sheet #dev{display:none}
-/* on a phone the dev box stays in the top row beside the help tab, clear of the tool bar and the camera buttons; opened, it spans the width */
-@media (max-width:760px){ #dev{width:auto;left:var(--gl);max-height:calc(100% - 136px)} #dev .devbody button{padding:4px 7px} }
+#dev .devhead .s{display:none}
+/* On a phone the folded dev box is a short tab in the row of the camera buttons, at the right where that row is empty:
+   clear of the tool bar above it. Opened, it grows upwards from there and spans the width. */
+@media (max-width:760px){
+  #dev{top:auto;bottom:8px;left:var(--gl);width:auto}
+  #dev .devbody button{padding:4px 7px}
+  #dev.min{bottom:9px}
+  #dev.min .devhead .l{display:none}
+  #dev.min .devhead .s{display:inline}
+  #dev.min .devhead svg{transform:rotate(180deg)}
+  /* opened, the head stays at the bottom, under the finger that opened it: one more tap there folds the box again */
+  #dev:not(.min){display:flex;flex-direction:column;padding-bottom:0}
+  #dev:not(.min) .devbody{order:1;padding-bottom:6px}
+  #dev:not(.min) .devhead{order:2;position:sticky;bottom:0;z-index:1;flex:none;padding:8px 0;background:var(--ink-2);border-top:2px solid var(--ink-3)}
+}
 
 /* seven tabs */
 #tabs{grid-template-columns:repeat(7,minmax(0,1fr));max-width:860px}
@@ -272,6 +302,16 @@ table.fin.team .meter{min-width:64px}
 @media (prefers-reduced-motion:reduce){ #alert{animation:none} #hand[data-mode="knock"].press svg{animation:none} .fold-h svg,#dev .devhead svg{transition:none} }
 @media (max-width:760px){ #dev.min{left:auto} }
 #dev:not(.min){z-index:3}
+/* Phones: messages keep clear of the help tab. The thief alarm and the messages start one row lower, and while the
+   help box is open the messages appear near the bottom instead of on top of its text. */
+@media (max-width:760px){
+  #toasts{top:46px}
+  #alert{top:44px}
+  #mid.alerting #toasts{top:102px}
+  #hud:not(.immersive) #mid:has(#coach:not(.min):not([hidden])) #toasts{top:auto;bottom:124px;flex-direction:column-reverse}
+  #hud.immersive #alert{top:66px}
+  #hud.immersive #mid.alerting #toasts{top:124px}
+}
 </style>
 <!-- Fonts Bungee and Nunito (SIL Open Font License 1.1), embedded so the page needs no network. -->
 <style>
@@ -292,8 +332,8 @@ table.fin.team .meter{min-width:64px}
         <button class="stat money" id="st-money" data-act="finance" title="Finanzen"><img id="coin-img" alt="" width="24" height="24"><b id="v-money">0</b></button>
         <div class="stat" title="Gäste im Park"><span data-ic="people"></span><b id="v-guests">0</b></div>
         <button class="stat" id="st-rating" data-act="menu" title="Parkwertung"><span data-ic="star"></span><b id="v-rating">0</b></button>
-        <div class="stat" id="st-day" title="Tag und Uhrzeit"><span id="ic-day" data-ic="sun"></span><b id="v-day">Tag 1</b></div>
       </div>
+      <div class="stat" id="st-day" title="Tag und Uhrzeit"><span id="ic-day" data-ic="sun"></span><b id="v-day">Tag 1</b></div>
       <div class="ctrl">
         <div class="seg" role="group" aria-label="Spieltempo">
           <button data-act="speed" data-v="0" aria-label="Pause" title="Pause (Leertaste)"><span data-ic="pause"></span></button>
@@ -4726,7 +4766,7 @@ function devStart() { S.goal = GOALS.length; S.money = Math.max(S.money, 250000)
 function devInit() {
   if (!DEV) return;
   const el = $('#dev'), btn = (k, t) => '<button data-act="dev" data-k="' + k + '">' + t + '</button>';
-  el.innerHTML = '<button class="devhead" data-act="dev" data-k="hide" title="Ein- oder ausklappen">Dev-Modus' + IC.chev + '</button><div class="devbody">' +
+  el.innerHTML = '<button class="devhead" data-act="dev" data-k="hide" title="Ein- oder ausklappen"><span class="l">Dev-Modus</span><span class="s">Dev</span>' + IC.chev + '</button><div class="devbody">' +
     '<b>Geld und Fortschritt</b><div>' + btn('cash', '+10.000') + btn('rich', 'Unendlich Geld') + btn('unlock', 'Alles freischalten') + btn('lvl', 'Attraktionen +1 Stufe') + '</div>' +
     '<b>Gäste</b><div>' + btn('guests', '+25 Gäste') + btn('happy', 'Alle glücklich') + btn('litter', 'Abfall streuen') + btn('clean', 'Alles sauber') + '</div>' +
     '<b>Wetter und Zeit</b><div>' + btn('sun', 'Sonne') + btn('cloud', 'Wolken') + btn('rain', 'Regen') + btn('storm', 'Gewitter') + btn('time', '+6 Stunden') + btn('fast', 'Tempo ×10') + '</div>' +
