@@ -1,5 +1,5 @@
 /* ================= economy, rating, goals ================= */
-const rideList = () => builds.filter((b) => b.def.cat === 'ride');
+const rideList = () => builds.filter((b) => b.def.cat === 'ride' && !b.site);   // an attraction counts once it is built
 const rideTypes = () => new Set(rideList().map((b) => b.k)).size;
 const has = (k) => (builds.some((b) => b.k === k) ? 1 : 0);
 const GOALS = [
@@ -40,6 +40,7 @@ function advisor() {
   const sn = staffAll();
   if (sn > housing() && S.time - (adviceAt.house || -999) > 240) { adviceAt.house = S.time; toast('Nicht alle im Team haben ein Zuhause. Ein Personalhaus hebt die Stimmung.', 'bad'); return; }
   if (sn && !builds.some((b) => b.def.rest) && staff.some((s) => s.energy < 15) && S.time - (adviceAt.rest || -999) > 240) { adviceAt.rest = S.time; toast('Dein Personal ist erschöpft. Ein Pausenraum am Weg hilft.', 'bad'); return; }
+  if (anySite() && !staffN('build') && S.time - (adviceAt.build || -999) > 120) { adviceAt.build = S.time; toast('Auf deiner Baustelle arbeitet niemand. Stelle einen Bauarbeiter ein (Personal).', 'bad'); return; }
   if (cuts.length && !staffN('gard') && S.time - (adviceAt.gard || -999) > 150) { adviceAt.gard = S.time; toast('Markierte Pflanzen warten auf einen Gärtner. Stelle einen ein (Personal).', 'bad'); return; }
   if (plotsOwned() < PN * PN && S.time - (adviceAt.land || -999) > 420) {
     let own = 0, free = 0; for (let i = 0; i < N * N; i++) if (owned[i]) { own++; if (tType[i] === 0) free++; }
@@ -49,7 +50,7 @@ function advisor() {
   if (lost && S.time - (adviceAt.lost || -999) > 120) { adviceAt.lost = S.time; toast(lost.def.name + ' hat keinen Weg zum Eingang.', 'bad', lost); }
 }
 function secondTick() {
-  let up = 0; for (const b of builds) up += b.def.upkeep;
+  let up = 0; for (const b of builds) if (!b.site) up += b.def.upkeep;
   spend(up / DAY, 'upkeep');
   socialTick(); thiefTick(); weatherTick();
   if (S.loan > 0) spend(S.loan * 0.012 / DAY, 'loan');
@@ -68,6 +69,7 @@ function simStep(dt) {
   for (let i = 0; i < guests.length; i++) stepGuest(guests[i], dt);
   if (anyGone) { guests = guests.filter((g) => !g.gone); anyGone = false; colorsDirty = true; if (sel && sel.guest && sel.guest.gone) select(null); }
   for (let i = 0; i < builds.length; i++) stepBuild(builds[i], dt);
+  stepSites(dt);
   for (let i = staff.length - 1; i >= 0; i--) stepStaff(staff[i], dt);
   if (thieves.length) { let gone = false; for (const f of thieves) { stepThief(f, dt); if (f.gone) gone = true; } if (gone) thieves = thieves.filter((f) => !f.gone); }
   for (const d of animDecos) d.model.update(dt, S.time);

@@ -4,7 +4,7 @@ function serialize() {
   const paths = [], lit = [];
   for (let i = 0; i < N * N; i++) { if (tType[i] === 1) paths.push(i); if (litter[i]) lit.push(i, litter[i]); }
   return { v: 1, n: N, S: Object.assign({}, S), fin, paths, lit, guests: guests.length,
-    objs: builds.concat(decos).map((o) => (o.def.cat === 'deco' ? [o.k, o.x, o.y, o.rot, o.nat ? 1 : 0, o.cut ? (o.then === 'path' ? 2 : 1) : 0] : [o.k, o.x, o.y, o.rot, o.price, o.count, Math.round(o.income), o.open ? 1 : 0, o.broken ? 1 : 0, o.wear, o.nodes || 0])),
+    objs: builds.concat(decos).map((o) => (o.def.cat === 'deco' ? [o.k, o.x, o.y, o.rot, o.nat ? 1 : 0, o.cut ? (o.then === 'path' ? 2 : 1) : 0] : [o.k, o.x, o.y, o.rot, o.price, o.count, Math.round(o.income), o.open ? 1 : 0, o.broken ? 1 : 0, o.wear, o.nodes || 0, o.site ? [Math.round(o.site.done * 10) / 10, o.site.total, o.site.want] : 0])),
     staffList: staff.filter((s) => s.state !== 'quit').map((s) => [s.type, s.name, Math.round(s.mood), Math.round(s.energy)]) };
 }
 function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(serialize())); } catch (e) { /* storage is optional */ } }
@@ -39,13 +39,14 @@ function load(data) {
     const d = DEFS[o[0]], x = o[1] + dx, y = o[2] + dy; if (!d || !canPlace(d, x, y, o[3], true) || (d.k === 'custom' && !Array.isArray(o[10]))) continue;
     const nodes = old && Array.isArray(o[10]) ? o[10].map((q) => [q[0] + dx, q[1] + dy, q[2]]) : o[10];
     const ob = placeObj(o[0], x, y, o[3], { nat: d.cat === 'deco' && !!o[4], nodes });
-    if (d.cat !== 'deco') { ob.price = +o[4] || 0; ob.count = o[5] || 0; ob.income = o[6] || 0; ob.open = !!o[7]; ob.broken = !!o[8]; ob.wear = o[9] || 0; }
+    if (d.cat !== 'deco') { ob.price = +o[4] || 0; ob.count = o[5] || 0; ob.income = o[6] || 0; ob.open = !!o[7]; ob.broken = !!o[8]; ob.wear = o[9] || 0; if (Array.isArray(o[11])) startSite(ob, o[11]); }
     else if (o[5] && d.plant) { ob.cut = true; ob.fee = d.cut; ob.then = o[5] === 2 ? 'path' : null; ob.cutter = null; cuts.push(ob); }
   }
   for (let i = 0; i + 1 < data.lit.length; i += 2) { const t = at(data.lit[i]); if (tType[t] === 1) { litter[t] = data.lit[i + 1]; litterTotal += data.lit[i + 1]; } }
   if (old) for (let p = 0; p < PN * PN; p++) if (!plotOwned[p]) growWild(p, rint(9, 12));
   if (Array.isArray(data.staffList)) { for (const e of data.staffList) if (STAFF[e[0]]) hire(e[0], true, e); }
   else for (const k in STAFF) for (let i = 0; i < ((data.staff && data.staff[k]) || 0); i++) hire(k, true);
+  if (!S.b1) { S.b1 = true; if (!staffN('build')) hire('build', true); }   // every park has one builder to begin with
   scatterStaff();
   for (let i = 0; i < Math.min(data.guests || 0, MAXG - 30); i++) spawnGuest(true);
   sun.castShadow = S.shadows;
@@ -67,6 +68,7 @@ function newGame() {
   for (let p = 0; p < PN * PN; p++) growWild(p, plotOwned[p] ? 5 : rint(9, 12));
   for (const [x, y] of [[HALF - 3, N - 3], [HALF + 5, N - 3], [HALF - 5, N - 8], [HALF + 6, N - 8], [HALF - 2, N - 8]]) if (tType[idx(x, y)] === 0) placeObj('tree', x, y, 0, { nat: true });
   for (let i = 0; i < 9; i++) spawnGuest(true);
+  hire('build', true); S.b1 = true;
   sun.castShadow = S.shadows;
 }
 

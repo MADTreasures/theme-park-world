@@ -74,6 +74,8 @@ const SFX = {
   climb: (v) => { for (let i = 0; i < 8; i++) tone(240 + i * 14, i * 0.09, 0.03, 'square', 0.03 * v); },
   thunder: (v) => { hiss(0, 1.8, 0.3 * v, 'lowpass', 220, 50, 0.5); hiss(0.05, 0.25, 0.12 * v, 'lowpass', 1200, 200); },
   drop: (v) => { tone(700, 0, 0.5, 'sine', 0.05 * v, 180); hiss(0, 0.5, 0.06 * v, 'bandpass', 2000, 500, 1); },
+  hammer: (v) => { tone(260, 0, 0.05, 'triangle', 0.13 * v, 120); hiss(0, 0.035, 0.09 * v, 'bandpass', 2600, 1400, 1.4); },
+  saw: (v) => { for (let i = 0; i < 3; i++) hiss(i * 0.13, 0.11, 0.05 * v, 'bandpass', i % 2 ? 1900 : 2500, i % 2 ? 2500 : 1900, 2.5); },
   mark: (v) => { tone(520, 0, 0.06, 'square', 0.04 * v); tone(390, 0.07, 0.09, 'square', 0.04 * v); },
   chop: (v) => { for (let i = 0; i < 3; i++) { hiss(i * 0.62, 0.08, 0.11 * v, 'bandpass', 1500, 600, 1.2); tone(190, i * 0.62, 0.07, 'triangle', 0.08 * v, 90); } },
   timber: (v) => { hiss(0, 0.5, 0.1 * v, 'bandpass', 2400, 500, 0.9); tone(120, 0.28, 0.25, 'sine', 0.12 * v, 55); },

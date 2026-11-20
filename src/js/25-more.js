@@ -224,15 +224,36 @@ function mSkyTower() {
 }
 
 /* ----- guard post: a sentry box for two guards ----- */
+// A sentry hut that is open all round above its low walls, so the guards on their two chairs can be seen and tapped from any side.
 function mPost() {
   const g = new T.Group(), b = new Builder();
-  b.box(0.9, 0.05, 0.9, K.stoneD, 0, 0.025, 0);
-  b.box(0.6, 1.0, 0.6, K.blue, 0, 0.55, -0.12);
-  for (let i = 0; i < 3; i++) { b.box(0.1, 1.0, 0.61, K.paper, -0.2 + i * 0.2, 0.55, -0.12); b.box(0.61, 1.0, 0.1, K.paper, 0, 0.55, -0.32 + i * 0.2); }
-  b.box(0.36, 0.74, 0.02, K.inkD, 0, 0.44, 0.19);
-  b.cone(0.54, 0.42, K.red, 0, 1.26, -0.12, { seg: 4, ry: Math.PI / 4 }); b.sph(0.06, K.bulb, 0, 1.52, -0.12, { glow: true, seg: 6, seg2: 4 });
-  b.cyl(0.1, 0.1, 0.04, K.wood, 0.3, 0.2, 0.3, { seg: 8 }); for (const a of [0.5, 2.6, 4.7]) b.cyl(0.012, 0.012, 0.18, K.inkD, 0.3 + Math.cos(a) * 0.07, 0.1, 0.3 + Math.sin(a) * 0.07, { seg: 4 });
+  b.box(0.92, 0.05, 0.92, K.stoneD, 0, 0.025, 0);
+  for (const [x, z] of [[-0.4, -0.4], [0.4, -0.4], [-0.4, 0.4], [0.4, 0.4]]) b.box(0.07, 1.05, 0.07, K.paper, x, 0.575, z);
+  for (let i = 0; i < 5; i++) { const c = i % 2 ? K.paper : K.blue, p = -0.32 + i * 0.16; b.box(0.16, 0.36, 0.05, c, p, 0.23, -0.4); b.box(0.05, 0.36, 0.16, c, -0.4, 0.23, p); b.box(0.05, 0.36, 0.16, c, 0.4, 0.23, p); }
+  b.box(0.86, 0.04, 0.08, K.wood, 0, 0.43, -0.4); b.box(0.08, 0.04, 0.86, K.wood, -0.4, 0.43, 0); b.box(0.08, 0.04, 0.86, K.wood, 0.4, 0.43, 0);
+  for (const x of [-0.19, 0.19]) {   // two chairs
+    b.box(0.2, 0.03, 0.2, K.wood, x, 0.275, -0.14); b.box(0.2, 0.24, 0.03, K.wood, x, 0.43, -0.245);
+    for (const [dx, dz] of [[-0.08, -0.08], [0.08, -0.08], [-0.08, 0.08], [0.08, 0.08]]) b.box(0.025, 0.26, 0.025, K.woodD, x + dx, 0.13, -0.14 + dz);
+  }
+  b.box(1.02, 0.06, 1.02, K.redD, 0, 1.13, 0); b.cone(0.74, 0.4, K.red, 0, 1.36, 0, { seg: 4, ry: Math.PI / 4 }); b.sph(0.06, K.bulb, 0, 1.6, 0, { glow: true, seg: 6, seg2: 4 });
+  b.box(0.6, 0.17, 0.03, K.ink, 0, 1.0, 0.45);
   g.add(b.mesh());
-  const p = new T.Mesh(new T.PlaneGeometry(0.52, 0.13), new T.MeshBasicMaterial({ map: boardTex('Wache') })); p.position.set(0, 0.93, 0.192); g.add(p);
+  const p = new T.Mesh(new T.PlaneGeometry(0.52, 0.13), new T.MeshBasicMaterial({ map: boardTex('Wache') })); p.position.set(0, 1.0, 0.468); g.add(p);
+  return { group: g, seats: [], chairs: [seatAt(g, -0.19, 0.29, -0.14), seatAt(g, 0.19, 0.29, -0.14)] };
+}
+// The builders' yard: a tool shed, planks, sand, a cement mixer.
+function mYard() {
+  const g = new T.Group(), b = new Builder();
+  b.box(1.9, 0.05, 1.9, 0xc9b98f, 0, 0.025, 0);
+  b.box(0.8, 0.7, 0.7, K.wood, -0.48, 0.4, -0.5); for (let i = 0; i < 6; i++) b.box(0.012, 0.7, 0.71, K.woodD, -0.88 + i * 0.16, 0.4, -0.5);
+  b.box(0.92, 0.06, 0.52, K.redD, -0.48, 0.86, -0.7, { rx: -0.5 }); b.box(0.92, 0.06, 0.52, K.redD, -0.48, 0.86, -0.3, { rx: 0.5 });
+  b.box(0.26, 0.48, 0.03, K.woodD, -0.48, 0.29, -0.14);
+  for (let i = 0; i < 3; i++) b.box(0.9, 0.05, 0.14, i % 2 ? K.wood : 0xd9b27a, 0.42, 0.075 + i * 0.05, -0.62 + i * 0.03, { ry: 0.08 * i });
+  b.cone(0.34, 0.3, 0xe6cf8e, 0.5, 0.2, 0.05, { seg: 12 });
+  b.cyl(0.16, 0.2, 0.26, K.ora, -0.3, 0.42, 0.45, { seg: 12, rx: 0.7 }); b.box(0.3, 0.05, 0.26, K.inkD, -0.3, 0.2, 0.45); for (const x of [-0.42, -0.18]) b.cyl(0.07, 0.07, 0.04, K.inkD, x, 0.09, 0.56, { seg: 10, rz: Math.PI / 2 });
+  for (const [x, z] of [[0.75, 0.75], [0.45, 0.8]]) { b.cone(0.07, 0.2, K.ora, x, 0.15, z, { seg: 10 }); b.box(0.16, 0.02, 0.16, K.ora, x, 0.06, z); b.cyl(0.045, 0.055, 0.04, K.paper, x, 0.15, z, { seg: 10 }); }
+  for (let i = 0; i < 6; i++) b.box(0.15, 0.1, 0.03, i % 2 ? K.paper : K.red, -0.02 + i * 0.15, 0.36, 0.88); for (const x of [-0.05, 0.8]) b.box(0.04, 0.42, 0.04, K.inkD, x, 0.21, 0.88);
+  g.add(b.mesh());
+  const p = new T.Mesh(new T.PlaneGeometry(0.6, 0.15), new T.MeshBasicMaterial({ map: boardTex('Bauhof') })); p.position.set(-0.48, 0.66, -0.142); g.add(p);
   return { group: g, seats: [] };
 }

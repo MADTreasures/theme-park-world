@@ -1,5 +1,5 @@
 /* ================= game state ================= */
-const S = { money: 4000, loan: 0, time: DAY * 0.1, ticket: 5, rating: 55, goal: 0, speed: 1, exitAvg: 62, visitors: 0, muted: false, coach: true, shadows: true, outline: false, rep: 70, wage: 1, cur: null, secLvl: 1, secXp: 0, music: true, wx: null, devInit: false };
+const S = { money: 4000, loan: 0, time: DAY * 0.1, ticket: 5, rating: 55, goal: 0, speed: 1, exitAvg: 62, visitors: 0, muted: false, coach: true, shadows: true, outline: false, rep: 70, wage: 1, cur: null, secLvl: 1, secXp: 0, music: true, wx: null, devInit: false, b1: false };
 const newFin = () => ({ tick: 0, ride: 0, shop: 0, bonus: 0, goods: 0, upkeep: 0, wage: 0, build: 0, loan: 0 });
 let fin = { today: newFin(), yest: newFin() }, curDay = 0;
 const tType = new Uint8Array(N * N), tObj = new Array(N * N).fill(null), litter = new Uint8Array(N * N), beauty = new Float32Array(N * N), binNear = new Uint8Array(N * N);
@@ -103,6 +103,7 @@ function removeObj(ob) {
     if (ob.nat) plotDirty[ob.plot] = 1;
     if (ob.cut) { ob.cut = false; const i = cuts.indexOf(ob); if (i >= 0) cuts.splice(i, 1); if (ob.cutter && ob.cutter.cutT === ob) ob.cutter.cutT = null; }
   } else {
+    if (ob.site) endSite(ob);
     for (const s of ob.resting.slice()) endBreak(s);
     if (pov && pov.b === ob) exitMode();
     for (const g of ob.queue.concat(ob.riders)) releaseGuest(g);

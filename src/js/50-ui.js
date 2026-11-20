@@ -153,7 +153,7 @@ function setHl(x, y, w, h, ok, warn) { hl.visible = true; hl.position.set(x + w 
 function showGhost(gx, gy) {
   if (!tool || tool.type !== 'build' || !ghost) return;
   const d = DEFS[tool.k]; ghostTile = [gx, gy];
-  if ((d.cat === 'shop' || d.rest) && !tool.userRot) for (let k = 0; k < 4; k++) { const nx = gx + DIRS[k][0], ny = gy + DIRS[k][1]; if (inB(nx, ny) && tType[idx(nx, ny)] === 1) { tool.rot = k; break; } }
+  if ((d.cat === 'shop' || d.rest || d.guards || d.builders) && !tool.userRot) for (let k = 0; k < 4; k++) { const nx = gx + DIRS[k][0], ny = gy + DIRS[k][1]; if (inB(nx, ny) && tType[idx(nx, ny)] === 1) { tool.rot = k; break; } }
   const [x, y, w, h] = anchor(d, tool.rot, gx, gy);
   ghost.visible = true; ghost.position.set(x + w / 2 - HALF, 0.02, y + h / 2 - HALF); ghost.rotation.y = -tool.rot * Math.PI / 2;
   const nat = natIn(d, x, y, tool.rot), plants = !!nat && nat.length > 0, ok = !!nat && !plants && S.money >= d.cost;   // orange: only plants are in the way
@@ -173,6 +173,7 @@ function tryBuild() {
   if (nat.length) { plantsInWay(nat); pending = null; renderToolbar(); return; }
   if (S.money < d.cost) { sfx('error'); toast('Dafür reicht das Geld nicht.', 'bad'); return; }
   spend(d.cost, 'build'); const ob = placeObj(d.k, x, y, tool.rot); sfx('build'); pending = null; uiDirty = true;
+  if (d.cat === 'ride') openSite(ob);
   if (d.cat !== 'deco' && !d.noPath && !accessOf(ob).length) toast(d.name + ' braucht noch einen Weg direkt daneben.', '', ob);
   if (d.cat === 'ride') setTool(null); else { showGhost(gt[0], gt[1]); renderToolbar(); }
 }
@@ -191,7 +192,12 @@ function buildPath(x, y) {
   if (S.money < 5) { if (!buildPath.warned) { buildPath.warned = true; sfx('error'); toast('Dafür reicht das Geld nicht.', 'bad'); setTimeout(() => { buildPath.warned = false; }, 3000); } return; }
   if (setPath(i, true)) { spend(5, 'build'); sfx('path'); uiDirty = true; }
 }
-const refundOf = (ob) => Math.round(ob.def.cost * (ob.def.cat === 'deco' ? 0.3 : 0.4));
+const refundOf = (ob) => Math.round(ob.def.cost * (ob.site ? 0.8 : ob.def.cat === 'deco' ? 0.3 : 0.4));
+// a freshly placed attraction becomes a building site
+function openSite(ob) {
+  startSite(ob);
+  toast(staffN('build') ? ob.def.name + ': Die Baustelle ist eröffnet. Tippe sie an, um mehr Bauarbeiter zuzuweisen.' : ob.def.name + ': Die Baustelle wartet. Ohne Bauarbeiter wird nichts gebaut (Personal).', staffN('build') ? '' : 'bad', ob);
+}
 function demolish(ob) {
   const r = refundOf(ob);
   if (r < 0 && S.money < -r) { sfx('error'); toast('Dafür reicht das Geld nicht.', 'bad'); return; }
@@ -201,7 +207,7 @@ function demolish(ob) {
 }
 function askDemolish(ob) {
   ui.ask = ob;
-  modal('<h2>' + ob.def.name + ' abbauen?</h2><p>Du bekommst ' + eur(refundOf(ob)) + ' zurück. Wartende Gäste gehen weiter.</p><div class="row"><button class="btn red" data-act="yesDemolish">Abbauen</button><button class="btn line" data-act="closeModal">Behalten</button></div>');
+  modal('<h2>' + ob.def.name + (ob.site ? ': Bau abbrechen?' : ' abbauen?') + '</h2><p>Du bekommst ' + eur(refundOf(ob)) + ' zurück.' + (ob.site ? '' : ' Wartende Gäste gehen weiter.') + '</p><div class="row"><button class="btn red" data-act="yesDemolish">' + (ob.site ? 'Bau abbrechen' : 'Abbauen') + '</button><button class="btn line" data-act="closeModal">' + (ob.site ? 'Weiterbauen' : 'Behalten') + '</button></div>');
 }
 function dozeTile(x, y, drag) {
   const i = idx(x, y);
@@ -279,7 +285,7 @@ function finishTrack() {
   if (S.money < cost) { sfx('error'); toast('Dafür reicht das Geld nicht. Die Strecke kostet ' + eur(cost) + '.', 'bad'); return; }
   spend(cost, 'build');
   const ob = placeObj('custom', t.station.x, t.station.y, t.rot, { nodes: t.nodes.map((n) => n.slice()) });
-  sfx('goal'); toast('Achterbahn eröffnet · Nervenkitzel ' + a.exc, 'gold', ob);
+  sfx('build'); openSite(ob);
   if (!accessOf(ob).length) toast('Die Station braucht noch einen Weg direkt daneben.', '', ob);
   setTool(null); uiDirty = true;
 }
@@ -309,7 +315,12 @@ function renderPanel() {
     h += '<h2>' + d.name + '</h2>';
     if (d.plant) h += '<p class="note">' + (b.cut ? 'Zum Roden markiert. Ein Gärtner entfernt die Pflanze, sobald er Zeit hat.' : 'Verschönert die Umgebung. Wer hier bauen will, lässt die Pflanze vom Gärtner roden.') + '</p><div class="row"><button class="btn red" data-act="demolish">' + (b.cut ? 'Markierung aufheben · +' + eur(b.fee) : 'Roden lassen · ' + eur(d.cut)) + '</button></div>';
     else if (d.cat === 'deco') h += '<p class="note">' + (d.info || 'Verschönert die Umgebung. Gäste, die vorbeigehen, bekommen bessere Laune.') + '</p><div class="row"><button class="btn red" data-act="demolish">Abriss · +' + eur(refundOf(b)) + '</button></div>';
-    else if (d.cat === 'fac') h += '<p class="note">' + d.info + '</p><div class="kv">' + (d.rest ? '<span>Gerade in der Pause</span><b id="f-rest"></b>' : '<span>Belegte Wohnplätze im Park</span><b id="f-house"></b>') + '<span>Unterhalt pro Tag</span><b>' + eur(d.upkeep) + '</b></div>' +
+    else if (b.site) h += '<span class="pill warn">Baustelle</span><p class="note">Hier entsteht: ' + d.name + '. Je mehr Bauarbeiter du zuweist, desto schneller ist sie fertig.</p>' +
+      '<div class="meters"><span>Fortschritt</span><div class="meter"><i id="c-bar"></i></div></div>' +
+      '<div class="stepper"><span class="lbl">Bauarbeiter für diese Baustelle</span><button class="sq" data-act="crew" data-d="-1" aria-label="Einen Bauarbeiter abziehen">' + IC.minus + '</button><output id="c-want"></output><button class="sq" data-act="crew" data-d="1" aria-label="Einen Bauarbeiter mehr zuweisen">' + IC.plus + '</button></div>' +
+      '<div class="kv"><span>Gerade am Werk</span><b id="c-crew"></b><span>Fertig in etwa</span><b id="c-eta"></b><span>Bauarbeiter im Park</span><b id="c-all"></b></div>' +
+      '<div class="row"><button class="btn line" data-act="team">Team-Übersicht</button><button class="btn red" data-act="demolish">Bau abbrechen · +' + eur(refundOf(b)) + '</button></div>';
+    else if (d.cat === 'fac') h += '<p class="note">' + d.info + '</p><div class="kv">' + (d.rest ? '<span>Gerade in der Pause</span><b id="f-rest"></b>' : d.builders ? '<span>Bauarbeiter im Park</span><b id="f-build"></b>' : '<span>Belegte Wohnplätze im Park</span><b id="f-house"></b>') + '<span>Unterhalt pro Tag</span><b>' + eur(d.upkeep) + '</b></div>' +
       '<div class="row"><button class="btn line" data-act="team">Team-Übersicht</button><button class="btn red" data-act="demolish">Abriss · +' + eur(refundOf(b)) + '</button></div>';
     else {
       const ride = d.cat === 'ride', lv = ride ? lvlOf(b) : 0; let extra = '';
@@ -343,7 +354,13 @@ function refreshPanel() {
   if (!sel) return;
   if (sel.obj) {
     const b = sel.obj, d = b.def; if (d.cat === 'deco') return;
-    if (d.cat === 'fac') { setTxt('f-rest', b.resting.length + ' von ' + (d.rest || 0)); setTxt('f-house', Math.min(staffAll(), housing()) + ' von ' + housing()); return; }
+    if (b.site) {
+      const st = b.site, left = st.total - st.done, n = staffN('build');
+      setW('c-bar', st.done / st.total * 100); setTxt('c-want', st.want); setTxt('c-crew', st.crew.filter((s) => s.job === 'build').length + ' von ' + st.want);
+      setTxt('c-eta', st.rate > 0 ? Math.max(1, Math.ceil(left / st.rate)) + ' s' : !n ? 'kein Bauarbeiter eingestellt' : st.want ? 'sobald jemand da ist' : 'pausiert'); setTxt('c-all', n + ' von ' + builderPlaces() + ' Plätzen');
+      return;
+    }
+    if (d.cat === 'fac') { setTxt('f-rest', b.resting.length + ' von ' + (d.rest || 0)); setTxt('f-house', Math.min(staffAll(), housing()) + ' von ' + housing()); setTxt('f-build', staffN('build') + ' von ' + builderPlaces() + ' Plätzen'); return; }
     const st = $('#p-status'); if (!st) return;
     let txt, cls = 'ok';
     if (b.broken) { txt = 'Defekt'; cls = 'bad'; } else if (!connected(b)) { txt = 'Kein Weg zum Eingang'; cls = 'warn'; } else if (!b.open) { txt = d.cat === 'ride' ? 'Angehalten' : 'Geschlossen'; cls = 'warn'; }
@@ -440,7 +457,7 @@ function renderCoach() {
     '<div class="fold-b"><p>Dein kleiner Park hat schon geöffnet. Bau ihn aus und erfülle die Ziele.</p><ul>' +
     (touch ? '<li>Ein Finger: Karte verschieben</li><li>Zwei Finger: zoomen und drehen</li><li>Antippen: Attraktion oder Gast ansehen</li>'
       : '<li>Linke Maustaste ziehen: Karte verschieben</li><li>Rechte Maustaste ziehen: drehen und neigen</li><li>Mausrad: zoomen · R dreht ein Gebäude</li>') +
-    '<li>Gebaut wird über die Leiste unten. Jede Attraktion braucht einen Weg direkt daneben.</li><li>Stehen Pflanzen im Weg, rodet sie dein Gärtner. Wird es eng, kaufst du über «Land» neue Flächen dazu.</li></ul><button class="btn" data-act="coachOk">Los geht es</button></div>';
+    '<li>Gebaut wird über die Leiste unten. Jede Attraktion braucht einen Weg direkt daneben.</li><li>Neue Attraktionen bauen deine Bauarbeiter. Tippe eine Baustelle an, um mehr Arbeiter zuzuweisen.</li><li>Stehen Pflanzen im Weg, rodet sie dein Gärtner. Wird es eng, kaufst du über «Land» neue Flächen dazu.</li></ul><button class="btn" data-act="coachOk">Los geht es</button></div>';
   c.hidden = false;
 }
 
@@ -459,6 +476,7 @@ const ACT = {
   },
   hire: (el) => {
     const k = el.dataset.k;
+    if (k === 'build' && staffN('build') >= builderPlaces()) { sfx('error'); toast('Alle Plätze für Bauarbeiter sind belegt. Baue einen Bauhof (unter Personal): jeder bietet Platz für drei weitere.', 'bad'); return; }
     if (k === 'sec' && !freePost(null)) { sfx('error'); toast(postPlaces() ? 'Alle Wachposten sind besetzt. Baue einen weiteren (unter Personal), jeder bietet Platz für zwei.' : 'Baue zuerst einen Wachposten (unter Personal). Dort haben zwei Wachleute ihren Platz.', 'bad'); return; }
     if (staffN(k) >= 12) { toast('Mehr als 12 pro Beruf passen nicht in den Park.', 'bad'); return; }
     const s = hire(k);
@@ -503,7 +521,8 @@ const ACT = {
     if (S.money < c) { sfx('error'); toast('Dafür reicht das Geld nicht.', 'bad'); return; }
     spend(c, 'upkeep'); repair(b); sfx('build');
   },
-  demolish: () => { const b = sel && sel.obj; if (!b) return; if (b.def.plant) { if (b.cut) { unmarkCut(b); sfx('click'); } else if (markCut(b)) sfx('mark'); renderPanel(); } else if (b.def.cost >= 300) askDemolish(b); else demolish(b); },
+  demolish: () => { const b = sel && sel.obj; if (!b) return; if (b.site) askDemolish(b); else if (b.def.plant) { if (b.cut) { unmarkCut(b); sfx('click'); } else if (markCut(b)) sfx('mark'); renderPanel(); } else if (b.def.cost >= 300) askDemolish(b); else demolish(b); },
+  crew: (el) => { const b = sel && sel.obj; if (b && b.site) { setCrew(b, b.site.want + +el.dataset.d); sfx('click'); refreshPanel(); } },
   buyLand: () => { const t = tool; if (!t || t.type !== 'land' || t.plot < 0) return; if (buyPlot(t.plot)) { t.plot = -1; hl.visible = false; } renderToolbar(); },
   yesDemolish: () => { const b = ui.ask; closeModal(); if (b && !b.removed) demolish(b); },
   ticket: (el) => { S.ticket = clamp(S.ticket + +el.dataset.d, 0, 90); fillMenu(); sfx('click'); },

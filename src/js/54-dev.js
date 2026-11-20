@@ -24,6 +24,7 @@ function devAct(k) {
   else if (k === 'new') { newGame(); devStart(); renderTray(); }
   else if (k === 'land') { const l = []; for (let p = 0; p < PN * PN; p++) l.push(p); landSet(l); }
   else if (k === 'cut') { for (const o of cuts.slice()) finishCut(o); }
+  else if (k === 'sites') { for (const b of builds.slice()) if (b.site) finishSite(b); }
   else if (k === 'hide') { const m = $('#dev').classList.toggle('min'); uiPref('dev', !m); sfx('click'); return; }
   uiDirty = true; devPaint(); sfx('click');
 }
@@ -42,7 +43,7 @@ function devInit() {
     '<b>Wetter und Zeit</b><div>' + btn('sun', 'Sonne') + btn('cloud', 'Wolken') + btn('rain', 'Regen') + btn('storm', 'Gewitter') + btn('time', '+6 Stunden') + btn('fast', 'Tempo ×10') + '</div>' +
     '<b id="dev-sec">Wachleute</b><div>' + btn('thief', 'Dieb schicken') + btn('sec+', 'Stufe +') + btn('sec-', 'Stufe −') + '</div>' +
     '<b>Personal und Technik</b><div>' + btn('mood+', 'Stimmung 100') + btn('mood-', 'Stimmung 26') + btn('tired', 'Alle müde') + btn('break', 'Panne auslösen') + btn('new', 'Neues Spiel') + '</div>' +
-    '<b>Land und Pflanzen</b><div>' + btn('land', 'Ganzes Land freischalten') + btn('cut', 'Markiertes sofort roden') + '</div></div>';
+    '<b>Land und Pflanzen</b><div>' + btn('land', 'Ganzes Land freischalten') + btn('cut', 'Markiertes sofort roden') + btn('sites', 'Baustellen sofort fertig') + '</div></div>';
   el.hidden = false; if (uiPref('dev') !== true) el.classList.add('min');   // folded until it is opened; the choice is remembered
   if (!S.devInit) { S.devInit = true; devStart(); }
   devPaint();

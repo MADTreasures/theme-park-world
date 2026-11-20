@@ -57,7 +57,7 @@ function endRide(b) {
 }
 function stepBuild(b, dt) {
   const d = b.def, q = b.queue;
-  if (d.cat === 'fac') return;
+  if (d.cat === 'fac' || b.site) return;
   for (let i = 0; i < q.length; i++) q[i].qi = i;
   if (d.cat === 'shop') {
     b.svcT -= dt;

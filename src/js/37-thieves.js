@@ -1,5 +1,5 @@
 /* ================= thieves and guards ================= */
-// From park level 5 on, pickpockets slip in with the crowd: dark clothes, cap, a mask over the eyes and a sack.
+// From park level 5 on, pickpockets slip in with the crowd: hooped jersey, woollen hat, a mask over the eyes and a sack.
 // Guards share one level. At first they doze at their post and the player wakes them by tapping; later they patrol on
 // their own, see further and run faster. A guard who reaches a thief only has a chance to grab him, and every extra guard
 // raises it. A grabbed thief is held with his hands up until the player throws him out with the hand (or the guard does).
@@ -23,9 +23,10 @@ function spawnThief() {
   const f = { thief: true, x: wX(HALF) + rnd(-0.5, 0.5), z: HALF + 13.6, rot: Math.PI, rr: Math.PI, tile: ENT, prev: -1, wx: 0, wz: 0, ox: rnd(-0.3, 0.3), oz: rnd(-0.3, 0.3),
     sp: 1.25, ph: rnd(TAU), moving: false, state: 'in', loot: 0, steals: 0, t: 0, cd: rnd(5, 9), spotted: false, gone: false, brave: 0, balloon: 0, slipT: 0, holder: null, heldT: 0, fy: 0, tum: 0, ft: 0, fails: 0, runAt: 0, calm: 0 };
   dress(f, false);
-  f.shirt = 0x2b2b33; f.pants = 0x1c1c22; f.hair = 3; f.hairCol = f.browCol = 0x111114; f.top = 2; f.bottom = 0; f.shades = 0; f.pack = 0x6b4a2a; f.trim = 0x4a4a55; f.shoe = 0x1c1c22;
+  // the classic burglar: hooped jersey, woollen hat, mask and a sack. Nothing like the grey uniform of the guards.
+  f.shirt = 0xf0f0f0; f.pants = 0x1c1c22; f.hair = 11; f.hairCol = 0x1a1a20; f.browCol = pick([0x5a3a22, 0x8a5a2b, 0xa5441f, 0x3d2616, 0xc9a25a]); f.top = 2; f.bottom = 0; f.shades = 0; f.pack = 0x6b4a2a; f.trim = 0x25252e; f.shoe = 0x1c1c22; f.legs = f.skin;
   setWP(f, ENT); thieves.push(f); colorsDirty = true; sfx('thief');
-  if (!thiefSeen) { thiefSeen = true; toast('Achtung, Taschendiebe! Dunkle Kleidung, Mütze, Augenmaske und Sack. Wecke deine Wachleute und tippe den Dieb an, damit sie wissen, wen sie jagen.', 'bad'); }
+  if (!thiefSeen) { thiefSeen = true; toast('Achtung, Taschendiebe! Du erkennst sie am Ringelpulli, an Wollmütze, Augenmaske und Sack. Wecke deine Wachleute und tippe den Dieb an, damit sie wissen, wen sie jagen.', 'bad'); }
   else toast('Ein Taschendieb schleicht durch den Park.', 'bad');
 }
 function guardNear(f, r2) { for (const s of staff) if (s.type === 'sec' && !s.asleep && s.state === 'work') { const dx = s.x - f.x, dz = s.z - f.z; if (dx * dx + dz * dz < r2) return true; } return false; }
@@ -148,9 +149,10 @@ function guardPlan(s) {
       s.post = c; if (r.length) return r;
     }
     if (s.tile !== s.post) { const r = bfsRoute(s.tile, (t) => t === s.post); if (r && r.length) return r; s.post = s.tile; }
-    if (!s.asleep && acc.length) {   // sit down right in front of the sentry box
-      const t = s.post;
-      for (let k = 0; k < 4; k++) { const nx = tX(t) + DIRS[k][0], ny = tY(t) + DIRS[k][1]; if (inB(nx, ny) && tObj[idx(nx, ny)] === s.postB) { s.x = wX(tX(t)) + DIRS[k][0] * 0.4 + DIRS[k][1] * s.ox; s.z = wZ(tY(t)) + DIRS[k][1] * 0.4 + DIRS[k][0] * s.oz; s.rot = Math.atan2(-DIRS[k][0], -DIRS[k][1]); break; } }
+    if (!s.asleep && acc.length && pb.model.chairs) {   // take a chair inside the hut
+      let k = 0; for (const o of staff) { if (o === s) break; if (o.type === 'sec' && o.postB === pb) k++; }
+      s.seat = pb.model.chairs[k % pb.model.chairs.length]; s.seat.updateWorldMatrix(true, false);
+      const e = s.seat.matrixWorld.elements; s.x = e[12]; s.z = e[14]; s.moving = false;
     }
     s.asleep = true; s.busy = 1.2; s.job = 'sleep'; s.chase = null; return false;
   }
@@ -164,7 +166,13 @@ function guardPlan(s) {
   if (s.chase) { const tt = s.chase.tile, r = bfsRoute(s.tile, (t) => t === tt); if (r) return r.slice(0, 2); s.chase = null; }
   return null;
 }
+// a guard who is no longer asleep leaves his chair and steps out in front of the hut
+function standUp(s) {
+  const t = s.post != null && tType[s.post] === 1 ? s.post : nearestPath(s.x, s.z);
+  s.seat = null; s.tile = t; s.prev = -1; s.x = wX(tX(t)) + s.ox * 0.5; s.z = wZ(tY(t)) + s.oz * 0.5; s.going = false; s.route = [];
+}
 function guardStep(s, dt) {
+  if (s.seat && (!s.asleep || !s.postB || s.postB.removed)) { s.asleep = false; standUp(s); }
   if (s.tryCd > 0) s.tryCd -= dt; if (s.shake > 0) s.shake -= dt;
   if (s.wakeT > 0) { s.wakeT -= dt; if (s.wakeT <= 0) s.wake = 0; }
   if (s.g === 'awake') s.alertT -= dt;

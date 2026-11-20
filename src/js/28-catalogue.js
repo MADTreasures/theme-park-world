@@ -38,10 +38,12 @@ def('lamp', { cat: 'deco', name: 'Laterne', cost: 30, beauty: 0.8, rad: 2, model
 def('fountain', { cat: 'deco', name: 'Springbrunnen', w: 2, h: 2, cost: 260, beauty: 4, rad: 3, need: 3, model: mFountain });
 def('breakroom', { cat: 'fac', name: 'Pausenraum', w: 2, h: 1, cost: 320, upkeep: 16, rest: 3, model: mBreak, info: 'Müdes Personal ruht sich hier aus. Platz für drei gleichzeitig.' });
 def('house', { cat: 'fac', name: 'Personalhaus', w: 2, h: 2, cost: 600, upkeep: 20, housing: 4, noPath: true, model: mHouse, info: 'Wohnraum für vier Mitarbeitende. Wer ein Zuhause hat, bleibt gern.' });
-def('post', { cat: 'fac', name: 'Wachposten', w: 1, h: 1, cost: 250, upkeep: 12, guards: 2, need: 4, model: mPost, info: 'Platz für zwei Wachleute. Ohne Posten kannst du keine einstellen; hier sitzen und schlafen sie.' });
+def('yard', { cat: 'fac', name: 'Bauhof', w: 2, h: 2, cost: 450, upkeep: 18, builders: 3, model: mYard, info: 'Platz für drei weitere Bauarbeiter. Hier lagern sie ihr Werkzeug und warten auf den nächsten Auftrag.' });
+def('post', { cat: 'fac', name: 'Wachposten', w: 1, h: 1, cost: 250, upkeep: 12, guards: 2, need: 4, model: mPost, info: 'Platz für zwei Wachleute. Ohne Posten kannst du keine einstellen; hier sitzen sie auf ihren Stühlen und schlafen.' });
 const STAFF = {
   jan: { name: 'Reinigungskraft', wage: 60, hire: 50, info: 'Sammelt Abfall von den Wegen.' },
   mech: { name: 'Mechaniker', wage: 100, hire: 80, info: 'Repariert defekte Attraktionen und beugt Pannen vor.' },
+  build: { name: 'Bauarbeiter', wage: 60, hire: 70, info: 'Baut neue Attraktionen. Je mehr du einer Baustelle zuweist, desto schneller ist sie fertig. Einer wohnt im Torhaus, jeder Bauhof bietet Platz für drei weitere.' },
   gard: { name: 'Gärtner', wage: 65, hire: 60, info: 'Entfernt Bäume, Büsche und Blumen, die du mit «Abriss» markierst. Jede Pflanze kostet eine Gebühr. Sonst pflegt er das Grün.' },
   ent: { name: 'Maskottchen', wage: 80, hire: 60, info: 'Hebt die Laune aller Gäste in der Nähe.' },
   clown: { name: 'Clown', wage: 70, hire: 60, need: 2, info: 'Geht zur längsten Schlange und unterhält die Wartenden. Sie bleiben länger geduldig.' },

@@ -1,7 +1,7 @@
 /* ================= guests ================= */
 const SKIN = [0xffdcb3, 0xf1c39a, 0xd9a06e, 0xa8703f, 0x7a4a2a];
 const SHIRT = [0xff4f64, 0x3d8bfd, 0xffd23f, 0x3ddbb4, 0xff8fc7, 0xffffff, 0x8c5cff, 0xf08a24, 0x55c26a, 0x33c9e8];
-const PANTS = [0x2a2350, 0x4a3a2a, 0x33405a, 0x6b3a2a, 0x2b2b2b, 0x7a5c3a, 0x1f3f7a, 0xb04a2a, 0xd9b46a];
+const PANTS = [0x2a2350, 0x33405a, 0x2b2b2b, 0x1f3f7a, 0x4f6fb0, 0xf2f2f2, 0x8a8f9c, 0x3f6f4a, 0xb9243a, 0x6b4f8a, 0x4a3a2a];   // never close to a skin tone
 const NAMES = ['Mia', 'Noah', 'Lina', 'Leon', 'Emma', 'Luca', 'Lea', 'Elias', 'Nina', 'Jonas', 'Sofia', 'Finn', 'Anna', 'Ben', 'Lara', 'Tim', 'Jana', 'Paul', 'Mara', 'Nico', 'Elif', 'Milan', 'Zoe', 'Samir', 'Ida', 'Matteo', 'Yara', 'Jan', 'Livia', 'Tom'];
 const THOUGHT = { happy: 'Das war schön!', great: 'Nochmal, nochmal!', sick: 'Mir ist ganz flau …', queue: 'Die Schlange ist mir zu lang.', food: 'Ich habe Hunger.', drink: 'Ich habe Durst.', wc: 'Wo ist hier ein WC?', money: 'Das ist mir zu teuer.', litter: 'Hier liegt überall Abfall.', bye: 'Schön war es. Bis bald!', angry: 'Hier komme ich nicht wieder her.', thief: 'Hilfe, mein Geld ist weg!' };
 function think(g, kind) { g.think = 2.8; g.tk = kind; personVoice(g, kind); }
@@ -11,13 +11,13 @@ function gripe(g, kind) {
 }
 function willing() {
   let w = 3; const seen = new Set();
-  for (const b of builds) if (b.def.cat === 'ride') { w += 0.25; if (!seen.has(b.k)) { seen.add(b.k); w += b.def.exc * 0.11; } }
+  for (const b of builds) if (b.def.cat === 'ride' && !b.site) { w += 0.25; if (!seen.has(b.k)) { seen.add(b.k); w += b.def.exc * 0.11; } }
   // a bigger park is worth more to its guests: every plot bought raises what they will pay, and the ceiling with it
   const extra = plotsOwned() - START_PLOTS.length;
   return Math.min(60 + extra * 0.8, w + extra * 0.4);
 }
 function guestCap() {
-  let c = 8; for (const b of builds) c += b.def.cat === 'ride' ? b.def.cap * 2 + b.def.exc * 0.1 : b.def.cat === 'shop' ? 1.5 : 0;
+  let c = 8; for (const b of builds) if (!b.site) c += b.def.cat === 'ride' ? b.def.cap * 2 + b.def.exc * 0.1 : b.def.cat === 'shop' ? 1.5 : 0;
   return Math.min(MAXG - 10, c * (0.6 + S.rating / 250));
 }
 const HAIR = [0x2b1b12, 0x3d2616, 0x5a3a1e, 0x7b4f28, 0xb8893f, 0xe0c57a, 0xa5441f, 0x9a9a9a, 0x1c1c1c], HAIR_FUN = [0xff7ac0, 0x4aa8ff, 0x55d6c2, 0xb07cff, 0xff8a3d, 0xf2f2f7];
@@ -25,13 +25,14 @@ const EYES = [0x3f8fe0, 0x35a86a, 0x7a5230, 0x5b3a1e, 0x4fb3c4, 0x8a6fd1, 0x555a
 const HAIR_PICK = [0, 0, 0, 1, 1, 1, 2, 2, 3, 3, 4, 5, 6, 6, 7, 7, 8, 8, 8];   // short, long, ponytail, cap, curls, sun hat, bob, bun, quiff
 // What a person looks like: size, hair, face and a sporty outfit (jacket with trim, trousers, shorts or a skirt, sneakers).
 function dress(f, kid) {
-  f.kid = kid; f.sc = kid ? rnd(0.62, 0.8) : rnd(0.95, 1.1); f.hk = kid ? 1.16 : 1;
+  f.kid = kid; f.sc = kid ? rnd(0.62, 0.8) : rnd(0.95, 1.1); f.hk = kid ? 1.13 : 1;
   f.hair = !kid && Math.random() < 0.04 ? -1 : pick(HAIR_PICK);
   f.browCol = Math.random() < 0.1 ? pick(HAIR_FUN) : pick(HAIR); f.hairCol = f.hair === 3 ? pick(SHIRT) : f.hair === 5 ? pick([0xe8cf8a, 0xfff6dc, 0xd9b46a, 0xff8fc7]) : f.browCol;
-  f.pack = Math.random() < 0.22 ? pick(SHIRT) : 0; f.shades = !kid && Math.random() < 0.1 ? 1 : 0;
+  f.pack = f.hair !== 1 && Math.random() < 0.22 ? pick(SHIRT) : 0; f.shades = !kid && Math.random() < 0.1 ? 1 : 0;   // long hair and a backpack would get in each other's way
   f.bottom = pick([0, 0, 0, 1, 1, 2]); f.top = pick([0, 0, 0, 0, 1, 2]);
   f.shirt = pick(SHIRT); f.skin = pick(SKIN); f.pants = pick(PANTS);
   f.trim = pick([0xffffff, 0xffffff, 0xfff6dc, f.pants, pick(SHIRT)]); f.shoe = pick(SHOES); f.eye = pick(EYES);
+  f.legs = f.bottom && Math.random() < 0.3 ? pick([0x2a2a33, 0x3a3f58, 0x4a2f3a]) : f.skin;   // bare legs or leggings under shorts and skirts
 }
 function spawnGuest(inside) {
   const W = willing();
@@ -72,7 +73,7 @@ function nearestShop(g, here, sells) {
 function pickRide(g, here) {
   let tot = 0, exp = false, poor = false; const c = [];
   for (const b of builds) {
-    const d = b.def; if (d.cat !== 'ride' || !b.open || b.broken) continue;
+    const d = b.def; if (d.cat !== 'ride' || !b.open || b.broken || b.site) continue;
     const df = distOf(b); if (!df || df[here] < 0) continue;
     const fair = fairB(b);
     if (b.price > g.cash) { poor = true; continue; }
