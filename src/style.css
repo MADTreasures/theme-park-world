@@ -313,3 +313,13 @@ table.fin.team .meter{min-width:64px}
   #mid.sheet #coach:not(.min){display:none}
   #hud.immersive #panel{max-height:calc(100% - 256px - var(--alh))}
 }
+/* chips above the cards: the groups of attractions and booths */
+#chips{display:flex;gap:6px;overflow-x:auto;padding:8px var(--gr) 0 var(--gl);scrollbar-width:none}
+#chips::-webkit-scrollbar{display:none}
+#chips[hidden]{display:none}
+.chip{flex:none;display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px 0 12px;border-radius:15px;border:2px solid var(--ink-3);background:var(--ink-2);color:var(--paper);font:800 12.5px/1 var(--font-ui);cursor:pointer;white-space:nowrap}
+.chip i{font-style:normal;font-size:11px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--ink-3);display:inline-grid;place-items:center}
+.chip[aria-pressed="true"]{background:var(--bulb);border-color:var(--bulb-deep);color:var(--ink)}
+.chip[aria-pressed="true"] i{background:rgba(23,26,66,.16)}
+#tray{padding-top:8px}
+@media (max-width:760px){ #hud.sheet #chips,#hud.tool #chips{display:none} }

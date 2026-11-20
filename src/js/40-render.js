@@ -12,11 +12,11 @@ const FGL = figureGeos(0), FGH = figureGeos(1), MAT_FIG = MAT_INST(0.5, 0.16), M
 function figSet(G, cap) {
   const all = [], part = (g, n, mat) => { const m = inst(g, mat || MAT_FIG, n, false, false); all.push(m); return m; };
   return {
-    all, cap, nFig: 0, nLimb: 0, nSkirt: 0, nPack: 0, nShades: 0, nMask: 0, nHoops: 0, nHair: G.hair.map(() => 0), nMouth: G.mouth.map(() => 0),
+    all, cap, nFig: 0, nLimb: 0, nSkirt: 0, nPack: 0, nShades: 0, nMask: 0, nHoops: 0, nCape: 0, nPlush: 0, nHair: G.hair.map(() => 0), nMouth: G.mouth.map(() => 0),
     iTorso: part(G.torso, cap), iTrim: part(G.trim, cap), iZip: part(G.zip, cap), iHoops: part(G.hoops, 16), iPelvis: part(G.pelvis, cap), iHead: part(G.head, cap),
     iThigh: part(G.thigh, cap * 2), iShin: part(G.shin, cap * 2), iShort: part(G.short, cap * 2), iShoe: part(G.shoe, cap * 2), iSole: part(G.sole, cap * 2),
     iUpper: part(G.upper, cap * 2), iCap: part(G.cap, cap * 2), iStripe: part(G.stripe, cap * 2), iFore: part(G.forearm, cap * 2), iWrist: part(G.wrist, cap * 2), iHand: part(G.hand, cap * 2),
-    iHair: G.hair.map((g) => part(g, cap)), iSkirt: part(G.skirt, cap), iPack: part(G.pack, cap), iShades: part(G.shades, cap), iMask: part(G.mask, 16),
+    iHair: G.hair.map((g) => part(g, cap)), iSkirt: part(G.skirt, cap), iPack: part(G.pack, cap), iShades: part(G.shades, cap), iMask: part(G.mask, 16), iCape: part(G.cape, cap), iPlush: part(G.plush, cap),
     iEyes: part(G.eye, cap * 2, MAT_EYE), iIris: part(G.iris, cap * 2, MAT_EYE), iLid: part(G.lid, cap * 2, MAT_EYE), iBrow: part(G.brow, cap * 2), iMouth: G.mouth.map((g) => part(g, cap)),
   };
 }
@@ -53,18 +53,22 @@ function eyePart(mesh, k, sd, lx, ly, sx, sy, rz) { facePart(mesh, k, sd * FIG.E
 function follow(o, m) { o.matrix.copy(m); o.matrixWorldNeedsUpdate = true; }
 let nBall = 0, nBlob = 0, figT = 0, figFaces = true, figReach = 1, figR2 = 0, figNear = 0;
 // Mouths: 0 smile, 1 open, 2 frown, 3 a round "o", 4 straight.
+// seat poses in which a person stands on the seat's spot instead of sitting on it
+const STANDING = { jump: 1, throw: 1, stand: 1, skate: 1, swim: 1 };
 function drawFigure(f, seat, ride, rdt) {
   if (LO.nFig + HI.nFig >= FIGMAX) return;
   const sc = f.sc, time = S.time, rt = figT, ph = f.ph, ty = f.type, tk = f.think > 0 && !ty && !f.thief ? f.tk : '';
-  let pose = 0, p = 0, lean = 0;
+  let pose = 0, p = 0, lean = 0, sp = '';
   if (seat) {
-    const sp = seat.userData.pose, e = seat.matrixWorld.elements;
+    const e = seat.matrixWorld.elements; sp = seat.userData.pose || '';
     if (!_fr.intersectsSphere(_sph.set(_gp.set(e[12], e[13] + 0.2, e[14]), 0.9))) return;
     _rm.copy(seat.matrixWorld);
-    if (sp !== 'jump' && sp !== 'throw') _rm.multiply(_lm.makeTranslation(0, -FIG.SEAT * sc, 0));
+    if (!STANDING[sp]) _rm.multiply(_lm.makeTranslation(0, -FIG.SEAT * sc, 0));
+    else if (sp === 'skate') _rm.multiply(_lm.makeRotationX(0.2));   // leaning into the stride
     if (f.shake > 0) _rm.multiply(_lm.makeTranslation(Math.sin(rt * 60) * 0.02, 0, 0));   // a knock on a dozing guard
     _rm.scale(_gs.set(sc, sc, sc));
-    pose = sp === 'jump' ? 3 : sp === 'throw' ? 7 : sp === 'straddle' ? 4 : 2;
+    pose = sp === 'jump' ? 3 : sp === 'throw' ? 7 : sp === 'straddle' ? 4 : sp === 'stand' ? 0 : sp === 'skate' ? 8 : sp === 'swim' ? 9 : 2;
+    p = time * (pose === 8 ? 6.5 : 4.2) + ph;
   } else {
     let d = f.rot - f.rr; d = Math.atan2(Math.sin(d), Math.cos(d)); f.rr += d * Math.min(1, rdt * 14);
     if (!_fr.intersectsSphere(_sph.set(_gp.set(f.x, (f.fy || 0) + 0.4, f.z), 0.95))) return;
@@ -90,7 +94,7 @@ function drawFigure(f, seat, ride, rdt) {
   // the people who appear largest are drawn from the smooth set, as long as it has room
   const me = _rm.elements, cp = camera.position, qx = me[12] - cp.x, qy = me[13] + 0.35 * sc - cp.y, qz = me[14] - cp.z;
   let M = LO; if (qx * qx + qy * qy + qz * qz < figR2) { figNear++; if (HI.nFig < HI.cap) M = HI; }
-  const thrill = !!(seat && ride && ride.state === 'run' && ride.spin > 0.5 && ride.def.exc >= 40);
+  const thrill = !!(seat && ride && ride.state === 'run' && ride.spin > 0.5 && ride.def.exc >= 40 && ride.def.grp !== 'show' && !ride.def.calm);
   // joint angles: thighs, knees, upper arms, elbows, and the head's turn, nod and tilt
   let tl = 0, tr = 0, kl = 0, kr = 0, al = 0.05, ar = 0.05, el = -0.3, er = -0.3, zl = 0.13, zr = 0.13, spread = 0, hy = 0, hx = 0, hz = 0;
   const stride = f.bottom === 2 ? 0.44 : 0.6;   // a skirt allows shorter steps
@@ -104,10 +108,17 @@ function drawFigure(f, seat, ride, rdt) {
     al = ar = -0.5; el = er = -1.0; hy = Math.sin(time * 0.9 + ph) * 0.3;
     if (f.asleep) { hx = 0.42 + Math.sin(rt * 1.7 + ph) * 0.05; hy = 0.22; hz = 0.1; al = ar = -0.3; el = er = -1.25; }   // dozing on a chair
     if (thrill && f.brave > 0.45 && ride.def.exc >= 54) { const w = Math.sin(time * 7 + ph) * 0.2; al = -2.7 + w; ar = -2.7 - w; el = er = -0.15; }
+    if (sp === 'eat') { ar = -0.55; er = -1.5 - 0.4 * Math.max(0, Math.sin(time * 5 + ph)); hy *= 0.3; hx = 0.1; }   // fork to mouth
+    else if (ride && ride.def.grp === 'show' && ride.state === 'run') {   // watching, and clapping now and then
+      hy = Math.sin(time * 0.5 + ph) * 0.12;
+      if (Math.sin(time * 1.3 + ph * 3) > 0.5) { const w = Math.sin(time * 16 + ph) * 0.1; al = ar = -1.2; el = -1.7 + w; er = -1.7 - w; zl = zr = -0.06; }
+    }
   } else if (pose === 3) { const w = Math.sin(time * 6 + ph); tl = -0.3 - w * 0.2; tr = -0.3 + w * 0.2; kl = kr = 0.6; al = -2.3 + w * 0.4; ar = -2.3 - w * 0.4; el = er = -0.2; }
   else if (pose === 5) { tl = tr = -1.5; kl = kr = 0.06; al = ar = -0.35; el = er = -0.95; hx = f.shake > 0 ? 0.15 : 0.5 + Math.sin(rt * 1.7 + ph) * 0.06; hy = 0.3; hz = 0.12; }
   else if (pose === 6) { const w = rt * 18 + ph; tl = Math.sin(w) * 0.9; tr = -tl; kl = kr = 0.6; al = -2 + Math.cos(w); ar = -2 - Math.cos(w); }
   else if (pose === 7) { const w = (time * 0.9 + ph) % 1; ar = w < 0.35 ? lerp(0.4, -2.6, w / 0.35) : lerp(-2.6, 0.2, Math.min(1, (w - 0.35) / 0.15)); er = -0.5; al = -0.2; }
+  else if (pose === 8) { const sn = Math.sin(p); tl = -0.22 + 0.34 * sn; tr = -0.22 - 0.34 * sn; kl = 0.5 + 0.22 * sn; kr = 0.5 - 0.22 * sn; spread = 0.1; al = 0.55 * sn; ar = -0.55 * sn; el = er = -0.7; hx = -0.16; }   // skating
+  else if (pose === 9) { const sn = Math.sin(p); al = -1.35 + 0.55 * sn; ar = -1.35 - 0.55 * sn; el = er = -0.5; zl = zr = 0.5; tl = 0.28 * sn; tr = -0.28 * sn; kl = kr = 0.25; hy = Math.sin(rt * 0.7 + ph) * 0.3; }   // swimming
   else { hy = Math.sin(rt * 0.6 + ph * 3) * 0.5; hz = Math.sin(rt * 0.43 + ph * 5) * 0.07; }
   if (f.state === 'held') { al = ar = -2.75; el = er = -0.25; zl = zr = 0.3; hy = 0; tl = Math.sin(rt * 31) * 0.05; tr = -tl; }
   if (f.job === 'hold') { ar = -1.35; er = -0.15; hy = 0; }
@@ -136,7 +147,7 @@ function drawFigure(f, seat, ride, rdt) {
   if (u && u.head) follow(u.head, _hm);
   if (f.hair >= 0) {
     const h = f.hair, k = M.nHair[h]++; M.iHair[h].setMatrixAt(k, _hm); M.iHair[h].setColorAt(k, _gc.set(f.hairCol));
-    if (h === 3 || h === 5 || h === 10 || h === 11) { const k2 = M.nHair[9]++; M.iHair[9].setMatrixAt(k2, _hm); M.iHair[9].setColorAt(k2, _gc.set(f.browCol || 0x3d2616)); }   // hair under the cap or hat
+    if (HATS[h]) { const u = HATS[h] === 2 ? 0 : 9, k2 = M.nHair[u]++; M.iHair[u].setMatrixAt(k2, _hm); M.iHair[u].setColorAt(k2, _gc.set(f.browCol || 0x3d2616)); }   // hair under the cap or hat
   }
   if (f.shades) M.iShades.setMatrixAt(M.nShades++, _hm);
   if (f.thief && M.nMask < 16) { M.iMask.setMatrixAt(M.nMask++, _hm); M.iHoops.setMatrixAt(M.nHoops, _rm); M.iHoops.setColorAt(M.nHoops++, _gc.set(0x25252e)); }
@@ -160,7 +171,9 @@ function drawFigure(f, seat, ride, rdt) {
       else if (f.job === 'fix' || f.job === 'clean' || f.job === 'cut' || f.job === 'build') { mo = 4; mw = 0.7; ba = -0.15; ly = -0.006; }
     } else if (thrill) {
       if (f.brave > 0.45) { mo = 1; ms = 1.2; bl = 0.014; if (f.brave > 0.8) { eo = 0; ec = 2; } } else { mo = 3; ms = 1.3; ba = 0.45; bl = 0.014; ps = 0.72; }
-    } else if (pose === 3) { mo = 1; bl = 0.01; }
+    } else if (sp === 'eat') { mo = Math.sin(time * 5 + ph) > 0 ? 3 : 4; ms = 0.7; }
+    else if (seat && ride && ride.def.grp === 'show' && ride.state === 'run') { mo = 1; ms = 0.8; bl = 0.012; }
+    else if (pose === 3 || pose === 8 || pose === 9) { mo = 1; bl = 0.01; }
     else if (f.chatT > 0) { mo = 1; ms = 0.6 + 0.4 * Math.abs(Math.sin(rt * 10)); bl = 0.008; }
     else if (tk === 'great') { mo = 1; ms = 1.15; bl = 0.014; eo = 0; ec = 2; }
     else if (tk === 'happy' || tk === 'bye') { mw = 1.15; bl = 0.008; }
@@ -195,9 +208,11 @@ function drawFigure(f, seat, ride, rdt) {
   limb(_rm, -FIG.LX, FIG.HIP, 0, tl, -spread, _tm); M.iThigh.setMatrixAt(j, _tm); M.iShort.setMatrixAt(j, shorts ? _tm : M0); limb(_tm, 0, -FIG.THIGH, 0, kl, 0, _km); M.iShin.setMatrixAt(j, _km); M.iShoe.setMatrixAt(j, _km); M.iSole.setMatrixAt(j, _km);
   limb(_rm, FIG.LX, FIG.HIP, 0, tr, spread, _tm); M.iThigh.setMatrixAt(j + 1, _tm); M.iShort.setMatrixAt(j + 1, shorts ? _tm : M0); limb(_tm, 0, -FIG.THIGH, 0, kr, 0, _km); M.iShin.setMatrixAt(j + 1, _km); M.iShoe.setMatrixAt(j + 1, _km); M.iSole.setMatrixAt(j + 1, _km);
   limb(_rm, -FIG.SX, FIG.SHO, 0, al, -zl, _tm); M.iUpper.setMatrixAt(j, _tm); M.iCap.setMatrixAt(j, tee ? _tm : M0); M.iStripe.setMatrixAt(j, long ? _tm : M0); limb(_tm, 0, -FIG.UARM, 0, el, 0, _km); M.iFore.setMatrixAt(j, _km); M.iWrist.setMatrixAt(j, _km); M.iHand.setMatrixAt(j, _km); if (u && u.handL) follow(u.handL, _km);
+  if (f.prize) { M.iPlush.setMatrixAt(M.nPlush, _km); M.iPlush.setColorAt(M.nPlush, _gc.set(f.prize)); M.nPlush++; }   // a soft toy won at a game
   limb(_rm, FIG.SX, FIG.SHO, 0, ar, zr, _tm); M.iUpper.setMatrixAt(j + 1, _tm); M.iCap.setMatrixAt(j + 1, tee ? _tm : M0); M.iStripe.setMatrixAt(j + 1, long ? _tm : M0); limb(_tm, 0, -FIG.UARM, 0, er, 0, _km); M.iFore.setMatrixAt(j + 1, _km); M.iWrist.setMatrixAt(j + 1, _km); M.iHand.setMatrixAt(j + 1, _km); if (u && u.handR) follow(u.handR, _km);
   const skirt = f.bottom === 2 && !seated;
   if (skirt) { M.iSkirt.setMatrixAt(M.nSkirt, _rm); M.iSkirt.setColorAt(M.nSkirt, _gc.set(f.pants)); M.nSkirt++; }
+  if (f.cape) { M.iCape.setMatrixAt(M.nCape, _rm); M.iCape.setColorAt(M.nCape, _gc.set(f.cape)); M.nCape++; }
   if (f.pack) { M.iPack.setMatrixAt(M.nPack, _rm); M.iPack.setColorAt(M.nPack, _gc.set(f.pack)); M.nPack++; }
   if (f.balloon && nBall < MAXG) {   // the balloon floats above the right hand, wherever that is; it sways and trails behind while walking
     _lp.set(0, -FIG.HAND, 0).applyMatrix4(_km); _lq.setFromEuler(_eb.set(pose === 1 ? -0.2 : 0, seat ? 0 : f.rr, Math.sin(rt * 1.3 + ph) * 0.05));
@@ -215,7 +230,7 @@ function drawFigure(f, seat, ride, rdt) {
   M.nFig++; M.nLimb += 2;
 }
 function renderPeople(rdt) {
-  for (const M of FIGSETS) { M.nFig = M.nLimb = M.nSkirt = M.nPack = M.nShades = M.nMask = M.nHoops = 0; M.nHair.fill(0); M.nMouth.fill(0); }
+  for (const M of FIGSETS) { M.nFig = M.nLimb = M.nSkirt = M.nPack = M.nShades = M.nMask = M.nHoops = M.nCape = M.nPlush = 0; M.nHair.fill(0); M.nMouth.fill(0); }
   nBall = nBlob = figNear = 0;
   figT = performance.now() * 0.001; figFaces = !!(fp || pov) || cam.d < 30;
   // The smooth set is for people who appear large: within a reach that depends on the lens. When more people are
@@ -250,7 +265,7 @@ function renderPeople(rdt) {
     const nFace = figFaces ? M.nLimb : 0;
     M.iTorso.count = M.iTrim.count = M.iZip.count = M.iPelvis.count = M.iHead.count = M.nFig;
     M.iThigh.count = M.iShin.count = M.iShort.count = M.iShoe.count = M.iSole.count = M.iUpper.count = M.iCap.count = M.iStripe.count = M.iFore.count = M.iWrist.count = M.iHand.count = M.nLimb;
-    M.iSkirt.count = M.nSkirt; M.iPack.count = M.nPack; M.iShades.count = M.nShades; M.iMask.count = M.nMask; M.iHoops.count = M.nHoops; M.iEyes.count = M.iIris.count = M.iLid.count = M.iBrow.count = nFace;
+    M.iSkirt.count = M.nSkirt; M.iPack.count = M.nPack; M.iShades.count = M.nShades; M.iMask.count = M.nMask; M.iHoops.count = M.nHoops; M.iCape.count = M.nCape; M.iPlush.count = M.nPlush; M.iEyes.count = M.iIris.count = M.iLid.count = M.iBrow.count = nFace;
     for (let h = 0; h < M.iHair.length; h++) M.iHair[h].count = M.nHair[h];
     for (let k = 0; k < M.iMouth.length; k++) M.iMouth[k].count = figFaces ? M.nMouth[k] : 0;
     for (const m of M.all) { const on = m.count > 0; m.visible = on; if (on) { m.instanceMatrix.needsUpdate = true; m.instanceColor.needsUpdate = true; } }   // parts that nobody wears are not drawn at all

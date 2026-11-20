@@ -67,7 +67,7 @@ function placeObj(k, x, y, rot, opt) {
     Object.assign(ob, { queue: [], riders: [], state: 'idle', runT: 0, animT: 0, spin: 0, loadT: 0, price: d.price, open: true, broken: false, wear: 0, count: 0, income: 0, svcT: 0, distV: 0, dist: null, access: [], fixer: null, resting: [], res: 0, miniDay: -1 });
     m.group.updateMatrixWorld(true);
     ob.top = new T.Box3().setFromObject(m.group).max.y;
-    builds.push(ob); dressRide(ob);
+    builds.push(ob); dressRide(ob); applyBeauty(ob, 1);   // a castle or a garden also makes its surroundings nicer
     if (custom) { ob.nodes = opt.nodes; ob.extra = []; for (const t of m.tiles) if (tType[t] === 0) { tType[t] = 2; tObj[t] = ob; ob.extra.push(t); } }
   }
   pathVersion++;
@@ -97,13 +97,14 @@ function removeObj(ob) {
   ob.removed = true;
   for (let j = 0; j < ob.h; j++) for (let i = 0; i < ob.w; i++) { const t = idx(ob.x + i, ob.y + j); tType[t] = 0; tObj[t] = null; }
   if (ob.extra) for (const t of ob.extra) if (tObj[t] === ob) { tType[t] = 0; tObj[t] = null; }
-  scene.remove(ob.group); ob.group.traverse((o) => { if (o.geometry) o.geometry.dispose(); });
+  scene.remove(ob.group); ob.group.traverse((o) => { if (o.geometry && !o.userData.shared) o.geometry.dispose(); });   // performers share the people's own parts
   if (ob.def.cat === 'deco') {
     decos = decos.filter((o) => o !== ob); animDecos = animDecos.filter((o) => o !== ob); applyBeauty(ob, -1); if (ob.def.bin) rebuildBins();
     if (ob.nat) plotDirty[ob.plot] = 1;
     if (ob.cut) { ob.cut = false; const i = cuts.indexOf(ob); if (i >= 0) cuts.splice(i, 1); if (ob.cutter && ob.cutter.cutT === ob) ob.cutter.cutT = null; }
   } else {
     if (ob.site) endSite(ob);
+    applyBeauty(ob, -1);
     for (const s of ob.resting.slice()) endBreak(s);
     if (pov && pov.b === ob) exitMode();
     for (const g of ob.queue.concat(ob.riders)) releaseGuest(g);

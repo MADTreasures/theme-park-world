@@ -81,22 +81,24 @@ function mCups() {
   } };
 }
 
-function mSwing() {
-  const g = new T.Group(), b = new Builder();
-  b.cyl(1.25, 1.3, 0.1, K.vio, 0, 0.05, 0, { seg: 20 });
-  b.scyl(0.2, 0.3, 3.2, [K.paper, K.blue], 8, 0, 1.7, 0);
-  b.sph(0.22, K.yel, 0, 3.35, 0);
+// tall: the big version, whose crown climbs a mast twice as high
+function mSwing(tall) {
+  const g = new T.Group(), b = new Builder(), H = tall ? 6.6 : 3.2, C1 = tall ? K.red : K.blue, RISE = tall ? 3.9 : 1;
+  b.cyl(1.25, 1.3, 0.1, tall ? K.ink : K.vio, 0, 0.05, 0, { seg: 20 });
+  b.scyl(0.2, 0.3, H, [K.paper, C1], 8, 0, H / 2 + 0.1, 0);
+  b.sph(0.22, K.yel, 0, H + 0.15, 0);
+  if (tall) { b.cone(0.12, 0.5, K.yel, 0, H + 0.5, 0, { seg: 6 }); for (let i = 0; i < 4; i++) b.sph(0.05, K.bulb, Math.cos(i * 1.57) * 0.3, H - 0.1, Math.sin(i * 1.57) * 0.3, { glow: true, seg: 6, seg2: 4 }); }
   g.add(b.mesh());
   const rot = new T.Group(); rot.position.y = 2.0; g.add(rot);
   const r = new Builder();
   r.cyl(1.42, 1.42, 0.1, K.yel, 0, 0.3, 0, { seg: 20 });
-  r.scone(1.5, 0.6, [K.blue, K.paper], 12, 0, 0.65, 0);
-  r.cyl(0.42, 0.52, 0.5, K.blue, 0, 0.1, 0);
+  r.scone(1.5, 0.6, [C1, K.paper], 12, 0, 0.65, 0);
+  r.cyl(0.42, 0.52, 0.5, C1, 0, 0.1, 0);
   bulbRing(r, 14, 1.44, 0.3);
   rot.add(r.mesh());
   const cb = new Builder();
   cb.cyl(0.012, 0.012, 1.45, K.stoneD, -0.09, -0.725, 0, { seg: 4 }); cb.cyl(0.012, 0.012, 1.45, K.stoneD, 0.09, -0.725, 0, { seg: 4 });
-  cb.box(0.24, 0.04, 0.2, K.red, 0, -1.46, 0); cb.box(0.24, 0.2, 0.03, K.red, 0, -1.36, -0.1);
+  cb.box(0.24, 0.04, 0.2, tall ? K.teal : K.red, 0, -1.46, 0); cb.box(0.24, 0.2, 0.03, tall ? K.teal : K.red, 0, -1.36, -0.1);
   const chair = cb.mesh();
   const seats = [], sw = [];
   for (let i = 0; i < 12; i++) {
@@ -105,17 +107,18 @@ function mSwing() {
     seats.push(seatAt(s, 0, -1.44, 0));
   }
   return { group: g, seats, update(dt, ride) {
-    rot.rotation.y -= dt * 1.7 * ride.spin; rot.position.y = 2.0 + ride.spin;
-    const al = 0.95 * ride.spin; for (const s of sw) s.rotation.z = al;
+    rot.rotation.y -= dt * (tall ? 2.0 : 1.7) * ride.spin; rot.position.y = 2.0 + RISE * ride.spin;
+    const al = (tall ? 1.08 : 0.95) * ride.spin; for (const s of sw) s.rotation.z = al;
   } };
 }
 
-function mShip() {
-  const g = new T.Group(), b = new Builder(), PY = 3.0;
+// loop: the wilder version, which swings higher and higher and then goes right over the top
+function mShip(loop) {
+  const g = new T.Group(), b = new Builder(), PY = 3.0, HULL = loop ? 0x6f48d6 : K.redD, FRAME = loop ? K.pink : K.blue;
   b.box(3.84, 0.08, 1.84, K.stoneD, 0, 0.04, 0);
   const L = Math.hypot(1.5, PY), ang = Math.atan2(1.5, PY);
   for (const z of [-0.8, 0.8]) {
-    b.cyl(0.06, 0.07, L, K.blue, 0.75, PY / 2, z, { rz: ang, seg: 6 }); b.cyl(0.06, 0.07, L, K.blue, -0.75, PY / 2, z, { rz: -ang, seg: 6 });
+    b.cyl(0.06, 0.07, L, FRAME, 0.75, PY / 2, z, { rz: ang, seg: 6 }); b.cyl(0.06, 0.07, L, FRAME, -0.75, PY / 2, z, { rz: -ang, seg: 6 });
     b.sph(0.13, K.yel, 0, PY, z);
   }
   b.cyl(0.07, 0.07, 1.75, K.yel, 0, PY, 0, { rx: Math.PI / 2, seg: 8 });
@@ -123,15 +126,24 @@ function mShip() {
   const sw = new T.Group(); sw.position.y = PY; g.add(sw);
   const s = new Builder(), HY = -2.3;
   for (const z of [-0.37, 0.37]) { s.cyl(0.035, 0.035, 2.3, K.paper, 0.45, -1.05, z, { rz: 0.405, seg: 5 }); s.cyl(0.035, 0.035, 2.3, K.paper, -0.45, -1.05, z, { rz: -0.405, seg: 5 }); }
-  s.box(2.3, 0.42, 0.86, K.redD, 0, HY, 0); s.box(2.34, 0.08, 0.9, K.yel, 0, HY + 0.2, 0); s.box(2.2, 0.02, 0.7, K.woodD, 0, HY + 0.25, 0);
-  s.box(0.95, 0.42, 0.82, K.redD, 1.45, HY + 0.19, 0, { rz: 0.42 }); s.box(0.95, 0.42, 0.82, K.redD, -1.45, HY + 0.19, 0, { rz: -0.42 });
+  s.box(2.3, 0.42, 0.86, HULL, 0, HY, 0); s.box(2.34, 0.08, 0.9, K.yel, 0, HY + 0.2, 0); s.box(2.2, 0.02, 0.7, K.woodD, 0, HY + 0.25, 0);
+  s.box(0.95, 0.42, 0.82, HULL, 1.45, HY + 0.19, 0, { rz: 0.42 }); s.box(0.95, 0.42, 0.82, HULL, -1.45, HY + 0.19, 0, { rz: -0.42 });
   s.box(0.97, 0.08, 0.86, K.yel, 1.43, HY + 0.38, 0, { rz: 0.42 }); s.box(0.97, 0.08, 0.86, K.yel, -1.43, HY + 0.38, 0, { rz: -0.42 });
   s.sph(0.12, K.yel, 1.95, HY + 0.62, 0); s.sph(0.12, K.yel, -1.95, HY + 0.62, 0);
   for (let i = 0; i < 6; i++) s.box(0.12, 0.13, 0.74, K.wood, -1.0 + i * 0.4, HY + 0.325, 0);
   sw.add(s.mesh());
   const seats = [];
   for (let i = 0; i < 6; i++) { const x = -1.0 + i * 0.4; for (const z of [-0.2, 0.2]) seats.push(seatAt(sw, x, HY + 0.39, z, x < 0 ? Math.PI / 2 : -Math.PI / 2)); }
-  return { group: g, seats, update(dt, ride) { sw.rotation.z = Math.sin(ride.runT * 1.8) * 1.2 * ride.spin; } };
+  if (!loop) return { group: g, seats, update(dt, ride) { sw.rotation.z = Math.sin(ride.runT * 1.8) * 1.2 * ride.spin; } };
+  // swing up for a while, go over the top a few times, swing out
+  let ang0 = 0;
+  return { group: g, seats, start() { ang0 = 0; }, update(dt, ride) {
+    if (ride.state !== 'run') { sw.rotation.z *= Math.max(0, 1 - dt * 2); return; }
+    const t = ride.runT, T1 = 4.6, T2 = ride.def.dur - 4.4;
+    if (t < T1) sw.rotation.z = Math.sin(t * 1.9) * t * 0.58;
+    else if (t < T2) { sw.rotation.z += dt * 3.1; ang0 = sw.rotation.z; }
+    else { let a = ang0 % TAU; if (a > Math.PI) a -= TAU; const q = t - T2; sw.rotation.z = a * Math.exp(-0.75 * q) * Math.cos(1.9 * q); }
+  } };
 }
 
 function mBumper() {

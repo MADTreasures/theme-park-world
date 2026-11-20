@@ -1,7 +1,8 @@
 /* ================= booths ================= */
 function mShop(kind) {
   const g = new T.Group(), b = new Builder();
-  const C = { fries: [K.red, K.yel], burger: [K.ora, K.paper], drink: [K.blue, K.paper], ice: [K.pink, K.paper], balloon: [K.vio, K.yel], throw: [K.teal, K.yel] }[kind];
+  const C = { fries: [K.red, K.yel], burger: [K.ora, K.paper], drink: [K.blue, K.paper], ice: [K.pink, K.paper], balloon: [K.vio, K.yel], throw: [K.teal, K.yel],
+    wurst: [K.redD, K.paper], brezel: [K.woodD, K.paper], doener: [K.teal, K.yel], candy: [K.pink, K.mint], marroni: [0x6b3a2a, K.ora], cotton: [0x7cc4e6, K.pink] }[kind];
   b.box(0.9, 0.05, 0.9, K.stoneD, 0, 0.025, 0);
   b.box(0.76, 0.36, 0.5, C[0], 0, 0.23, -0.1);
   b.box(0.8, 0.04, 0.3, K.paper, 0, 0.43, 0.2);
@@ -24,6 +25,30 @@ function mShop(kind) {
   } else if (kind === 'throw') {
     for (const [cx, cy] of [[-0.11, 1.13], [0, 1.13], [0.11, 1.13], [-0.055, 1.235], [0.055, 1.235], [0, 1.34]]) { b.cyl(0.05, 0.05, 0.1, K.stone, cx, cy, z, { seg: 8 }); b.cyl(0.052, 0.052, 0.03, K.red, cx, cy, z, { seg: 8 }); }
     b.sph(0.05, K.yel, 0.24, 1.12, z + 0.1, { seg: 7, seg2: 5 });
+  } else if (kind === 'wurst') {
+    b.sph(1, 0xe0a860, 0, 1.2, z, { sx: 0.32, sy: 0.07, sz: 0.12, seg: 10, seg2: 6 }); b.cyl(0.055, 0.055, 0.6, 0xb5482f, 0, 1.275, z, { rz: Math.PI / 2, seg: 8 });
+    for (const x of [-0.3, 0.3]) b.sph(0.055, 0xb5482f, x, 1.275, z, { seg: 8, seg2: 5 });
+    for (let i = 0; i < 7; i++) b.box(0.07, 0.022, 0.03, K.yel, -0.21 + i * 0.07, 1.335, z + (i % 2 ? 0.018 : -0.018), { ry: i % 2 ? 0.7 : -0.7 });
+  } else if (kind === 'brezel') {
+    const P = 0xb5651d;
+    b.tor(0.22, 0.04, P, 0, 1.36, z, { rs: 6, seg: 18 }); b.cyl(0.036, 0.036, 0.36, P, -0.07, 1.33, z + 0.02, { rz: -0.62, seg: 6 }); b.cyl(0.036, 0.036, 0.36, P, 0.07, 1.33, z + 0.02, { rz: 0.62, seg: 6 });
+    for (let i = 0; i < 9; i++) { const a = i / 9 * TAU; b.sph(0.016, 0xffffff, Math.cos(a) * 0.22, 1.36 + Math.sin(a) * 0.22, z + 0.04, { seg: 4, seg2: 3 }); }
+  } else if (kind === 'doener') {
+    b.cyl(0.2, 0.2, 0.03, K.stone, 0, 1.14, z, { seg: 12 }); b.cyl(0.012, 0.012, 0.66, K.stoneD, 0, 1.46, z, { seg: 5 }); b.cyl(0.18, 0.1, 0.42, 0xa5673f, 0, 1.4, z, { seg: 10 });
+    for (let i = 0; i < 3; i++) b.cyl(0.165 - i * 0.02, 0.15 - i * 0.02, 0.03, 0x7a4526, 0, 1.53 - i * 0.12, z, { seg: 10 });
+    b.sph(0.05, K.red, 0, 1.66, z, { seg: 7, seg2: 5 }); b.box(0.03, 0.4, 0.03, K.stoneD, 0.24, 1.36, z);
+  } else if (kind === 'candy') {
+    b.cyl(0.012, 0.012, 0.42, K.paper, 0, 1.24, z, { seg: 5 });
+    for (let i = 0; i < 4; i++) b.cyl(0.21 - i * 0.052, 0.21 - i * 0.052, 0.05 + i * 0.006, i % 2 ? K.paper : K.pink, 0, 1.58, z, { rx: Math.PI / 2, seg: 14 });
+    for (const [x, c] of [[-0.27, K.mint], [0.27, K.yel]]) { b.sph(0.06, c, x, 1.17, z + 0.1, { seg: 7, seg2: 5 }); b.cone(0.045, 0.07, c, x - 0.085, 1.17, z + 0.1, { rz: -Math.PI / 2, seg: 5 }); b.cone(0.045, 0.07, c, x + 0.085, 1.17, z + 0.1, { rz: Math.PI / 2, seg: 5 }); }
+  } else if (kind === 'marroni') {
+    b.cyl(0.25, 0.2, 0.13, 0x2b2b33, 0, 1.17, z, { seg: 12 }); b.cyl(0.26, 0.26, 0.02, K.stoneD, 0, 1.24, z, { seg: 12 });
+    for (let i = 0; i < 8; i++) { const a = i * 0.8, r = i < 6 ? 0.14 : 0.04; b.sph(0.055, 0x6b3a1e, Math.cos(a) * r, 1.28 + (i < 6 ? 0 : 0.06), z + Math.sin(a) * r, { seg: 7, seg2: 5, sy: 0.85 }); b.sph(0.025, 0xc79a5e, Math.cos(a) * r, 1.315 + (i < 6 ? 0 : 0.06), z + Math.sin(a) * r, { seg: 5, seg2: 3, sy: 0.5 }); }
+    b.cone(0.09, 0.22, K.paper, 0.3, 1.2, z + 0.12, { rx: Math.PI, seg: 8 }); for (const dx of [-0.03, 0.03, 0]) b.sph(0.04, 0x6b3a1e, 0.3 + dx, 1.33 + (dx ? 0 : 0.04), z + 0.12, { seg: 6, seg2: 4 });
+  } else if (kind === 'cotton') {
+    b.cone(0.035, 0.32, K.paper, -0.06, 1.22, z, { rx: Math.PI, seg: 6 });
+    for (const [x, y, r] of [[-0.06, 1.5, 0.16], [-0.17, 1.44, 0.1], [0.05, 1.44, 0.1], [-0.06, 1.63, 0.1], [-0.12, 1.58, 0.09], [0.0, 1.58, 0.09]]) b.sph(r, 0xffb3d9, x, y, z, { seg: 8, seg2: 6 });
+    b.cone(0.025, 0.24, K.paper, 0.26, 1.18, z + 0.08, { rx: Math.PI, seg: 6 }); for (const [x, y, r] of [[0.26, 1.38, 0.1], [0.2, 1.34, 0.07], [0.32, 1.34, 0.07], [0.26, 1.46, 0.07]]) b.sph(r, 0x9fd8ff, x, y, z + 0.08, { seg: 7, seg2: 5 });
   } else {
     const cols = [K.red, K.yel, K.blue, K.mint, K.pink, K.ora];
     for (let i = 0; i < 6; i++) {

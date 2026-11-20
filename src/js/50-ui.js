@@ -29,7 +29,7 @@ const IC = {
   plus: svg(stroke('M12 5v14M5 12h14', 2.8)), minus: svg(stroke('M5 12h14', 2.8)), x: svg(stroke('M6 6l12 12M18 6L6 18', 2.8)), check: svg(stroke('M5 12.5l4.5 4.5L19 7.5', 3)),
 };
 document.querySelectorAll('[data-ic]').forEach((e) => { e.innerHTML = IC[e.dataset.ic]; });
-const ui = { tab: null, modal: false, ask: null, lastSpeed: 1, nightIcon: false, onClose: null, mini: false, panelMin: false };
+const ui = { grp: { ride: '', shop: '' }, tab: null, modal: false, ask: null, lastSpeed: 1, nightIcon: false, onClose: null, mini: false, panelMin: false };
 // which boxes are folded away is remembered on this device
 const UI_KEY = 'rummelinsel.ui.v1';
 function uiPref(k, v) {
@@ -68,7 +68,12 @@ function modal(html) {
 function closeModal() { const f = ui.onClose; ui.onClose = null; if (f) f(); const m = $('#modal'); m.hidden = true; m.innerHTML = ''; ui.modal = false; ui.ask = null; }
 $('#modal').addEventListener('click', (e) => { if (e.target.id === 'modal') closeModal(); });
 
-const SHY = { Schiffschaukel: 'Schiff\u00ADschaukel', Wildwasserbahn: 'Wild\u00ADwasser\u00ADbahn', Kettenflieger: 'Ketten\u00ADflieger', Wirbeltassen: 'Wirbel\u00ADtassen', Freifallturm: 'Freifall\u00ADturm', Autoscooter: 'Auto\u00ADscooter', Reinigungskraft: 'Reinigungs\u00ADkraft', Springbrunnen: 'Spring\u00ADbrunnen', Abfalleimer: 'Abfall\u00ADeimer', Pommesbude: 'Pommes\u00ADbude', Ballonstand: 'Ballon\u00ADstand', Burgerbude: 'Burger\u00ADbude', Maskottchen: 'Maskott\u00ADchen', Blumenbeet: 'Blumen\u00ADbeet', Geisterhaus: 'Geister\u00ADhaus', Personalhaus: 'Personal\u00ADhaus', Pausenraum: 'Pausen\u00ADraum', Sicherheit: 'Sicher\u00ADheit', Wachposten: 'Wach\u00ADposten', Tauchbecken: 'Tauch\u00ADbecken', Himmelsturm: 'Himmels\u00ADturm' };
+const SHY = { Schiffschaukel: 'Schiff\u00ADschaukel', Wildwasserbahn: 'Wild\u00ADwasser\u00ADbahn', Kettenflieger: 'Ketten\u00ADflieger', Wirbeltassen: 'Wirbel\u00ADtassen', Freifallturm: 'Freifall\u00ADturm', Autoscooter: 'Auto\u00ADscooter', Reinigungskraft: 'Reinigungs\u00ADkraft', Springbrunnen: 'Spring\u00ADbrunnen', Abfalleimer: 'Abfall\u00ADeimer', Pommesbude: 'Pommes\u00ADbude', Ballonstand: 'Ballon\u00ADstand', Burgerbude: 'Burger\u00ADbude', Maskottchen: 'Maskott\u00ADchen', Blumenbeet: 'Blumen\u00ADbeet', Geisterhaus: 'Geister\u00ADhaus', Personalhaus: 'Personal\u00ADhaus', Pausenraum: 'Pausen\u00ADraum', Sicherheit: 'Sicher\u00ADheit', Wachposten: 'Wach\u00ADposten', Tauchbecken: 'Tauch\u00ADbecken', Himmelsturm: 'Himmels\u00ADturm',
+  Kindereisenbahn: 'Kinder\u00ADeisen\u00ADbahn', Streichelzoo: 'Streichel\u00ADzoo', Spiegellabyrinth: 'Spiegel\u00ADlabyrinth', 'Schloss Schwanenstein': 'Schloss Schwanen\u00ADstein', Wasserpark: 'Wasser\u00ADpark', Wasserrutsche: 'Wasser\u00ADrutsche',
+  Schwimmbad: 'Schwimm\u00ADbad', Wasserachterbahn: 'Wasser\u00ADachter\u00ADbahn', 'Hoher Kettenflieger': 'Hoher Ketten\u00ADflieger', Zaubershow: 'Zauber\u00ADshow', Freakshow: 'Freak\u00ADshow', Delfinshow: 'Delfin\u00ADshow', Wurstbude: 'Wurst\u00ADbude',
+  Dönerbude: 'Döner\u00ADbude', Brezelbude: 'Brezel\u00ADbude', Süssigkeitenbude: 'Süssig\u00ADkeiten\u00ADbude', Zuckerwattebude: 'Zucker\u00ADwatte\u00ADbude', Marronistand: 'Marroni\u00ADstand', Pizzarestaurant: 'Pizza\u00ADrestaurant',
+  Fischrestaurant: 'Fisch\u00ADrestaurant', Steakhouse: 'Steak\u00ADhouse', Hutgeschäft: 'Hut\u00ADgeschäft', Kostümgeschäft: 'Kostüm\u00ADgeschäft', Büchsenwerfen: 'Büchsen\u00ADwerfen', 'Pferde-Achterbahn': 'Pferde-Achter\u00ADbahn',
+  'Überschlag-Schaukel': 'Überschlag-Schau\u00ADkel', 'Eigene Achterbahn': 'Eigene Achter\u00ADbahn', 'Mini-Achterbahn': 'Mini-Achter\u00ADbahn' };
 const nm = (n) => SHY[n] || n;
 const TABS = [['path', 'Wege', 'Wege'], ['ride', 'Attraktionen', 'Fahrten'], ['shop', 'Buden', 'Buden'], ['deco', 'Deko', 'Deko'], ['staff', 'Personal', 'Team'], ['land', 'Land', 'Land'], ['doze', 'Abriss', 'Abriss']];
 function buildTabs() {
@@ -82,21 +87,30 @@ function openTab(k) {
   if (k === 'land' && cam.dist < 46) cam.dist = 46;
   renderTray();
 }
+const thumbImg = (q) => { const d = q[0] === '@' ? STAFF[q.slice(1)] : DEFS[q]; return d.thumb ? '<img src="' + d.thumb + '" alt="">' : '<img src="' + TH_BLANK + '" data-th="' + q + '" alt="">'; };
 function renderTray() {
   const tray = $('#tray');
   document.querySelectorAll('#tabs button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.k === ui.tab));
-  if (!ui.tab || ui.tab === 'doze' || ui.tab === 'land') { tray.hidden = true; tray.innerHTML = ''; return; }
+  if (!ui.tab || ui.tab === 'doze' || ui.tab === 'land') { tray.hidden = true; tray.innerHTML = ''; $('#chips').hidden = true; $('#chips').innerHTML = ''; return; }
   let h = '';
   const card = (k) => { const d = DEFS[k], ok = unlocked(d);
-    return '<button class="card' + (ok ? '' : ' locked') + '" data-act="card" data-k="' + k + '" aria-pressed="false" title="' + (d.info || d.name) + '"><img src="' + d.thumb + '" alt=""><span class="nm">' + nm(d.name) + '</span><span class="pr">' + (ok ? (d.from ? 'ab ' : '') + eur(d.cost) : 'nach Ziel ' + d.need) + '</span></button>'; };
+    return '<button class="card' + (ok ? '' : ' locked') + '" data-act="card" data-k="' + k + '" aria-pressed="false" title="' + (d.info || d.name) + '">' + thumbImg(k) + '<span class="nm">' + nm(d.name) + '</span><span class="pr">' + (ok ? (d.from ? 'ab ' : '') + eur(d.cost) : 'nach Ziel ' + d.need) + '</span></button>'; };
   if (ui.tab === 'staff') {
     h += '<button class="card team" data-act="team" title="Stimmung, Pausen und Löhne"><span class="big" id="team-mood"></span><span class="nm">Team-Übersicht</span><span class="pr">Stimmung</span></button>';
     for (const k of ORDER.fac) h += card(k);
     for (const k in STAFF) { const d = STAFF[k], ok = S.goal >= (d.need || 0);
-      h += '<div class="card staff' + (ok ? '' : ' locked') + '" title="' + d.info + '"><span class="cnt" data-cnt="' + k + '">0</span><img src="' + d.thumb + '" alt=""><span class="nm">' + nm(d.name) + '</span>' +
+      h += '<div class="card staff' + (ok ? '' : ' locked') + '" title="' + d.info + '"><span class="cnt" data-cnt="' + k + '">0</span>' + thumbImg('@' + k) + '<span class="nm">' + nm(d.name) + '</span>' +
         (ok ? '<span class="pr" data-hire="' + k + '"></span><span class="pm"><button data-act="fire" data-k="' + k + '" aria-label="' + d.name + ' entlassen">' + IC.minus + '</button><button data-act="hire" data-k="' + k + '" aria-label="' + d.name + ' einstellen">' + IC.plus + '</button></span>' : '<span class="pr">nach Ziel ' + d.need + '</span>') + '</div>'; }
-  } else for (const k of ORDER[ui.tab]) h += card(k);
-  tray.innerHTML = h; tray.hidden = false; refreshTray();
+  } else {
+    const g = ui.grp[ui.tab] || '', keys = ORDER[ui.tab].filter((k) => !g || DEFS[k].grp === g);
+    thumbFirst(keys); for (const k of keys) h += card(k);
+  }
+  if (ui.tab === 'staff') thumbFirst(ORDER.fac.concat(Object.keys(STAFF).map((k) => '@' + k)));
+  // chips above the cards sort the long lists into groups
+  const chips = $('#chips'), gs = GROUPS[ui.tab];
+  if (gs) { chips.innerHTML = gs.map((c) => '<button class="chip" data-act="grp" data-k="' + c[0] + '" aria-pressed="' + ((ui.grp[ui.tab] || '') === c[0]) + '">' + c[1] + '<i>' + ORDER[ui.tab].filter((k) => !c[0] || DEFS[k].grp === c[0]).length + '</i></button>').join(''); chips.hidden = false; }
+  else { chips.hidden = true; chips.innerHTML = ''; }
+  tray.innerHTML = h; tray.hidden = false; tray.scrollLeft = 0; refreshTray();
 }
 function refreshTray() {
   document.querySelectorAll('#tray .card[data-k]').forEach((c) => {
@@ -324,14 +338,15 @@ function renderPanel() {
       '<div class="row"><button class="btn line" data-act="team">Team-Übersicht</button><button class="btn red" data-act="demolish">Abriss · +' + eur(refundOf(b)) + '</button></div>';
     else {
       const ride = d.cat === 'ride', lv = ride ? lvlOf(b) : 0; let extra = '';
-      if (b.k === 'throw') extra = '<button class="btn" data-act="mini" data-k="cans">Dosenwerfen spielen</button>';
-      else if (ride && (lv >= 2 || DEV)) extra = (b.k === 'ghost' ? '<button class="btn" data-act="mini" data-k="ghosts">Hineingehen: Geisterjagd</button>' : '') + (b.k === 'kart' ? '<button class="btn" data-act="mini" data-k="kart">Selbst ans Steuer</button>' : '') + (b.k === 'dunk' ? '<button class="btn" data-act="mini" data-k="dunk">Selbst werfen</button>' : '') + (b.model.povSeat || b.model.seats.length ? '<button class="btn" data-act="ridePov">' + (b.k === 'ghost' ? 'Mit dem Gespenst fliegen' : 'Mitfahren') + '</button>' : '');
+      if (b.k === 'throw') extra = '<button class="btn" data-act="mini" data-k="cans">Büchsenwerfen spielen</button>';
+      else if (b.k === 'lukas') extra = '<button class="btn" data-act="mini" data-k="lukas">Selbst zuschlagen</button>';
+      else if (ride && (lv >= 2 || DEV)) extra = (b.k === 'ghost' ? '<button class="btn" data-act="mini" data-k="ghosts">Hineingehen: Geisterjagd</button>' : '') + (b.k === 'kart' ? '<button class="btn" data-act="mini" data-k="kart">Selbst ans Steuer</button>' : '') + (b.k === 'dunk' ? '<button class="btn" data-act="mini" data-k="dunk">Selbst werfen</button>' : '') + (b.model.povSeat || b.model.seats.length ? '<button class="btn" data-act="ridePov">' + (b.k === 'ghost' ? 'Mit dem Gespenst fliegen' : d.grp === 'show' ? 'Zuschauen' : d.calm ? 'Platz nehmen' : 'Mitfahren') + '</button>' : '');
       h += '<span class="pill" id="p-status"></span>' + (ride ? ' <span class="pill warn" id="p-lvl"></span>' : '') + '<p class="note">' + d.info + '</p>' +
         '<div class="stepper"><span class="lbl">' + (ride ? 'Preis pro Fahrt' : 'Preis') + '</span><button class="sq" data-act="price" data-d="-1" aria-label="Preis senken">' + IC.minus + '</button><output id="p-price"></output><button class="sq" data-act="price" data-d="1" aria-label="Preis erhöhen">' + IC.plus + '</button></div>' +
         '<p class="note">Gäste finden das <b id="p-op"></b>.</p>' +
         '<div class="kv"><span>In der Schlange</span><b id="p-q"></b><span>' + (ride ? 'Fahrgäste bisher' : 'Kunden bisher') + '</span><b id="p-n"></b><span>' + (ride ? 'Einnahmen' : 'Gewinn') + '</span><b id="p-inc"></b><span>Unterhalt pro Tag</span><b>' + eur(d.upkeep) + '</b>' +
         (ride ? '<span>Plätze · Nervenkitzel</span><b id="p-exc"></b><span>Nächste Stufe</span><b id="p-next"></b>' : '') + '</div>' +
-        (extra ? '<div class="row">' + extra + '</div>' : ride ? '<p class="note">Ab Stufe 2 kannst du selbst hinein.</p>' : '') +
+        (extra ? '<div class="row">' + extra + '</div>' : ride && !d.calm ? '<p class="note">Ab Stufe 2 kannst du selbst hinein.</p>' : '') +
         '<div class="row"><button class="btn line" data-act="toggle" id="p-toggle"></button><button class="btn mint" data-act="repair" id="p-repair" hidden>Reparieren · ' + eur(Math.round(d.cost * 0.06)) + '</button><button class="btn red" data-act="demolish">Abriss · +' + eur(refundOf(b)) + '</button></div>';
     }
   } else if (sel.staff) {
@@ -382,7 +397,7 @@ function refreshPanel() {
     setTxt('g-th', g.tk && THOUGHT[g.tk] ? '„' + THOUGHT[g.tk] + '“' : 'Schaut sich um.');
     setW('g-happy', g.happy); setW('g-hunger', g.hunger); setW('g-thirst', g.thirst); setW('g-wc', g.wc);
     setTxt('g-cash', eur(g.cash)); setTxt('g-rides', g.nRides);
-    setTxt('g-state', { arrive: 'Kommt an', decide: 'Überlegt', walk: g.target ? 'Geht zu: ' + g.target.def.name : 'Unterwegs', wander: 'Bummelt', queue: 'Steht an', buy: 'Kauft ein', ride: 'Fährt', leave: 'Geht heim', exit: 'Geht heim' }[g.state]);
+    setTxt('g-state', { arrive: 'Kommt an', decide: 'Überlegt', walk: g.target ? 'Geht zu: ' + g.target.def.name : 'Unterwegs', wander: 'Bummelt', queue: 'Steht an', buy: 'Kauft ein', ride: !g.target ? 'Fährt' : g.target.def.dine ? 'Isst im Restaurant' : g.target.def.grp === 'show' ? 'Schaut die Vorstellung' : g.target.def.calm ? 'Ruht sich aus' : 'Fährt', leave: 'Geht heim', exit: 'Geht heim' }[g.state]);
   }
 }
 function showTeam() {
@@ -460,7 +475,7 @@ function renderCoach() {
     '<div class="fold-b"><p>Dein kleiner Park hat schon geöffnet. Bau ihn aus und erfülle die Ziele.</p><ul>' +
     (touch ? '<li>Ein Finger: Karte verschieben</li><li>Zwei Finger: zoomen und drehen</li><li>Antippen: Attraktion oder Gast ansehen</li>'
       : '<li>Linke Maustaste ziehen: Karte verschieben</li><li>Rechte Maustaste ziehen: drehen und neigen</li><li>Mausrad: zoomen · R dreht ein Gebäude</li>') +
-    '<li>Gebaut wird über die Leiste unten. Jede Attraktion braucht einen Weg direkt daneben.</li><li>Neue Attraktionen bauen deine Bauarbeiter. Tippe eine Baustelle an, um mehr Arbeiter zuzuweisen.</li><li>Stehen Pflanzen im Weg, rodet sie dein Gärtner. Wird es eng, kaufst du über «Land» neue Flächen dazu.</li></ul><button class="btn" data-act="coachOk">Los geht es</button></div>';
+    '<li>Gebaut wird über die Leiste unten. Attraktionen und Buden sind dort nach Gruppen sortiert; alles braucht einen Weg direkt daneben.</li><li>Neue Attraktionen bauen deine Bauarbeiter. Tippe eine Baustelle an, um mehr Arbeiter zuzuweisen.</li><li>Stehen Pflanzen im Weg, rodet sie dein Gärtner. Wird es eng, kaufst du über «Land» neue Flächen dazu.</li></ul><button class="btn" data-act="coachOk">Los geht es</button></div>';
   c.hidden = false;
 }
 
@@ -493,6 +508,7 @@ const ACT = {
   hello: () => { if (sel && sel.guest) sayHello(sel.guest); },
   gift: () => { if (sel && sel.guest) giveVoucher(sel.guest); },
   ridePov: () => { if (sel && sel.obj) enterPOV(sel.obj); },
+  grp: (el) => { if (!GROUPS[ui.tab]) return; ui.grp[ui.tab] = el.dataset.k; sfx('click'); renderTray(); },
   mini: (el) => { const b = sel && sel.obj; if (b) openMini(el.dataset.k, b); },
   miniAgain: () => { if (!mini) return; const k = mini.kind, b = mini.b; closeModal(); openMini(k, b); },
   walk: () => { if (fp) exitMode(); else enterFP(); },

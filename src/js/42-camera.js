@@ -47,25 +47,45 @@ function resize() {
 window.addEventListener('resize', resize);
 if (window.ResizeObserver) new ResizeObserver(resize).observe(canvas);
 
+/* ----- pictures for the cards ----- */
+// They are taken in the background, one per frame, on a small off-screen target; the cards of an opened tab come first.
+// So nothing holds up the start of the game, however many attractions there are.
+const TH = { queue: [], scene: null, cam: null, rt: null, buf: null, big: null, small: null, box: new T.Box3(), sph: new T.Sphere() }, TH_BLANK = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
 function makeThumbs() {
-  const ts = new T.Scene(); ts.background = new T.Color(0xfff6dc);
-  ts.add(new T.HemisphereLight(0xffffff, 0x9aa0c0, 0.72));
-  const dl = new T.DirectionalLight(0xffffff, 0.6); dl.position.set(3, 6, 4); ts.add(dl);
-  const tc = new T.PerspectiveCamera(28, 1, 0.1, 300), box = new T.Box3(), sph = new T.Sphere();
-  const pr0 = renderer.getPixelRatio(); renderer.setPixelRatio(1); renderer.setSize(128, 128, false);
-  const shoot = (group) => {
-    group.traverse((o) => { if (o.material === MAT_LAMP) o.visible = false; });
-    for (const c of group.children.slice()) if (c.material === MAT_LAMP) group.remove(c);
-    ts.add(group); group.updateMatrixWorld(true); box.setFromObject(group); box.getBoundingSphere(sph);
-    const d = sph.radius / Math.sin(14 * Math.PI / 180) * 1.02;
-    tc.position.set(sph.center.x + d * 0.55, sph.center.y + d * 0.5, sph.center.z + d * 0.67); tc.lookAt(sph.center);
-    renderer.render(ts, tc);
-    const url = canvas.toDataURL('image/png');
-    ts.remove(group); group.traverse((o) => { if (o.geometry && !o.userData.shared) o.geometry.dispose(); });
-    return url;
-  };
-  for (const k in DEFS) DEFS[k].thumb = shoot(DEFS[k].model().group);
-  for (const k in STAFF) STAFF[k].thumb = shoot(staffStatue(k));
-  renderer.setPixelRatio(pr0);
+  TH.scene = new T.Scene(); TH.scene.background = new T.Color(0xfff6dc);
+  TH.scene.add(new T.HemisphereLight(0xffffff, 0x9aa0c0, 0.72));
+  const dl = new T.DirectionalLight(0xffffff, 0.6); dl.position.set(3, 6, 4); TH.scene.add(dl);
+  TH.cam = new T.PerspectiveCamera(28, 1, 0.1, 300);
+  TH.rt = new T.WebGLRenderTarget(256, 256); TH.buf = new Uint8Array(256 * 256 * 4);
+  TH.big = document.createElement('canvas'); TH.big.width = TH.big.height = 256; TH.small = document.createElement('canvas'); TH.small.width = TH.small.height = 128;
+  for (const k in DEFS) TH.queue.push(k); for (const k in STAFF) TH.queue.push('@' + k);
 }
+function shootThumb(group) {
+  group.traverse((o) => { if (o.material === MAT_LAMP) o.visible = false; });
+  for (const c of group.children.slice()) if (c.material === MAT_LAMP) group.remove(c);
+  TH.scene.add(group); group.updateMatrixWorld(true); TH.box.setFromObject(group); TH.box.getBoundingSphere(TH.sph);
+  const d = TH.sph.radius / Math.sin(14 * Math.PI / 180) * 1.02, c = TH.sph.center;
+  TH.cam.position.set(c.x + d * 0.55, c.y + d * 0.5, c.z + d * 0.67); TH.cam.lookAt(c);
+  renderer.setRenderTarget(TH.rt); renderer.render(TH.scene, TH.cam); renderer.readRenderTargetPixels(TH.rt, 0, 0, 256, 256, TH.buf); renderer.setRenderTarget(null);
+  TH.scene.remove(group); group.traverse((o) => { if (o.geometry && !o.userData.shared) o.geometry.dispose(); });
+  // the pixels come bottom row first; turned over and halved in size, which also smooths the edges
+  const cb = TH.big.getContext('2d'), img = cb.createImageData(256, 256);
+  for (let y = 0; y < 256; y++) img.data.set(TH.buf.subarray((255 - y) * 1024, (256 - y) * 1024), y * 1024);
+  cb.putImageData(img, 0, 0);
+  const cs = TH.small.getContext('2d'); cs.imageSmoothingQuality = 'high'; cs.drawImage(TH.big, 0, 0, 128, 128);
+  return TH.small.toDataURL('image/png');
+}
+// the picture of a card, taken now if it does not exist yet; q is a key of DEFS, or of STAFF with an @ in front
+function thumbNow(q) { const d = q[0] === '@' ? STAFF[q.slice(1)] : DEFS[q]; if (!d.thumb) d.thumb = shootThumb(q[0] === '@' ? staffStatue(q.slice(1)) : d.model().group); return d.thumb; }
+// once per frame: the next picture that is still missing; cards that wait for theirs get it
+function thumbTick() {
+  while (TH.queue.length) {
+    const q = TH.queue.shift(), d = q[0] === '@' ? STAFF[q.slice(1)] : DEFS[q]; if (d.thumb) continue;
+    thumbNow(q);
+    const im = document.querySelector('#tray img[data-th="' + q + '"]'); if (im) { im.src = d.thumb; im.removeAttribute('data-th'); }
+    break;
+  }
+}
+// the cards of the tab that was just opened come first
+function thumbFirst(keys) { TH.queue = keys.filter((q) => !(q[0] === '@' ? STAFF[q.slice(1)] : DEFS[q]).thumb).concat(TH.queue); }
 

@@ -65,9 +65,16 @@ function nearestShop(g, here, sells) {
     const df = distOf(b); if (!df || df[here] < 0) continue;
     if (b.price > g.cash) continue;
     if (b.price > d.fair * g.gen + 0.01) { exp = true; continue; }
-    const sc = df[here] + b.queue.length * 2; if (sc < bd) { bd = sc; best = b; }
+    // whoever has money to spare likes to sit down at a restaurant, even if it is a little further
+    const sc = df[here] + b.queue.length * 2 - (d.dine && g.cash > b.price * 2.5 ? 9 : 0); if (sc < bd) { bd = sc; best = b; }
   }
   if (!best && exp) gripe(g, 'money');
+  return best;
+}
+// the nearest quiet garden that can be reached
+function nearestCalm(g, here) {
+  let best = null, bd = 1e9;
+  for (const b of builds) { if (!b.def.calm || !b.open || b.site || b.price > g.cash) continue; const df = distOf(b); if (!df || df[here] < 0) continue; if (df[here] < bd) { bd = df[here]; best = b; } }
   return best;
 }
 function pickRide(g, here) {
@@ -81,6 +88,9 @@ function pickRide(g, here) {
     if (g.nausea > 45 && d.nau > 25) continue;
     let w = excOf(b) / (1 + (g.rides[b.k] || 0) * 1.2) / (1 + df[here] * 0.05) / (1 + b.queue.length / d.cap) * (1.25 - 0.3 * b.price / fair);
     if (d.exc > 45 + g.brave * 65) w *= 0.12;
+    // children love their own rides and stay away from the wildest ones; grown-ups mostly leave the children's rides to them
+    if (g.kid) w *= d.grp === 'kid' ? 2.2 : d.grp === 'adr' ? 0.08 : d.grp === 'crazy' ? 0.5 : 1; else if (d.grp === 'kid') w *= 0.4;
+    if (d.calm) w *= g.nausea > 30 ? 6 : 0.5;
     c.push(b, w); tot += w;
   }
   if (!c.length) { if (exp) gripe(g, 'money'); else if (poor) g.stay = 0; return null; }
@@ -99,8 +109,9 @@ function decide(g) {
   if (g.wc > 60) { tg = nearestShop(g, here, 'wc'); if (!tg) gripe(g, 'wc'); }
   if (!tg && g.hunger > 58) { tg = nearestShop(g, here, 'food'); if (!tg) gripe(g, 'food'); }
   if (!tg && g.thirst > 58) { tg = nearestShop(g, here, 'drink'); if (!tg) gripe(g, 'drink'); }
+  if (!tg && g.nausea > 50) tg = nearestCalm(g, here);
   if (!tg && Math.random() < 0.82) tg = pickRide(g, here);
-  if (!tg && Math.random() < 0.35) tg = nearestShop(g, here, pick(g.balloon ? ['treat', 'game'] : ['balloon', 'treat', 'game']));
+  if (!tg && Math.random() < 0.35) { const w = ['treat', 'game']; if (!g.balloon) w.push('balloon'); if (!g.hat && !g.costume) w.push('hat'); if (!g.costume) w.push('costume'); tg = nearestShop(g, here, pick(w)); }
   if (tg) { g.target = tg; g.state = 'walk'; } else { g.target = null; g.state = 'wander'; g.steps = rint(3, 9); }
   advance(g);
 }

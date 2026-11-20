@@ -3,7 +3,8 @@
 // The park pauses while one is open. Prize money is paid once per day and attraction.
 let mini = null;
 const MINI = {
-  cans: { title: 'Dosenwerfen', help: 'Tippe auf die Dosen, bevor sie weiterwandern.', unit: 'Treffer', pay: 2, max: 60 },
+  cans: { title: 'Büchsenwerfen', help: 'Tippe auf die Büchsen, bevor sie weiterwandern. Ab 10 Treffern gewinnst du ein Plüschtier.', unit: 'Treffer', pay: 2, max: 60, plush: 10 },
+  lukas: { title: 'Hau den Lukas', help: 'Tippe, wenn der Zeiger im grünen Feld steht. Je genauer, desto höher steigt der Puck. Ab 3 Glockenschlägen gewinnst du ein Plüschtier.', unit: 'Glockenschläge', pay: 6, max: 90, plush: 3 },
   ghosts: { title: 'Geisterjagd', help: 'Tippe die Geister an. Fledermäuse kosten einen Punkt.', unit: 'Geister', pay: 3, max: 80 },
   kart: { title: 'Kart-Rennen', help: 'Tippe links oder rechts, um die Spur zu wechseln. Sammle Münzen, weiche den Hütchen aus.', unit: 'Münzen', pay: 3, max: 90 },
   dunk: { title: 'Tauchbecken', help: 'Tippe auf die wandernde Zielscheibe. Bei einem Treffer plumpst der Sitzende ins Wasser.', unit: 'Treffer', pay: 4, max: 80 },
@@ -18,12 +19,17 @@ function openMini(kind, b) {
   mini = { kind, b, m, cv, c: cv.getContext('2d'), t: 30, score: 0, last: performance.now(), over: false, coin, clock: 0, flash: 0,
     shelves: [0, 1, 2].map((i) => ({ y: 95 + i * 82, off: rnd(60), v: (40 + i * 22) * (i % 2 ? -1 : 1), cans: [0, 1, 2, 3].map(() => ({ down: 0 })) })), balls: [],
     win: Array.from({ length: 9 }, () => ({ k: 0, t: 0, hit: 0 })), spawn: 0.4,
-    lane: 1, kx: 160, things: [], next: 0.5, road: 0, tgt: { x: 160, v: 105 }, dunkT: 0 };
+    lane: 1, kx: 160, things: [], next: 0.5, road: 0, tgt: { x: 160, v: 105 }, dunkT: 0,
+    mk: 0.1, mv: 0.9, md: 1, puck: 0, pv: 0, cool: 0, swing: 0, rung: 0, pow: 0 };
   cv.addEventListener('pointerdown', (e) => { const r = cv.getBoundingClientRect(); miniTap((e.clientX - r.left) * 320 / r.width, (e.clientY - r.top) * 380 / r.height); e.preventDefault(); });
   requestAnimationFrame(miniFrame);
 }
 function miniTap(x, y) {
   const g = mini; if (!g || g.over) return;
+  if (g.kind === 'lukas') {   // the nearer the pointer is to the middle, the harder the blow
+    if (g.cool > 0) return;
+    g.pow = clamp(1 - Math.abs(g.mk - 0.5) * 1.6, 0.12, 1); g.pv = Math.sqrt(2 * 3.2 * Math.min(1.06, g.pow * 1.1)); g.cool = 1.15; g.swing = 0.22; sfx('hammer'); return;
+  }
   if (g.kind === 'cans' || g.kind === 'dunk') { g.balls.push({ x, y, t: 0 }); sfx('path'); }
   else if (g.kind === 'ghosts') {
     for (let i = 0; i < 9; i++) { const w = g.win[i], wx_ = 60 + (i % 3) * 100, wy = 85 + ((i / 3) | 0) * 100; if (w.k && !w.hit && Math.abs(x - wx_) < 42 && Math.abs(y - wy) < 46) { if (w.k === 1) { g.score++; sfx('build'); } else { g.score = Math.max(0, g.score - 1); g.flash = 0.3; sfx('error'); } w.hit = 0.25; return; } }
@@ -32,10 +38,11 @@ function miniTap(x, y) {
 function miniLane(d) { const g = mini; if (!g || g.over || g.kind !== 'kart') return; g.lane = clamp(g.lane + d, 0, 2); sfx('click'); }
 function miniOver() {
   const g = mini; g.over = true;
-  const first = g.b && g.b.miniDay !== curDay, prize = first ? Math.min(g.m.max, g.score * g.m.pay) : 0;
+  const first = g.b && g.b.miniDay !== curDay, prize = first ? Math.min(g.m.max, g.score * g.m.pay) : 0, toy = !!g.m.plush && g.score >= g.m.plush;
   if (first) { g.b.miniDay = curDay; if (prize) earn(prize, 'bonus'); uiDirty = true; }
+  if (toy) { S.plush = (S.plush || 0) + 1; g.toy = true; }
   const end = $('#mini-end'); end.hidden = false;
-  end.innerHTML = '<p class="note" style="flex:1 1 100%;margin:0">' + g.score + ' ' + g.m.unit + (first ? ' · Preisgeld ' + eur(prize) : ' · Preisgeld gibt es einmal pro Tag') + '</p><button class="btn" data-act="miniAgain">Nochmal</button><button class="btn line" data-act="closeModal">Zurück in den Park</button>';
+  end.innerHTML = '<p class="note" style="flex:1 1 100%;margin:0">' + g.score + ' ' + g.m.unit + (first ? ' · Preisgeld ' + eur(prize) : ' · Preisgeld gibt es einmal pro Tag') + (toy ? '<br><b>Gewonnen: ein Plüschtier!</b> In deiner Sammlung: ' + S.plush : g.m.plush ? '<br>Ein Plüschtier gibt es ab ' + g.m.plush + ' ' + g.m.unit + '.' : '') + '</p><button class="btn" data-act="miniAgain">Nochmal</button><button class="btn line" data-act="closeModal">Zurück in den Park</button>';
   sfx(prize ? 'goal' : 'click');
 }
 function miniFrame(now) {
@@ -47,6 +54,16 @@ function miniFrame(now) {
   requestAnimationFrame(miniFrame);
 }
 function miniStep(g, dt) {
+  if (g.kind === 'lukas') {
+    g.mk += g.mv * g.md * dt; if (g.mk > 1 || g.mk < 0) { g.md = -g.md; g.mk = clamp(g.mk, 0, 1); }
+    if (g.cool > 0) g.cool -= dt; if (g.swing > 0) g.swing -= dt; if (g.rung > 0) g.rung -= dt;
+    if (g.pv || g.puck > 0) {
+      g.puck += g.pv * dt; g.pv -= 3.2 * dt;
+      if (g.puck >= 1) { g.puck = 1; if (g.pv > 0) { g.pv = -0.4; g.score++; g.rung = 0.7; g.mv *= 1.13; sfx('bell'); } }
+      if (g.puck <= 0) { g.puck = 0; g.pv = 0; }
+    }
+    return;
+  }
   if (g.kind === 'cans') {
     for (const s of g.shelves) { s.off += s.v * dt; if (s.off > 70 || s.off < 0) { s.v = -s.v; s.off = clamp(s.off, 0, 70); } for (const cn of s.cans) if (cn.down > 0) cn.down -= dt; }
     for (const bl of g.balls) {
@@ -74,8 +91,42 @@ function miniStep(g, dt) {
     g.things = g.things.filter((th) => th.y < 420 && !th.gone);
   }
 }
+// a soft toy for the canvas games: drawn where a prize is shown
+function drawTeddy(c, x, y, s, col) {
+  c.fillStyle = col; c.beginPath(); c.ellipse(x, y + 16 * s, 15 * s, 18 * s, 0, 0, TAU); c.fill(); c.beginPath(); c.arc(x, y - 8 * s, 13 * s, 0, TAU); c.fill();
+  for (const d of [-1, 1]) { c.beginPath(); c.arc(x + d * 10 * s, y - 19 * s, 5 * s, 0, TAU); c.fill(); c.beginPath(); c.arc(x + d * 15 * s, y + 8 * s, 6 * s, 0, TAU); c.fill(); c.beginPath(); c.arc(x + d * 9 * s, y + 31 * s, 7 * s, 0, TAU); c.fill(); }
+  c.fillStyle = '#fff6dc'; c.beginPath(); c.ellipse(x, y - 4 * s, 6 * s, 5 * s, 0, 0, TAU); c.fill(); c.beginPath(); c.ellipse(x, y + 18 * s, 8 * s, 10 * s, 0, 0, TAU); c.fill();
+  c.fillStyle = '#232861'; for (const d of [-1, 1]) { c.beginPath(); c.arc(x + d * 5 * s, y - 11 * s, 1.8 * s, 0, TAU); c.fill(); } c.beginPath(); c.arc(x, y - 5 * s, 2 * s, 0, TAU); c.fill();
+}
+function drawLukas(g, c) {
+  c.fillStyle = '#8fd3ff'; c.fillRect(0, 0, 320, 380); c.fillStyle = '#7cc65a'; c.fillRect(0, 300, 320, 80);
+  for (let i = 0; i < 8; i++) { c.fillStyle = i % 2 ? '#ff4f64' : '#fff6dc'; c.beginPath(); c.moveTo(i * 40, 0); c.lineTo(i * 40 + 40, 0); c.lineTo(i * 40 + 20, 26); c.closePath(); c.fill(); }
+  // the tower with its scale, the bell on top
+  const X = 214, Y0 = 296, Y1 = 62;
+  c.fillStyle = '#b9243a'; c.fillRect(X - 26, Y1 - 8, 52, Y0 - Y1 + 16); c.fillStyle = '#ff4f64'; c.fillRect(X - 22, Y1 - 4, 44, Y0 - Y1 + 8);
+  for (let i = 0; i < 9; i++) { c.fillStyle = i % 2 ? '#fff6dc' : '#ffd447'; c.fillRect(X - 18, Y0 - 12 - i * 26, 36, 5); }
+  c.fillStyle = '#232861'; c.fillRect(X - 3, Y1, 6, Y0 - Y1);
+  const sh = g.rung > 0 ? Math.sin(g.clock * 60) * 4 * g.rung : 0;
+  c.fillStyle = '#ffd447'; c.beginPath(); c.arc(X + sh, Y1 - 22, 17, Math.PI, 0); c.lineTo(X + 21 + sh, Y1 - 8); c.lineTo(X - 21 + sh, Y1 - 8); c.closePath(); c.fill(); c.fillStyle = '#c9940a'; c.fillRect(X - 21 + sh, Y1 - 10, 42, 4);
+  if (g.rung > 0) { c.strokeStyle = '#fff6dc'; c.lineWidth = 3; for (const d of [-1, 1]) { c.beginPath(); c.arc(X + d * 30, Y1 - 22, 8 + (0.7 - g.rung) * 26, d < 0 ? Math.PI * 0.75 : -Math.PI * 0.25, d < 0 ? Math.PI * 1.25 : Math.PI * 0.25); c.stroke(); } }
+  const py = lerp(Y0 - 6, Y1 + 4, g.puck); c.fillStyle = '#3ddbb4'; c.fillRect(X - 14, py - 7, 28, 14); c.fillStyle = '#14957a'; c.fillRect(X - 14, py + 3, 28, 4);
+  // the pad and the mallet
+  c.fillStyle = '#232861'; c.fillRect(X - 34, Y0 + 8, 68, 16); c.fillStyle = '#ff4f64'; c.beginPath(); c.ellipse(X, Y0 + 8, 22, 7, 0, 0, TAU); c.fill();
+  c.save(); c.translate(X - 78, Y0 + 14); c.rotate(g.swing > 0 ? 0.25 : -0.95 + Math.sin(g.clock * 3) * 0.05); c.fillStyle = '#8a623c'; c.fillRect(0, -4, 72, 8); c.fillStyle = '#b98a5a'; c.fillRect(58, -17, 24, 34); c.restore();
+  // prizes on a shelf
+  c.fillStyle = '#8a623c'; c.fillRect(20, 250, 110, 8); c.fillRect(20, 150, 110, 8);
+  drawTeddy(c, 50, 212, 0.9, '#b5651d'); drawTeddy(c, 100, 214, 0.8, '#ff8fc7'); drawTeddy(c, 75, 112, 0.9, '#fff6dc');
+  // the pointer runs to and fro along the strength bar
+  const bx = 30, bw = 260, by = 338;
+  c.fillStyle = '#232861'; c.fillRect(bx - 6, by - 6, bw + 12, 34);
+  const zone = (w, col) => { c.fillStyle = col; c.fillRect(bx + bw * (0.5 - w / 2), by, bw * w, 22); };
+  zone(1, '#ff4f64'); zone(0.56, '#f08a24'); zone(0.3, '#ffd447'); zone(0.115, '#3ddbb4');
+  const mx = bx + bw * g.mk; c.fillStyle = '#fff6dc'; c.beginPath(); c.moveTo(mx, by + 12); c.lineTo(mx - 9, by - 10); c.lineTo(mx + 9, by - 10); c.closePath(); c.fill(); c.fillRect(mx - 2, by, 4, 22);
+  if (g.cool > 0.2) { c.fillStyle = '#232861'; c.font = '900 15px Nunito, sans-serif'; c.textAlign = 'center'; c.fillText(g.pow > 0.9 ? 'Volltreffer!' : g.pow > 0.7 ? 'Fast!' : g.pow > 0.45 ? 'Mehr Kraft!' : 'Daneben …', 80, 290); }
+}
 function miniDraw(g) {
   const c = g.c; c.clearRect(0, 0, 320, 380);
+  if (g.kind === 'lukas') { drawLukas(g, c); if (g.toy) { c.fillStyle = 'rgba(255,246,220,.9)'; c.beginPath(); c.arc(88, 180, 82, 0, TAU); c.fill(); drawTeddy(c, 88, 172, 1.9, '#b5651d'); } return; }
   if (g.kind === 'cans') {
     c.fillStyle = '#232861'; c.fillRect(0, 0, 320, 380);
     for (let i = 0; i < 8; i++) { c.fillStyle = i % 2 ? '#ff4f64' : '#fff6dc'; c.beginPath(); c.moveTo(i * 40, 0); c.lineTo(i * 40 + 40, 0); c.lineTo(i * 40 + 20, 34); c.closePath(); c.fill(); }
@@ -131,4 +182,5 @@ function miniDraw(g) {
     c.fillStyle = '#ff4f64'; c.fillRect(x - 14, y - 24, 28, 48); c.fillStyle = '#b9243a'; c.fillRect(x - 9, y - 30, 18, 10); c.fillStyle = '#ffdcb3'; c.beginPath(); c.arc(x, y + 2, 8, 0, TAU); c.fill(); c.fillStyle = '#232861'; c.beginPath(); c.arc(x, y + 1, 8, Math.PI, 0); c.fill();
   }
   if (g.flash > 0) { c.fillStyle = 'rgba(255,79,100,' + g.flash + ')'; c.fillRect(0, 0, 320, 380); }
+  if (g.toy) { c.fillStyle = 'rgba(255,246,220,.9)'; c.beginPath(); c.arc(160, 178, 90, 0, TAU); c.fill(); drawTeddy(c, 160, 170, 2.1, '#b5651d'); }
 }

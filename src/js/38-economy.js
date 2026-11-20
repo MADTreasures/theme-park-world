@@ -21,6 +21,9 @@ const GOALS = [
   { t: 'Kaufe 4 Stücke Land dazu', r: 2500, p: () => (plotsOwned() - START_PLOTS.length) / 4 },
   { t: 'Besitze die halbe Insel (18 Stücke Land)', r: 8000, p: () => plotsOwned() / 18 },
   { t: 'Die ganze Insel gehört dir', r: 25000, p: () => plotsOwned() / (PN * PN) },
+  { t: 'Zeige zwei verschiedene Shows', r: 3000, p: () => new Set(rideList().filter((b) => b.def.grp === 'show').map((b) => b.k)).size / 2 },
+  { t: 'Eröffne ein Restaurant, ein Hutgeschäft und ein Kostümgeschäft', r: 4000, p: () => ((builds.some((b) => b.def.dine) ? 1 : 0) + has('hats') + has('costume')) / 3 },
+  { t: 'Betreibe 20 verschiedene Attraktionen', r: 15000, p: () => rideTypes() / 20 },
 ];
 function checkGoal() {
   const g = GOALS[S.goal]; if (!g || g.p() < 1) return;

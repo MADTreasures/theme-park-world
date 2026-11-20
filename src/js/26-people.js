@@ -10,6 +10,9 @@
 // HC the height of its centre above the neck joint. Hats are always larger than the hair they sit on, and hair never
 // comes closer to the face than the head's own surface (headZ), so nothing pokes through anything else.
 const HR = 0.086, HC = 0.083;
+// Hair styles that are headwear. 1: drawn together with the hair that shows under a hat (style 9);
+// 2: a small hat that sits on top of a full head of hair (style 0).
+const HATS = { 3: 1, 5: 1, 10: 1, 11: 1, 12: 1, 13: 2, 14: 2, 15: 1, 16: 1 };
 const FIG = { HIP: 0.3, THIGH: 0.14, SHIN: 0.16, SHO: 0.444, SX: 0.07, LX: 0.027, NECK: 0.5, SEAT: 0.272, UARM: 0.1, HAND: 0.105 };
 // where the surface of the head lies in front (z) of a point x, y; all in head units
 function headZ(x, y) {
@@ -262,7 +265,41 @@ function figureGeos(q) {
       hd((b) => { lathe(b, [[1.06, 0.3], [1.065, 0.42], [1.08, 0.52], [1.13, 0.68], [1.17, 0.84], [1.15, 0.98], [0.95, 1.1], [0, 1.13]], s(12, 24), W, { sz: 0.97 }); lathe(b, [[1.075, 0.3], [1.08, 0.4], [1.09, 0.5]], s(12, 24), D, { sz: 0.97 }); b.sph(1, D, 0, 0.27, 1.02, sp([8, 3], [16, 6], { sx: 0.72, sy: 0.05, sz: 0.45, rx: 0.3 })); }),
       // 11 a woollen hat that hugs the head, with a rolled edge
       (() => { const b = new Builder(); b.add(headBand(0, 10, 24, 24), W, 0, 0, 0, { sx: 1.13, sy: 1.13, sz: 1.13, rx: -0.26 }); b.add(headBand(9, 10, 24, 24), D, 0, 0, 0, { sx: 1.19, sy: 1.19, sz: 1.19, rx: -0.26 }); b.sph(0.15, D, 0, 1.15, -0.3, { seg: s(6, 10), seg2: s(4, 7) }); const g = b.geo(); g.scale(HR, HR, HR); g.translate(0, HC, 0); return g; })(),
+      // 12 cowboy hat: a creased crown and a brim that turns up
+      hd((b) => {
+        lathe(b, [[0.88, 0.56], [0.86, 0.7], [0.86, 0.95], [0.82, 1.18], [0.6, 1.3], [0.3, 1.24], [0, 1.2]], s(12, 24), W, { sz: 1.04 });
+        lathe(b, [[0.88, 0.56], [1.45, 0.54], [1.74, 0.66], [1.78, 0.72], [1.72, 0.72], [1.42, 0.6], [0.86, 0.62]], s(14, 28), W); lathe(b, [[0.885, 0.63], [0.875, 0.7], [0.87, 0.77]], s(12, 24), D, { sz: 1.04 });
+      }),
+      // 13 party hat: a pointed paper hat with a bobble
+      hd((b) => { b.cone(0.44, 0.92, W, 0.1, 1.46, -0.1, { rz: -0.16, seg: s(8, 16) }); b.tor(0.44, 0.045, D, 0.03, 1.02, -0.1, { rx: Math.PI / 2, rs: s(4, 6), seg: s(10, 18) }); b.sph(0.11, D, 0.175, 1.92, -0.1, { seg: s(6, 9), seg2: s(4, 6) }); }),
+      // 14 crown
+      hd((b) => {
+        // centred on the hair, which lies a little further back than the skull
+        b.add(new T.LatheGeometry([[0.52, 0.96], [0.55, 0.98], [0.58, 1.22], [0.52, 1.22], [0.49, 1.0]].map((p) => new T.Vector2(p[0], p[1])), s(10, 18)), W, 0, 0, -0.1); b.cyl(0.5, 0.48, 0.1, D, 0, 1.06, -0.1, { seg: s(8, 14) });
+        for (let i = 0; i < 6; i++) { const a = i / 6 * TAU + 0.5; b.cone(0.13, 0.3, W, Math.sin(a) * 0.55, 1.34, Math.cos(a) * 0.55 - 0.1, { seg: s(4, 6) }); b.sph(0.055, D, Math.sin(a) * 0.59, 1.09, Math.cos(a) * 0.59 - 0.1, { seg: s(4, 7), seg2: s(3, 5) }); }
+      }),
+      // 15 wizard's hat: tall, pointed, with a wide brim
+      hd((b) => {
+        lathe(b, [[0.88, 0.56], [0.86, 0.72], [0.72, 1.1], [0.5, 1.6], [0.28, 2.05], [0.08, 2.4], [0, 2.44]], s(12, 22), W, { sz: 1.04 });
+        lathe(b, [[0.88, 0.56], [1.4, 0.5], [1.66, 0.46], [1.7, 0.49], [1.66, 0.52], [1.4, 0.57], [0.86, 0.62]], s(14, 26), W); lathe(b, [[0.885, 0.63], [0.87, 0.72], [0.845, 0.8]], s(12, 22), D, { sz: 1.04 });
+        if (q) for (const [a, y, r] of [[0.5, 1.25, 0.62], [2.6, 1.7, 0.44], [4.4, 1.05, 0.72]]) b.sph(0.07, D, Math.sin(a) * r, y, Math.cos(a) * r, { seg: 5, seg2: 4 });
+      }),
+      // 16 top hat
+      hd((b) => {
+        lathe(b, [[0.88, 0.56], [0.87, 0.62], [0.86, 1.05], [0.9, 1.55], [0.88, 1.6], [0, 1.6]], s(12, 24), W, { sz: 1.04 });
+        lathe(b, [[0.88, 0.56], [1.3, 0.54], [1.36, 0.58], [1.3, 0.62], [0.86, 0.63]], s(14, 26), W); lathe(b, [[0.885, 0.64], [0.88, 0.72], [0.875, 0.8]], s(12, 24), D, { sz: 1.04 });
+      }),
     ],
+    cape: mk((b) => {   // hangs from the shoulders down the back
+      b.add(new T.CylinderGeometry(0.058, 0.092, 0.29, s(5, 12), s(1, 3), true, Math.PI / 2 + 0.25, Math.PI - 0.5), W, 0, 0.318, 0.004, { sz: 0.82 });
+      b.add(new T.CylinderGeometry(0.064, 0.061, 0.044, s(6, 12), 1, true), D, 0, 0.476, 0, { sz: 0.74 }); b.sph(0.011, D, 0, 0.468, 0.045, { seg: 6, seg2: 4 });
+    }),
+    // a soft toy won at a game, carried in the left hand
+    plush: mk((b) => {
+      b.sph(0.03, W, 0, -0.158, 0.04, sp([6, 4], [10, 7], { sy: 1.1 })); b.sph(0.024, W, 0, -0.113, 0.046, sp([6, 4], [10, 7]));
+      for (const x of [-1, 1]) { b.sph(0.009, W, x * 0.019, -0.092, 0.044, { seg: 5, seg2: 4 }); b.sph(0.011, W, x * 0.03, -0.146, 0.052, { seg: 5, seg2: 4 }); b.sph(0.012, W, x * 0.02, -0.185, 0.055, { seg: 5, seg2: 4 }); if (q) b.sph(0.0035, 0x1b1530, x * 0.009, -0.108, 0.068, { seg: 4, seg2: 3 }); }
+      b.sph(0.009, D, 0, -0.118, 0.068, { seg: 5, seg2: 4 });
+    }),
     skirt: mk((b) => { lathe(b, [[0.09, 0.212], [0.088, 0.222], [0.08, 0.25], [0.068, 0.29], [0.057, 0.318], [0.05, 0.332]], s(8, 18), W); if (q) b.cyl(0.0905, 0.091, 0.008, D, 0, 0.215, 0, { seg: 18 }); }),
     pack: mk((b) => { b.box(0.085, 0.1, 0.045, W, 0, 0.4, -0.06); b.box(0.055, 0.034, 0.01, D, 0, 0.378, -0.086); for (const x of [-0.034, 0.034]) b.box(0.01, 0.09, 0.005, D, x, 0.412, 0.039); }),
     shades: hd((b) => { for (const x of [-1, 1]) b.sph(1, 0x16161a, x * FACE.ex, FACE.ey + 0.01, headZ(FACE.ex, FACE.ey) + 0.035, sp([8, 5], [14, 8], { sx: 0.245, sy: 0.245, sz: 0.06, ry: x * headYaw(FACE.ex, FACE.ey) })); b.box(0.24, 0.06, 0.05, 0x16161a, 0, FACE.ey + 0.05, headZ(0, FACE.ey) + 0.02); for (const x of [-1, 1]) b.box(0.05, 0.05, 0.75, 0x16161a, x * 0.985, FACE.ey + 0.05, 0.2); }),

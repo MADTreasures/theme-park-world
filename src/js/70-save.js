@@ -9,7 +9,7 @@ function serialize() {
 }
 function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(serialize())); } catch (e) { /* storage is optional */ } }
 function clearWorld() {
-  for (const o of builds.concat(decos)) { o.removed = true; scene.remove(o.group); o.group.traverse((m) => { if (m.geometry) m.geometry.dispose(); }); }
+  for (const o of builds.concat(decos)) { o.removed = true; scene.remove(o.group); o.group.traverse((m) => { if (m.geometry && !m.userData.shared) m.geometry.dispose(); }); }
   if (pov || fp) exitMode();
   builds = []; decos = []; animDecos = []; guests = []; thieves = []; thiefSeen = false; splashes = []; cuts = []; plotDirty.fill(1);
   for (const s of staff) { scene.remove(s.mesh); s.mesh.traverse((m) => { if (m.geometry) m.geometry.dispose(); }); }
@@ -68,7 +68,7 @@ function newGame() {
   for (let p = 0; p < PN * PN; p++) growWild(p, plotOwned[p] ? 5 : rint(9, 12));
   for (const [x, y] of [[HALF - 3, N - 3], [HALF + 5, N - 3], [HALF - 5, N - 8], [HALF + 6, N - 8], [HALF - 2, N - 8]]) if (tType[idx(x, y)] === 0) placeObj('tree', x, y, 0, { nat: true });
   for (let i = 0; i < 9; i++) spawnGuest(true);
-  hire('build', true); S.b1 = true;
+  hire('build', true); S.b1 = true; S.n2 = true;
   sun.castShadow = S.shadows;
 }
 

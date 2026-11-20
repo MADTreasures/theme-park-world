@@ -11,7 +11,7 @@ function enterPOV(b) {
   exitMode(); setTool(null); select(null);
   pov = { b, seat, yaw: 0, pitch: -0.08, ran: false };
   if (b.state !== 'run' && !b.broken) { b.state = 'run'; b.runT = 0; b.loadT = 0; if (b.model.start) b.model.start(); }
-  setImmersive(true, b.def.name + (b.model.povSeat ? ' · du fliegst mit dem Gespenst' : ' · du fährst mit'));
+  setImmersive(true, b.def.name + (b.model.povSeat ? ' · du fliegst mit dem Gespenst' : b.def.grp === 'show' ? ' · du schaust zu' : b.def.calm ? ' · du ruhst dich aus' : ' · du fährst mit'));
 }
 function enterFP() {
   exitMode(); setTool(null); select(null);

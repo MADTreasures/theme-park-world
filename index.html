@@ -321,6 +321,16 @@ table.fin.team .meter{min-width:64px}
   #mid.sheet #coach:not(.min){display:none}
   #hud.immersive #panel{max-height:calc(100% - 256px - var(--alh))}
 }
+/* chips above the cards: the groups of attractions and booths */
+#chips{display:flex;gap:6px;overflow-x:auto;padding:8px var(--gr) 0 var(--gl);scrollbar-width:none}
+#chips::-webkit-scrollbar{display:none}
+#chips[hidden]{display:none}
+.chip{flex:none;display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px 0 12px;border-radius:15px;border:2px solid var(--ink-3);background:var(--ink-2);color:var(--paper);font:800 12.5px/1 var(--font-ui);cursor:pointer;white-space:nowrap}
+.chip i{font-style:normal;font-size:11px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--ink-3);display:inline-grid;place-items:center}
+.chip[aria-pressed="true"]{background:var(--bulb);border-color:var(--bulb-deep);color:var(--ink)}
+.chip[aria-pressed="true"] i{background:rgba(23,26,66,.16)}
+#tray{padding-top:8px}
+@media (max-width:760px){ #hud.sheet #chips,#hud.tool #chips{display:none} }
 </style>
 <!-- Fonts Bungee and Nunito (SIL Open Font License 1.1), embedded so the page needs no network. -->
 <style>
@@ -375,6 +385,7 @@ table.fin.team .meter{min-width:64px}
       <div id="joy" hidden aria-label="Steuerkreuz zum Gehen"><i></i></div>
     </div>
     <footer id="dock">
+      <div id="chips" hidden></div>
       <div id="tray" hidden></div>
       <nav id="tabs" aria-label="Bauen"></nav>
     </footer>
@@ -783,22 +794,24 @@ function mCups() {
   } };
 }
 
-function mSwing() {
-  const g = new T.Group(), b = new Builder();
-  b.cyl(1.25, 1.3, 0.1, K.vio, 0, 0.05, 0, { seg: 20 });
-  b.scyl(0.2, 0.3, 3.2, [K.paper, K.blue], 8, 0, 1.7, 0);
-  b.sph(0.22, K.yel, 0, 3.35, 0);
+// tall: the big version, whose crown climbs a mast twice as high
+function mSwing(tall) {
+  const g = new T.Group(), b = new Builder(), H = tall ? 6.6 : 3.2, C1 = tall ? K.red : K.blue, RISE = tall ? 3.9 : 1;
+  b.cyl(1.25, 1.3, 0.1, tall ? K.ink : K.vio, 0, 0.05, 0, { seg: 20 });
+  b.scyl(0.2, 0.3, H, [K.paper, C1], 8, 0, H / 2 + 0.1, 0);
+  b.sph(0.22, K.yel, 0, H + 0.15, 0);
+  if (tall) { b.cone(0.12, 0.5, K.yel, 0, H + 0.5, 0, { seg: 6 }); for (let i = 0; i < 4; i++) b.sph(0.05, K.bulb, Math.cos(i * 1.57) * 0.3, H - 0.1, Math.sin(i * 1.57) * 0.3, { glow: true, seg: 6, seg2: 4 }); }
   g.add(b.mesh());
   const rot = new T.Group(); rot.position.y = 2.0; g.add(rot);
   const r = new Builder();
   r.cyl(1.42, 1.42, 0.1, K.yel, 0, 0.3, 0, { seg: 20 });
-  r.scone(1.5, 0.6, [K.blue, K.paper], 12, 0, 0.65, 0);
-  r.cyl(0.42, 0.52, 0.5, K.blue, 0, 0.1, 0);
+  r.scone(1.5, 0.6, [C1, K.paper], 12, 0, 0.65, 0);
+  r.cyl(0.42, 0.52, 0.5, C1, 0, 0.1, 0);
   bulbRing(r, 14, 1.44, 0.3);
   rot.add(r.mesh());
   const cb = new Builder();
   cb.cyl(0.012, 0.012, 1.45, K.stoneD, -0.09, -0.725, 0, { seg: 4 }); cb.cyl(0.012, 0.012, 1.45, K.stoneD, 0.09, -0.725, 0, { seg: 4 });
-  cb.box(0.24, 0.04, 0.2, K.red, 0, -1.46, 0); cb.box(0.24, 0.2, 0.03, K.red, 0, -1.36, -0.1);
+  cb.box(0.24, 0.04, 0.2, tall ? K.teal : K.red, 0, -1.46, 0); cb.box(0.24, 0.2, 0.03, tall ? K.teal : K.red, 0, -1.36, -0.1);
   const chair = cb.mesh();
   const seats = [], sw = [];
   for (let i = 0; i < 12; i++) {
@@ -807,17 +820,18 @@ function mSwing() {
     seats.push(seatAt(s, 0, -1.44, 0));
   }
   return { group: g, seats, update(dt, ride) {
-    rot.rotation.y -= dt * 1.7 * ride.spin; rot.position.y = 2.0 + ride.spin;
-    const al = 0.95 * ride.spin; for (const s of sw) s.rotation.z = al;
+    rot.rotation.y -= dt * (tall ? 2.0 : 1.7) * ride.spin; rot.position.y = 2.0 + RISE * ride.spin;
+    const al = (tall ? 1.08 : 0.95) * ride.spin; for (const s of sw) s.rotation.z = al;
   } };
 }
 
-function mShip() {
-  const g = new T.Group(), b = new Builder(), PY = 3.0;
+// loop: the wilder version, which swings higher and higher and then goes right over the top
+function mShip(loop) {
+  const g = new T.Group(), b = new Builder(), PY = 3.0, HULL = loop ? 0x6f48d6 : K.redD, FRAME = loop ? K.pink : K.blue;
   b.box(3.84, 0.08, 1.84, K.stoneD, 0, 0.04, 0);
   const L = Math.hypot(1.5, PY), ang = Math.atan2(1.5, PY);
   for (const z of [-0.8, 0.8]) {
-    b.cyl(0.06, 0.07, L, K.blue, 0.75, PY / 2, z, { rz: ang, seg: 6 }); b.cyl(0.06, 0.07, L, K.blue, -0.75, PY / 2, z, { rz: -ang, seg: 6 });
+    b.cyl(0.06, 0.07, L, FRAME, 0.75, PY / 2, z, { rz: ang, seg: 6 }); b.cyl(0.06, 0.07, L, FRAME, -0.75, PY / 2, z, { rz: -ang, seg: 6 });
     b.sph(0.13, K.yel, 0, PY, z);
   }
   b.cyl(0.07, 0.07, 1.75, K.yel, 0, PY, 0, { rx: Math.PI / 2, seg: 8 });
@@ -825,15 +839,24 @@ function mShip() {
   const sw = new T.Group(); sw.position.y = PY; g.add(sw);
   const s = new Builder(), HY = -2.3;
   for (const z of [-0.37, 0.37]) { s.cyl(0.035, 0.035, 2.3, K.paper, 0.45, -1.05, z, { rz: 0.405, seg: 5 }); s.cyl(0.035, 0.035, 2.3, K.paper, -0.45, -1.05, z, { rz: -0.405, seg: 5 }); }
-  s.box(2.3, 0.42, 0.86, K.redD, 0, HY, 0); s.box(2.34, 0.08, 0.9, K.yel, 0, HY + 0.2, 0); s.box(2.2, 0.02, 0.7, K.woodD, 0, HY + 0.25, 0);
-  s.box(0.95, 0.42, 0.82, K.redD, 1.45, HY + 0.19, 0, { rz: 0.42 }); s.box(0.95, 0.42, 0.82, K.redD, -1.45, HY + 0.19, 0, { rz: -0.42 });
+  s.box(2.3, 0.42, 0.86, HULL, 0, HY, 0); s.box(2.34, 0.08, 0.9, K.yel, 0, HY + 0.2, 0); s.box(2.2, 0.02, 0.7, K.woodD, 0, HY + 0.25, 0);
+  s.box(0.95, 0.42, 0.82, HULL, 1.45, HY + 0.19, 0, { rz: 0.42 }); s.box(0.95, 0.42, 0.82, HULL, -1.45, HY + 0.19, 0, { rz: -0.42 });
   s.box(0.97, 0.08, 0.86, K.yel, 1.43, HY + 0.38, 0, { rz: 0.42 }); s.box(0.97, 0.08, 0.86, K.yel, -1.43, HY + 0.38, 0, { rz: -0.42 });
   s.sph(0.12, K.yel, 1.95, HY + 0.62, 0); s.sph(0.12, K.yel, -1.95, HY + 0.62, 0);
   for (let i = 0; i < 6; i++) s.box(0.12, 0.13, 0.74, K.wood, -1.0 + i * 0.4, HY + 0.325, 0);
   sw.add(s.mesh());
   const seats = [];
   for (let i = 0; i < 6; i++) { const x = -1.0 + i * 0.4; for (const z of [-0.2, 0.2]) seats.push(seatAt(sw, x, HY + 0.39, z, x < 0 ? Math.PI / 2 : -Math.PI / 2)); }
-  return { group: g, seats, update(dt, ride) { sw.rotation.z = Math.sin(ride.runT * 1.8) * 1.2 * ride.spin; } };
+  if (!loop) return { group: g, seats, update(dt, ride) { sw.rotation.z = Math.sin(ride.runT * 1.8) * 1.2 * ride.spin; } };
+  // swing up for a while, go over the top a few times, swing out
+  let ang0 = 0;
+  return { group: g, seats, start() { ang0 = 0; }, update(dt, ride) {
+    if (ride.state !== 'run') { sw.rotation.z *= Math.max(0, 1 - dt * 2); return; }
+    const t = ride.runT, T1 = 4.6, T2 = ride.def.dur - 4.4;
+    if (t < T1) sw.rotation.z = Math.sin(t * 1.9) * t * 0.58;
+    else if (t < T2) { sw.rotation.z += dt * 3.1; ang0 = sw.rotation.z; }
+    else { let a = ang0 % TAU; if (a > Math.PI) a -= TAU; const q = t - T2; sw.rotation.z = a * Math.exp(-0.75 * q) * Math.cos(1.9 * q); }
+  } };
 }
 
 function mBumper() {
@@ -1108,7 +1131,8 @@ function mCustomCoaster(x, y, rot, nodes) {
 /* ================= booths ================= */
 function mShop(kind) {
   const g = new T.Group(), b = new Builder();
-  const C = { fries: [K.red, K.yel], burger: [K.ora, K.paper], drink: [K.blue, K.paper], ice: [K.pink, K.paper], balloon: [K.vio, K.yel], throw: [K.teal, K.yel] }[kind];
+  const C = { fries: [K.red, K.yel], burger: [K.ora, K.paper], drink: [K.blue, K.paper], ice: [K.pink, K.paper], balloon: [K.vio, K.yel], throw: [K.teal, K.yel],
+    wurst: [K.redD, K.paper], brezel: [K.woodD, K.paper], doener: [K.teal, K.yel], candy: [K.pink, K.mint], marroni: [0x6b3a2a, K.ora], cotton: [0x7cc4e6, K.pink] }[kind];
   b.box(0.9, 0.05, 0.9, K.stoneD, 0, 0.025, 0);
   b.box(0.76, 0.36, 0.5, C[0], 0, 0.23, -0.1);
   b.box(0.8, 0.04, 0.3, K.paper, 0, 0.43, 0.2);
@@ -1131,6 +1155,30 @@ function mShop(kind) {
   } else if (kind === 'throw') {
     for (const [cx, cy] of [[-0.11, 1.13], [0, 1.13], [0.11, 1.13], [-0.055, 1.235], [0.055, 1.235], [0, 1.34]]) { b.cyl(0.05, 0.05, 0.1, K.stone, cx, cy, z, { seg: 8 }); b.cyl(0.052, 0.052, 0.03, K.red, cx, cy, z, { seg: 8 }); }
     b.sph(0.05, K.yel, 0.24, 1.12, z + 0.1, { seg: 7, seg2: 5 });
+  } else if (kind === 'wurst') {
+    b.sph(1, 0xe0a860, 0, 1.2, z, { sx: 0.32, sy: 0.07, sz: 0.12, seg: 10, seg2: 6 }); b.cyl(0.055, 0.055, 0.6, 0xb5482f, 0, 1.275, z, { rz: Math.PI / 2, seg: 8 });
+    for (const x of [-0.3, 0.3]) b.sph(0.055, 0xb5482f, x, 1.275, z, { seg: 8, seg2: 5 });
+    for (let i = 0; i < 7; i++) b.box(0.07, 0.022, 0.03, K.yel, -0.21 + i * 0.07, 1.335, z + (i % 2 ? 0.018 : -0.018), { ry: i % 2 ? 0.7 : -0.7 });
+  } else if (kind === 'brezel') {
+    const P = 0xb5651d;
+    b.tor(0.22, 0.04, P, 0, 1.36, z, { rs: 6, seg: 18 }); b.cyl(0.036, 0.036, 0.36, P, -0.07, 1.33, z + 0.02, { rz: -0.62, seg: 6 }); b.cyl(0.036, 0.036, 0.36, P, 0.07, 1.33, z + 0.02, { rz: 0.62, seg: 6 });
+    for (let i = 0; i < 9; i++) { const a = i / 9 * TAU; b.sph(0.016, 0xffffff, Math.cos(a) * 0.22, 1.36 + Math.sin(a) * 0.22, z + 0.04, { seg: 4, seg2: 3 }); }
+  } else if (kind === 'doener') {
+    b.cyl(0.2, 0.2, 0.03, K.stone, 0, 1.14, z, { seg: 12 }); b.cyl(0.012, 0.012, 0.66, K.stoneD, 0, 1.46, z, { seg: 5 }); b.cyl(0.18, 0.1, 0.42, 0xa5673f, 0, 1.4, z, { seg: 10 });
+    for (let i = 0; i < 3; i++) b.cyl(0.165 - i * 0.02, 0.15 - i * 0.02, 0.03, 0x7a4526, 0, 1.53 - i * 0.12, z, { seg: 10 });
+    b.sph(0.05, K.red, 0, 1.66, z, { seg: 7, seg2: 5 }); b.box(0.03, 0.4, 0.03, K.stoneD, 0.24, 1.36, z);
+  } else if (kind === 'candy') {
+    b.cyl(0.012, 0.012, 0.42, K.paper, 0, 1.24, z, { seg: 5 });
+    for (let i = 0; i < 4; i++) b.cyl(0.21 - i * 0.052, 0.21 - i * 0.052, 0.05 + i * 0.006, i % 2 ? K.paper : K.pink, 0, 1.58, z, { rx: Math.PI / 2, seg: 14 });
+    for (const [x, c] of [[-0.27, K.mint], [0.27, K.yel]]) { b.sph(0.06, c, x, 1.17, z + 0.1, { seg: 7, seg2: 5 }); b.cone(0.045, 0.07, c, x - 0.085, 1.17, z + 0.1, { rz: -Math.PI / 2, seg: 5 }); b.cone(0.045, 0.07, c, x + 0.085, 1.17, z + 0.1, { rz: Math.PI / 2, seg: 5 }); }
+  } else if (kind === 'marroni') {
+    b.cyl(0.25, 0.2, 0.13, 0x2b2b33, 0, 1.17, z, { seg: 12 }); b.cyl(0.26, 0.26, 0.02, K.stoneD, 0, 1.24, z, { seg: 12 });
+    for (let i = 0; i < 8; i++) { const a = i * 0.8, r = i < 6 ? 0.14 : 0.04; b.sph(0.055, 0x6b3a1e, Math.cos(a) * r, 1.28 + (i < 6 ? 0 : 0.06), z + Math.sin(a) * r, { seg: 7, seg2: 5, sy: 0.85 }); b.sph(0.025, 0xc79a5e, Math.cos(a) * r, 1.315 + (i < 6 ? 0 : 0.06), z + Math.sin(a) * r, { seg: 5, seg2: 3, sy: 0.5 }); }
+    b.cone(0.09, 0.22, K.paper, 0.3, 1.2, z + 0.12, { rx: Math.PI, seg: 8 }); for (const dx of [-0.03, 0.03, 0]) b.sph(0.04, 0x6b3a1e, 0.3 + dx, 1.33 + (dx ? 0 : 0.04), z + 0.12, { seg: 6, seg2: 4 });
+  } else if (kind === 'cotton') {
+    b.cone(0.035, 0.32, K.paper, -0.06, 1.22, z, { rx: Math.PI, seg: 6 });
+    for (const [x, y, r] of [[-0.06, 1.5, 0.16], [-0.17, 1.44, 0.1], [0.05, 1.44, 0.1], [-0.06, 1.63, 0.1], [-0.12, 1.58, 0.09], [0.0, 1.58, 0.09]]) b.sph(r, 0xffb3d9, x, y, z, { seg: 8, seg2: 6 });
+    b.cone(0.025, 0.24, K.paper, 0.26, 1.18, z + 0.08, { rx: Math.PI, seg: 6 }); for (const [x, y, r] of [[0.26, 1.38, 0.1], [0.2, 1.34, 0.07], [0.32, 1.34, 0.07], [0.26, 1.46, 0.07]]) b.sph(r, 0x9fd8ff, x, y, z + 0.08, { seg: 7, seg2: 5 });
   } else {
     const cols = [K.red, K.yel, K.blue, K.mint, K.pink, K.ora];
     for (let i = 0; i < 6; i++) {
@@ -1445,6 +1493,9 @@ function mYard() {
 // HC the height of its centre above the neck joint. Hats are always larger than the hair they sit on, and hair never
 // comes closer to the face than the head's own surface (headZ), so nothing pokes through anything else.
 const HR = 0.086, HC = 0.083;
+// Hair styles that are headwear. 1: drawn together with the hair that shows under a hat (style 9);
+// 2: a small hat that sits on top of a full head of hair (style 0).
+const HATS = { 3: 1, 5: 1, 10: 1, 11: 1, 12: 1, 13: 2, 14: 2, 15: 1, 16: 1 };
 const FIG = { HIP: 0.3, THIGH: 0.14, SHIN: 0.16, SHO: 0.444, SX: 0.07, LX: 0.027, NECK: 0.5, SEAT: 0.272, UARM: 0.1, HAND: 0.105 };
 // where the surface of the head lies in front (z) of a point x, y; all in head units
 function headZ(x, y) {
@@ -1697,7 +1748,41 @@ function figureGeos(q) {
       hd((b) => { lathe(b, [[1.06, 0.3], [1.065, 0.42], [1.08, 0.52], [1.13, 0.68], [1.17, 0.84], [1.15, 0.98], [0.95, 1.1], [0, 1.13]], s(12, 24), W, { sz: 0.97 }); lathe(b, [[1.075, 0.3], [1.08, 0.4], [1.09, 0.5]], s(12, 24), D, { sz: 0.97 }); b.sph(1, D, 0, 0.27, 1.02, sp([8, 3], [16, 6], { sx: 0.72, sy: 0.05, sz: 0.45, rx: 0.3 })); }),
       // 11 a woollen hat that hugs the head, with a rolled edge
       (() => { const b = new Builder(); b.add(headBand(0, 10, 24, 24), W, 0, 0, 0, { sx: 1.13, sy: 1.13, sz: 1.13, rx: -0.26 }); b.add(headBand(9, 10, 24, 24), D, 0, 0, 0, { sx: 1.19, sy: 1.19, sz: 1.19, rx: -0.26 }); b.sph(0.15, D, 0, 1.15, -0.3, { seg: s(6, 10), seg2: s(4, 7) }); const g = b.geo(); g.scale(HR, HR, HR); g.translate(0, HC, 0); return g; })(),
+      // 12 cowboy hat: a creased crown and a brim that turns up
+      hd((b) => {
+        lathe(b, [[0.88, 0.56], [0.86, 0.7], [0.86, 0.95], [0.82, 1.18], [0.6, 1.3], [0.3, 1.24], [0, 1.2]], s(12, 24), W, { sz: 1.04 });
+        lathe(b, [[0.88, 0.56], [1.45, 0.54], [1.74, 0.66], [1.78, 0.72], [1.72, 0.72], [1.42, 0.6], [0.86, 0.62]], s(14, 28), W); lathe(b, [[0.885, 0.63], [0.875, 0.7], [0.87, 0.77]], s(12, 24), D, { sz: 1.04 });
+      }),
+      // 13 party hat: a pointed paper hat with a bobble
+      hd((b) => { b.cone(0.44, 0.92, W, 0.1, 1.46, -0.1, { rz: -0.16, seg: s(8, 16) }); b.tor(0.44, 0.045, D, 0.03, 1.02, -0.1, { rx: Math.PI / 2, rs: s(4, 6), seg: s(10, 18) }); b.sph(0.11, D, 0.175, 1.92, -0.1, { seg: s(6, 9), seg2: s(4, 6) }); }),
+      // 14 crown
+      hd((b) => {
+        // centred on the hair, which lies a little further back than the skull
+        b.add(new T.LatheGeometry([[0.52, 0.96], [0.55, 0.98], [0.58, 1.22], [0.52, 1.22], [0.49, 1.0]].map((p) => new T.Vector2(p[0], p[1])), s(10, 18)), W, 0, 0, -0.1); b.cyl(0.5, 0.48, 0.1, D, 0, 1.06, -0.1, { seg: s(8, 14) });
+        for (let i = 0; i < 6; i++) { const a = i / 6 * TAU + 0.5; b.cone(0.13, 0.3, W, Math.sin(a) * 0.55, 1.34, Math.cos(a) * 0.55 - 0.1, { seg: s(4, 6) }); b.sph(0.055, D, Math.sin(a) * 0.59, 1.09, Math.cos(a) * 0.59 - 0.1, { seg: s(4, 7), seg2: s(3, 5) }); }
+      }),
+      // 15 wizard's hat: tall, pointed, with a wide brim
+      hd((b) => {
+        lathe(b, [[0.88, 0.56], [0.86, 0.72], [0.72, 1.1], [0.5, 1.6], [0.28, 2.05], [0.08, 2.4], [0, 2.44]], s(12, 22), W, { sz: 1.04 });
+        lathe(b, [[0.88, 0.56], [1.4, 0.5], [1.66, 0.46], [1.7, 0.49], [1.66, 0.52], [1.4, 0.57], [0.86, 0.62]], s(14, 26), W); lathe(b, [[0.885, 0.63], [0.87, 0.72], [0.845, 0.8]], s(12, 22), D, { sz: 1.04 });
+        if (q) for (const [a, y, r] of [[0.5, 1.25, 0.62], [2.6, 1.7, 0.44], [4.4, 1.05, 0.72]]) b.sph(0.07, D, Math.sin(a) * r, y, Math.cos(a) * r, { seg: 5, seg2: 4 });
+      }),
+      // 16 top hat
+      hd((b) => {
+        lathe(b, [[0.88, 0.56], [0.87, 0.62], [0.86, 1.05], [0.9, 1.55], [0.88, 1.6], [0, 1.6]], s(12, 24), W, { sz: 1.04 });
+        lathe(b, [[0.88, 0.56], [1.3, 0.54], [1.36, 0.58], [1.3, 0.62], [0.86, 0.63]], s(14, 26), W); lathe(b, [[0.885, 0.64], [0.88, 0.72], [0.875, 0.8]], s(12, 24), D, { sz: 1.04 });
+      }),
     ],
+    cape: mk((b) => {   // hangs from the shoulders down the back
+      b.add(new T.CylinderGeometry(0.058, 0.092, 0.29, s(5, 12), s(1, 3), true, Math.PI / 2 + 0.25, Math.PI - 0.5), W, 0, 0.318, 0.004, { sz: 0.82 });
+      b.add(new T.CylinderGeometry(0.064, 0.061, 0.044, s(6, 12), 1, true), D, 0, 0.476, 0, { sz: 0.74 }); b.sph(0.011, D, 0, 0.468, 0.045, { seg: 6, seg2: 4 });
+    }),
+    // a soft toy won at a game, carried in the left hand
+    plush: mk((b) => {
+      b.sph(0.03, W, 0, -0.158, 0.04, sp([6, 4], [10, 7], { sy: 1.1 })); b.sph(0.024, W, 0, -0.113, 0.046, sp([6, 4], [10, 7]));
+      for (const x of [-1, 1]) { b.sph(0.009, W, x * 0.019, -0.092, 0.044, { seg: 5, seg2: 4 }); b.sph(0.011, W, x * 0.03, -0.146, 0.052, { seg: 5, seg2: 4 }); b.sph(0.012, W, x * 0.02, -0.185, 0.055, { seg: 5, seg2: 4 }); if (q) b.sph(0.0035, 0x1b1530, x * 0.009, -0.108, 0.068, { seg: 4, seg2: 3 }); }
+      b.sph(0.009, D, 0, -0.118, 0.068, { seg: 5, seg2: 4 });
+    }),
     skirt: mk((b) => { lathe(b, [[0.09, 0.212], [0.088, 0.222], [0.08, 0.25], [0.068, 0.29], [0.057, 0.318], [0.05, 0.332]], s(8, 18), W); if (q) b.cyl(0.0905, 0.091, 0.008, D, 0, 0.215, 0, { seg: 18 }); }),
     pack: mk((b) => { b.box(0.085, 0.1, 0.045, W, 0, 0.4, -0.06); b.box(0.055, 0.034, 0.01, D, 0, 0.378, -0.086); for (const x of [-0.034, 0.034]) b.box(0.01, 0.09, 0.005, D, x, 0.412, 0.039); }),
     shades: hd((b) => { for (const x of [-1, 1]) b.sph(1, 0x16161a, x * FACE.ex, FACE.ey + 0.01, headZ(FACE.ex, FACE.ey) + 0.035, sp([8, 5], [14, 8], { sx: 0.245, sy: 0.245, sz: 0.06, ry: x * headYaw(FACE.ex, FACE.ey) })); b.box(0.24, 0.06, 0.05, 0x16161a, 0, FACE.ey + 0.05, headZ(0, FACE.ey) + 0.02); for (const x of [-1, 1]) b.box(0.05, 0.05, 0.75, 0x16161a, x * 0.985, FACE.ey + 0.05, 0.2); }),
@@ -1715,6 +1800,823 @@ function figureGeos(q) {
     balloon: mk((b) => { b.sph(0.115, W, 0, 0.755, 0, { sy: 1.15, seg: s(10, 18), seg2: s(7, 12) }); b.cone(0.02, 0.03, D, 0, 0.615, 0, { seg: 6 }); b.cyl(0.003, 0.003, 0.6, 0x555555, 0, 0.3, 0, { seg: 4 }); if (q) b.sph(0.03, W, -0.045, 0.83, 0.085, { seg: 8, seg2: 5, sz: 0.3, ry: -0.45, rx: -0.4 }); }),
     blob: (() => { const g = new T.CircleGeometry(0.1, 14); g.rotateX(-Math.PI / 2); return g; })(),
   };
+}
+/* ================= kit for the newer attractions ================= */
+// Pieces that many of the newer buildings share: a base plate, a grandstand, a pool, a fence, small animals, a performer,
+// a train on a track and vehicles on a round course.
+const WAT = 0x4cc3f0, WATD = 0x35a9de, LAWN = 0x8fbf6f, SANDY = 0xe6d3a1;
+const plate = (b, w, h, col) => b.box(w - 0.16, 0.06, h - 0.16, col || K.stoneD, 0, 0.03, 0);
+// Rows of benches that rise towards the back (+z). Every place gets a seat that looks towards -z, where the show is.
+function standInto(g, b, seats, cx, z0, cols, rows, col) {
+  const W = cols * 0.3 + 0.12;
+  for (let r = 0; r < rows; r++) {
+    const top = 0.06 + r * 0.26, z = z0 + r * 0.36;
+    if (r) b.box(W, top - 0.06, 0.36, r % 2 ? K.stone : K.stoneD, cx, 0.06 + (top - 0.06) / 2, z);
+    b.box(W, 0.05, 0.17, col || K.wood, cx, top + 0.235, z + 0.08); b.box(W, 0.2, 0.04, K.stoneD, cx, top + 0.11, z + 0.15);
+    for (let c = 0; c < cols; c++) seats.push(seatAt(g, cx + (c - (cols - 1) / 2) * 0.3, top + 0.26, z + 0.07, Math.PI));
+  }
+  // a low back rail with posts instead of a wall, so that the audience can be seen from behind
+  const zb = z0 + rows * 0.36 - 0.14, yb = 0.06 + (rows - 1) * 0.26;
+  b.box(W + 0.08, yb, 0.05, K.stoneD, cx, yb / 2 + 0.03, zb); b.box(W + 0.08, 0.035, 0.035, col || K.wood, cx, yb + 0.5, zb);
+  for (let i = 0; i <= 4; i++) b.box(0.035, 0.5, 0.035, col || K.wood, cx - W / 2 + i * W / 4, yb + 0.26, zb);
+}
+// a basin with a pale rim and water in it; the water lies at height y
+function poolInto(b, x, z, w, d, y, rim) {
+  b.box(w, y + 0.05, d, rim || 0xf2f6fb, x, (y + 0.05) / 2 + 0.03, z); b.box(w - 0.18, 0.03, d - 0.18, WAT, x, y + 0.075, z);
+}
+// a paddock fence from one corner to another along an axis
+function fenceInto(b, x0, z0, x1, z1, col, h) {
+  const L = Math.hypot(x1 - x0, z1 - z0), n = Math.max(1, Math.round(L / 0.42)), ry = Math.atan2(x1 - x0, z1 - z0) + Math.PI / 2; h = h || 0.3; col = col || K.paper;
+  for (let i = 0; i <= n; i++) b.box(0.05, h, 0.05, col, lerp(x0, x1, i / n), h / 2 + 0.05, lerp(z0, z1, i / n));
+  for (const y of [h * 0.5, h * 0.9]) b.box(L, 0.03, 0.03, col, (x0 + x1) / 2, y + 0.05, (z0 + z1) / 2, { ry });
+}
+// Small animals, modelled looking towards +z with their feet on the ground.
+function critter(kind, col, s) {
+  const b = new Builder(), W = 0xffffff; s = s || 1;
+  const quad = (len, wid, hi, leg, c) => {   // a body on four legs
+    b.sph(1, c, 0, leg + hi * 0.5, 0, { sx: wid, sy: hi * 0.5, sz: len * 0.5, seg: 10, seg2: 7 });
+    for (const [x, z] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]) b.cyl(wid * 0.26, wid * 0.22, leg + hi * 0.2, c, x * wid * 0.55, (leg + hi * 0.2) / 2, z * len * 0.3, { seg: 6 });
+  };
+  if (kind === 'pony' || kind === 'goat' || kind === 'sheep' || kind === 'dog') {
+    const P = { pony: [0.52, 0.13, 0.22, 0.2], goat: [0.3, 0.085, 0.14, 0.12], sheep: [0.3, 0.11, 0.17, 0.09], dog: [0.28, 0.07, 0.11, 0.1] }[kind], [len, wid, hi, leg] = P, top = leg + hi;
+    quad(len, wid, hi, leg, col);
+    const hz = len * 0.5, hy = top + (kind === 'pony' ? 0.12 : 0.03), hc = kind === 'sheep' ? 0x3a3038 : col;
+    if (kind === 'pony') { b.cyl(wid * 0.55, wid * 0.7, 0.24, col, 0, top + 0.02, hz - 0.05, { rx: 0.7, seg: 7 }); b.box(0.03, 0.2, 0.2, 0x4a3a2a, 0, top + 0.08, hz - 0.14, { rx: 0.7 }); }
+    b.sph(1, hc, 0, hy, hz + (kind === 'pony' ? 0.12 : 0.06), { sx: wid * 0.7, sy: wid * 0.75, sz: wid * (kind === 'pony' ? 1.35 : 1.0), seg: 9, seg2: 6 });
+    for (const x of [-1, 1]) b.sph(1, hc, x * wid * 0.55, hy + wid * 0.75, hz + 0.02, { sx: wid * 0.2, sy: wid * (kind === 'dog' ? 0.5 : 0.4), sz: wid * 0.16, seg: 5, seg2: 4, rz: -x * (kind === 'dog' ? 2.2 : 0.5) });
+    for (const x of [-1, 1]) b.sph(wid * 0.14, 0x1b1530, x * wid * 0.42, hy + wid * 0.2, hz + wid * (kind === 'pony' ? 1.25 : 0.95), { seg: 5, seg2: 4 });
+    if (kind === 'goat') for (const x of [-1, 1]) b.cone(wid * 0.14, wid * 0.9, K.paper, x * wid * 0.3, hy + wid * 0.95, hz + 0.02, { rx: -0.5, seg: 5 });
+    if (kind === 'sheep') for (let i = 0; i < 6; i++) b.sph(wid * 0.75, col, Math.cos(i * 1.05) * wid * 0.5, top - hi * 0.25 + (i % 2) * hi * 0.3, (i - 2.5) * len * 0.15, { seg: 6, seg2: 5 });
+    b.box(wid * 0.25, kind === 'pony' ? 0.2 : 0.07, wid * 0.25, kind === 'pony' ? 0x4a3a2a : hc, 0, top - (kind === 'pony' ? 0.1 : 0.02), -len * 0.5, { rx: kind === 'pony' ? -0.35 : -0.9 });
+    if (kind === 'pony') b.box(wid * 1.5, 0.035, 0.2, K.red, 0, top + 0.01, -0.02);
+  } else if (kind === 'rabbit') {
+    b.sph(1, col, 0, 0.07, 0, { sx: 0.06, sy: 0.07, sz: 0.085, seg: 8, seg2: 6 }); b.sph(0.05, col, 0, 0.14, 0.07, { seg: 8, seg2: 6 }); b.sph(0.025, W, 0, 0.06, -0.085, { seg: 5, seg2: 4 });
+    for (const x of [-1, 1]) { b.sph(1, col, x * 0.022, 0.22, 0.06, { sx: 0.014, sy: 0.055, sz: 0.02, seg: 5, seg2: 4 }); b.sph(0.008, 0x1b1530, x * 0.025, 0.15, 0.11, { seg: 4, seg2: 3 }); }
+  } else if (kind === 'swan') {
+    b.sph(1, W, 0, 0.09, 0, { sx: 0.1, sy: 0.08, sz: 0.17, seg: 10, seg2: 7 }); b.cone(0.07, 0.16, W, 0, 0.13, -0.17, { rx: -1.9, seg: 6 });
+    b.cyl(0.025, 0.035, 0.2, W, 0, 0.2, 0.13, { rx: 0.25, seg: 6 }); b.cyl(0.022, 0.025, 0.1, W, 0, 0.3, 0.17, { rx: 1.3, seg: 6 }); b.sph(0.035, W, 0, 0.3, 0.22, { seg: 7, seg2: 5 }); b.cone(0.018, 0.06, K.ora, 0, 0.29, 0.27, { rx: 1.7, seg: 5 });
+    for (const x of [-1, 1]) b.sph(1, W, x * 0.085, 0.13, -0.02, { sx: 0.03, sy: 0.07, sz: 0.14, seg: 6, seg2: 5, rz: x * 0.25 });
+  } else if (kind === 'dolphin' || kind === 'orca') {
+    const o = kind === 'orca', L = o ? 0.95 : 0.55, R = o ? 0.2 : 0.1, c = o ? 0x1d2030 : 0x7d94ad, belly = o ? W : 0xdfe8f2;
+    b.sph(1, c, 0, 0, 0, { sx: R, sy: R * 0.92, sz: L * 0.5, seg: 12, seg2: 8 }); b.sph(1, belly, 0, -R * 0.28, L * 0.06, { sx: R * 0.8, sy: R * 0.72, sz: L * 0.4, seg: 10, seg2: 6 });
+    b.cone(R * 0.45, o ? 0.2 : 0.16, c, 0, -R * 0.1, L * 0.52, { rx: Math.PI / 2, seg: 7 });
+    b.cone(R * 0.42, o ? 0.42 : 0.2, c, 0, R * 1.05, -L * 0.05, { seg: 4, sx: 0.35, rx: -0.35 });
+    b.cone(R * 0.5, L * 0.4, c, 0, 0, -L * 0.55, { rx: -Math.PI / 2, seg: 7 });
+    for (const x of [-1, 1]) { b.box(R * 1.1, 0.025, R * 0.75, c, x * R * 0.6, 0.02, -L * 0.78, { ry: x * 0.5 }); b.box(R * 0.9, 0.025, R * 0.5, c, x * R * 0.95, -R * 0.5, L * 0.18, { rz: -x * 0.6, ry: -x * 0.4 }); b.sph(R * 0.09, 0x0d0f18, x * R * 0.72, R * 0.2, L * 0.36, { seg: 5, seg2: 4 }); }
+    if (o) for (const x of [-1, 1]) b.sph(1, W, x * R * 0.7, R * 0.42, L * 0.3, { sx: R * 0.12, sy: R * 0.16, sz: R * 0.3, seg: 6, seg2: 4 });
+  } else if (kind === 'seal') {
+    b.sph(1, col, 0, 0.14, -0.05, { sx: 0.1, sy: 0.12, sz: 0.2, seg: 10, seg2: 7, rx: -0.5 }); b.sph(0.075, col, 0, 0.3, 0.09, { seg: 9, seg2: 6 }); b.sph(0.03, 0x2b2530, 0, 0.29, 0.16, { seg: 6, seg2: 4 });
+    for (const x of [-1, 1]) { b.box(0.12, 0.02, 0.08, col, x * 0.12, 0.05, 0.04, { ry: x * 0.5 }); b.sph(0.012, 0x0d0f18, x * 0.035, 0.33, 0.145, { seg: 4, seg2: 3 }); }
+    b.box(0.16, 0.02, 0.1, col, 0, 0.03, -0.26);
+  }
+  const m = b.mesh(false); m.scale.setScalar(s); return m;
+}
+// A performer: one of the park's own people, built from the smooth figure parts, with arms and head that can move.
+// o: shirt, pants, skin, hair (style), hairCol, browCol, trim, shoe, eye, top (0 tee, 1 sleeveless, 2 jacket), mouth, cape (colour)
+const ACTOR_MATS = {};   // one material per colour, shared by all performers
+function actor(o) {
+  const g = new T.Group(), mats = ACTOR_MATS;
+  const mat = (col, flat) => { const k = col + (flat ? 'f' : ''); return mats[k] || (mats[k] = flat ? new T.MeshBasicMaterial({ color: col, vertexColors: true }) : softMat({ color: col, vertexColors: true }, 0.5, 0.16)); };
+  const part = (parent, geo, col, x, y, z, rx, ry, rz, flat) => { const m = new T.Mesh(geo, mat(col, flat)); m.position.set(x || 0, y || 0, z || 0); m.rotation.set(rx || 0, ry || 0, rz || 0); m.userData.shared = true; parent.add(m); return m; };
+  const skin = o.skin || 0xf1c39a, shirt = o.shirt || K.red, pants = o.pants || K.ink, trim = o.trim === undefined ? 0xffffff : o.trim, top = o.top === undefined ? 2 : o.top, brow = o.browCol || 0x3d2616;
+  part(g, FGH.torso, shirt); part(g, FGH.trim, trim); if (top === 2) part(g, FGH.zip, trim); part(g, FGH.pelvis, pants);
+  if (o.cape) part(g, FGH.cape, o.cape);
+  const head = part(g, FGH.head, skin, 0, FIG.NECK, 0);
+  if (o.hair >= 0) { part(head, FGH.hair[o.hair], o.hairCol || brow); if (HATS[o.hair]) part(head, FGH.hair[HATS[o.hair] === 2 ? 0 : 9], brow); }
+  for (const sd of [-1, 1]) {
+    part(head, FGH.eye, 0xffffff, sd * FIG.EX, FIG.EY, FIG.EZ, 0, sd * FIG.EYAW, 0, true); part(head, FGH.iris, o.eye || 0x5b3a1e, sd * FIG.EX, FIG.EY, FIG.EZ, 0, sd * FIG.EYAW, 0, true);
+    part(head, FGH.brow, brow, sd * FIG.EX, FIG.BROW[0] + 0.004, FIG.BROW[1], 0, sd * FIG.BYAW, 0);
+  }
+  part(head, FGH.mouth[o.mouth === undefined ? 1 : o.mouth], 0xffffff, 0, FIG.MOUTH[0], FIG.MOUTH[1]);
+  const arms = [], fores = [];
+  for (const sd of [-1, 1]) {
+    const th = part(g, FGH.thigh, pants, sd * FIG.LX, FIG.HIP, 0), sh = part(th, FGH.shin, pants, 0, -FIG.THIGH, 0); part(sh, FGH.shoe, o.shoe || 0x2b2b33); part(sh, FGH.sole, 0xffffff);
+    const up = part(g, FGH.upper, top === 2 ? shirt : skin, sd * FIG.SX, FIG.SHO, 0, 0.05, 0, sd * 0.13); if (top === 0) part(up, FGH.cap, shirt); if (top === 2) part(up, FGH.stripe, trim);
+    const fo = part(up, FGH.forearm, top === 2 ? shirt : skin, 0, -FIG.UARM, 0, -0.3); part(fo, FGH.hand, skin); part(fo, FGH.wrist, trim);
+    arms.push(up); fores.push(fo);
+  }
+  return { group: g, head, armL: arms[0], armR: arms[1], foreL: fores[0], foreR: fores[1] };
+}
+// A train on a closed track, driven by the same physics as the big coaster.
+// o: pts, K, base(builder, track), car(builder), cars, seats [[x, y, z], ...] per car, gap, lift, pose, tick(dt, model, state, running)
+function trackRide(o) {
+  const g = new T.Group(), b = new Builder(), tr = makeTrack(o.pts, o.K || 200);
+  o.base(b, tr); g.add(b.mesh());
+  const cb = new Builder(); o.car(cb); const car0 = cb.mesh(), cars = [], seats = [];
+  for (let i = 0; i < o.cars; i++) { const c = i ? car0.clone() : car0; g.add(c); cars.push(c); for (const p of o.seats) { const s = seatAt(c, p[0], p[1], p[2]); if (o.pose) s.userData.pose = o.pose; seats.push(s); } }
+  const st = { s: 0, v: 0 }; let running = false, fin = false;
+  const pose = () => { for (let i = 0; i < cars.length; i++) onTrack(cars[i], tr, (CO.home + st.s - i * o.gap) / tr.len, o.lift === undefined ? 0.09 : o.lift); };
+  pose();
+  const m = { group: g, seats, tr, cars, start() { st.s = 0; st.v = 0; running = true; fin = false; }, done() { return fin; }, update(dt, r) {
+    if (o.tick) o.tick(dt, m, st, running, r);
+    if (!running) return;
+    if (coasterAdvance(st, dt, tr.curve, tr.len)) { st.s = 0; running = false; fin = true; }
+    pose();
+  } };
+  return m;
+}
+// Vehicles that go round a closed course at an even pace while the ride runs.
+// o: pts or tr, K, n, veh(builder) or mesh, seats [[x, y, z, ry], ...] per vehicle, speed, lift, pose, level, u0, spread (share of the course
+// the vehicles are spread over)
+function circuit(g, o) {
+  const tr = o.tr || makeTrack(o.pts, o.K || 120), vb = new Builder(); if (o.veh) o.veh(vb); const v0 = o.mesh || vb.mesh(), vs = [], seats = [];
+  for (let i = 0; i < o.n; i++) { const v = i ? v0.clone() : v0; g.add(v); vs.push(v); for (const p of o.seats || []) { const s = seatAt(v, p[0], p[1], p[2], p[3]); if (o.pose) s.userData.pose = o.pose; seats.push(s); } }
+  let u = o.u0 || 0;
+  const place = () => { for (let i = 0; i < o.n; i++) {
+    const w = u + i / o.n * (o.spread || 1);
+    if (o.level) { const q = ((w % 1) + 1) % 1; tr.curve.getPointAt(q, _tp); tr.curve.getTangentAt(q, _tt); vs[i].position.copy(_tp); vs[i].rotation.set(0, Math.atan2(_tt.x, _tt.z), 0); }   // hangs level, like a gondola
+    else onTrack(vs[i], tr, w, o.lift || 0);
+  } };
+  place();
+  return { tr, vs, seats, get u() { return u; }, step(dt, spin) { u += dt * o.speed * spin / tr.len; place(); } };
+}
+// water thrown up where something plunges in: a ring of thin jets, hidden until it is scaled up
+function splashMesh(n, r, h, w) {
+  const sb = new Builder();
+  for (let i = 0; i < n; i++) { const a = i / n * TAU; sb.cone(w, h, 0xe9f8ff, Math.cos(a) * r, h / 2, Math.sin(a) * r * 0.75, { rx: Math.PI, rz: Math.cos(a) * 0.5, seg: 5 }); }
+  const m = sb.mesh(false); m.scale.setScalar(0.001); return m;
+}
+// part of a track as a tube: from sample i0 to i1, moved sideways by off and up by dy
+function railPart(b, tr, i0, i1, off, dy, rad, col, rs) {
+  const pts = []; for (let i = i0; i <= i1; i++) { const k = i % tr.K, p = tr.P[k]; pts.push(new T.Vector3(p.x + tr.SD[k].x * off, p.y + dy, p.z + tr.SD[k].z * off)); }
+  b.add(new T.TubeGeometry(new T.CatmullRomCurve3(pts), Math.max(4, i1 - i0), rad, rs || 5, false), col);
+}
+// a canopy over a station at the front of a ride, like the ones of the coasters
+function canopyInto(b, x, z, w, c1, c2) {
+  for (const sx of [-1, 1]) b.cyl(0.03, 0.03, 1.3, K.paper, x + sx * (w / 2 - 0.08), 0.65, z + 0.12, { seg: 6 });
+  const n = Math.max(3, Math.round(w / 0.44)); for (let i = 0; i < n; i++) b.box(w / n, 0.05, 0.9, i % 2 ? c2 : c1, x - w / 2 + (i + 0.5) * w / n, 1.28, z - 0.25, { rx: 0.14 });
+}
+/* ================= newer attractions ================= */
+const OVAL = (rx, rz, y) => [[-rx * 0.55, y, rz], [0, y, rz], [rx * 0.55, y, rz], [rx, y, rz * 0.5], [rx, y, -rz * 0.5], [rx * 0.55, y, -rz], [-rx * 0.55, y, -rz], [-rx, y, -rz * 0.5], [-rx, y, rz * 0.5]];
+
+/* ----- children's railway: an engine and four open wagons on an oval ----- */
+function mTrain() {
+  const g = new T.Group(), b = new Builder(), tr = makeTrack(OVAL(1.55, 1.0, 0.1), 140);
+  plate(b, 4, 3, LAWN);
+  railInto(b, tr, 0.07, 0, 0.014, K.stoneD, 4); railInto(b, tr, -0.07, 0, 0.014, K.stoneD, 4);
+  for (let i = 0; i < tr.K; i += 3) { const p = tr.P[i], t = tr.TG[i]; b.box(0.24, 0.02, 0.05, K.woodD, p.x, 0.075, p.z, { ry: Math.atan2(t.x, t.z) }); }
+  b.box(1.5, 0.12, 0.3, K.stone, 0, 0.09, 1.3); canopyInto(b, 0, 1.3, 1.6, K.red, K.paper);
+  // a tunnel over the far straight, a little wood in the middle
+  b.box(0.9, 0.5, 0.12, 0x8a8fa8, 0, 0.3, -0.72); b.box(0.9, 0.5, 0.12, 0x8a8fa8, 0, 0.3, -1.22); b.box(0.9, 0.14, 0.62, 0x9aa0b8, 0, 0.6, -0.97); b.sph(1, LAWN, 0, 0.64, -0.97, { sx: 0.6, sy: 0.2, sz: 0.42, seg: 10, seg2: 6 });
+  addTree(b, -0.45, 0.05, 0.62); addTree(b, 0.5, -0.1, 0.5); addBush(b, 0.05, 0.3, 0.7);
+  b.cyl(0.02, 0.02, 0.5, K.inkD, 1.1, 0.3, 0.55, { seg: 5 }); b.box(0.09, 0.16, 0.05, K.inkD, 1.1, 0.56, 0.55); b.sph(0.03, K.red, 1.1, 0.6, 0.58, { glow: true, seg: 6, seg2: 4 }); b.sph(0.03, K.mint, 1.1, 0.53, 0.58, { glow: true, seg: 6, seg2: 4 });
+  g.add(b.mesh());
+  const wag = (v) => { v.box(0.26, 0.05, 0.36, K.inkD, 0, 0.045, 0); v.box(0.28, 0.12, 0.38, K.blue, 0, 0.12, 0); v.box(0.24, 0.02, 0.34, K.paper, 0, 0.185, 0); for (const x of [-0.14, 0.14]) for (const z of [-0.11, 0.11]) v.cyl(0.045, 0.045, 0.03, K.inkD, x, 0.025, z, { rz: Math.PI / 2, seg: 8 }); };
+  const cars = circuit(g, { tr, n: 4, veh: wag, seats: [[0, 0.18, 0.08], [0, 0.18, -0.09]], speed: 1.1, lift: 0.02, spread: 4 * 0.44 / tr.len });
+  const loco = circuit(g, { tr, n: 1, speed: 1.1, lift: 0.02, u0: 4 * 0.44 / tr.len, veh(v) {
+    v.box(0.26, 0.05, 0.4, K.inkD, 0, 0.045, 0); v.cyl(0.11, 0.11, 0.26, K.red, 0, 0.19, 0.05, { rx: Math.PI / 2, seg: 10 }); v.box(0.26, 0.22, 0.14, K.red, 0, 0.2, -0.13); v.box(0.3, 0.03, 0.18, K.yel, 0, 0.325, -0.13);
+    v.cyl(0.035, 0.05, 0.12, K.inkD, 0, 0.34, 0.1, { seg: 7 }); v.sph(0.04, K.yel, 0, 0.3, -0.02, { seg: 6, seg2: 4 }); v.cone(0.12, 0.1, K.yel, 0, 0.07, 0.24, { rx: Math.PI / 2, seg: 4 });
+    for (const x of [-0.14, 0.14]) for (const z of [-0.12, 0.1]) v.cyl(0.055, 0.055, 0.03, K.inkD, x, 0.03, z, { rz: Math.PI / 2, seg: 8 });
+  } });
+  return { group: g, seats: cars.seats, update(dt, r) { if (r.spin > 0.01) { cars.step(dt, r.spin); loco.step(dt, r.spin); } } };
+}
+
+/* ----- horse coaster for children: gentle hills, cars that are horses ----- */
+function mPonyCoaster() {
+  return trackRide({
+    pts: [[-1.3, 0.45, 1.0], [0, 0.45, 1.0], [1.3, 0.45, 1.0], [2.05, 0.6, 0.2], [1.6, 1.15, -0.8], [0.6, 0.72, -1.05], [-0.4, 1.25, -1.0], [-1.5, 0.78, -0.8], [-2.1, 0.62, 0.15]], K: 190, cars: 4, gap: 0.5, pose: 'straddle',
+    seats: [[0, 0.3, 0.02], [0, 0.3, -0.17]],
+    base(b, tr) {
+      plate(b, 5, 3, LAWN);
+      railInto(b, tr, 0.09, 0, 0.022, K.wood); railInto(b, tr, -0.09, 0, 0.022, K.wood); railInto(b, tr, 0, -0.07, 0.036, K.woodD, 6);
+      for (let i = 0; i < tr.K; i += 3) { const p = tr.P[i], t = tr.TG[i]; b.box(0.2, 0.02, 0.035, K.woodD, p.x, p.y - 0.03, p.z, { ry: Math.atan2(t.x, t.z) }); }
+      supportsInto(b, tr, 8, 0.6, K.paper, 0.028);
+      b.box(2.5, 0.3, 0.24, K.wood, 0, 0.18, 1.3); canopyInto(b, 0, 1.3, 2.6, K.yel, K.paper);
+      fenceInto(b, -2.3, -1.38, 2.3, -1.38, K.paper, 0.22); for (const x of [-1.9, 1.9]) addBush(b, x, 1.15, 0.6);
+      b.box(0.5, 0.3, 0.34, 0xe0c060, 0.4, 0.2, 0.1); b.box(0.5, 0.3, 0.34, 0xe0c060, 0.85, 0.2, 0.2, { ry: 0.5 });   // hay
+    },
+    car(c) {
+      c.box(0.16, 0.2, 0.44, 0x9b6a4a, 0, 0.16, 0); c.box(0.11, 0.26, 0.12, 0x9b6a4a, 0, 0.36, 0.19, { rx: 0.45 }); c.box(0.11, 0.12, 0.22, 0x9b6a4a, 0, 0.5, 0.29);
+      c.box(0.035, 0.24, 0.16, 0x4a3a2a, 0, 0.42, 0.11, { rx: 0.45 }); c.box(0.04, 0.16, 0.05, 0x4a3a2a, 0, 0.2, -0.25, { rx: -0.5 }); c.box(0.18, 0.04, 0.3, K.red, 0, 0.275, -0.06);
+      for (const x of [-0.06, 0.06]) { c.sph(0.014, 0x1b1530, x, 0.53, 0.38, { seg: 4, seg2: 3 }); c.sph(1, 0x9b6a4a, x * 0.8, 0.59, 0.24, { sx: 0.02, sy: 0.04, sz: 0.02, seg: 4, seg2: 3 }); }
+      for (const x of [-0.1, 0.1]) for (const z of [-0.14, 0.14]) c.cyl(0.045, 0.045, 0.03, K.inkD, x, 0.02, z, { rz: Math.PI / 2, seg: 8 });
+      c.box(0.2, 0.05, 0.4, K.inkD, 0, 0.045, 0);
+    },
+  });
+}
+
+/* ----- trampolines: every other jump is a somersault ----- */
+function mTramp() {
+  const g = new T.Group(), b = new Builder(), seats = [], jumpers = [];
+  plate(b, 2, 2, LAWN);
+  for (const [x, z, c] of [[-0.45, -0.45, K.blue], [0.45, -0.45, K.pink], [-0.45, 0.45, K.yel], [0.45, 0.45, K.mint]]) {
+    b.cyl(0.4, 0.4, 0.2, K.inkD, x, 0.16, z, { seg: 16 }); b.cyl(0.4, 0.4, 0.04, c, x, 0.27, z, { seg: 16 }); b.cyl(0.3, 0.3, 0.045, 0x2b2b33, x, 0.275, z, { seg: 16 });
+    const out = new T.Group(); out.position.set(x, 0.3, z); g.add(out);
+    const piv = new T.Group(); piv.position.y = 0.3; out.add(piv);
+    const s = seatAt(piv, 0, -0.3, 0); s.userData.pose = 'jump'; seats.push(s); jumpers.push({ out, piv, ph: rnd(TAU), sp: rnd(3.2, 3.9), ry: rnd(TAU) });
+  }
+  for (const [x, z] of [[-0.9, -0.9], [0.9, -0.9], [-0.9, 0.9], [0.9, 0.9]]) { b.cyl(0.025, 0.03, 1.9, K.paper, x, 0.98, z, { seg: 6 }); b.sph(0.05, K.bulb, x, 1.96, z, { glow: true, seg: 6, seg2: 4 }); }
+  for (const [x0, z0, x1, z1] of [[-0.9, -0.9, 0.9, -0.9], [-0.9, 0.9, 0.9, 0.9], [-0.9, -0.9, -0.9, 0.9], [0.9, -0.9, 0.9, 0.9]]) for (let i = 0; i < 6; i++) b.box(0.15, 0.1, 0.012, [K.red, K.yel, K.blue][i % 3], lerp(x0, x1, (i + 0.5) / 6), 1.82 - Math.sin((i + 0.5) / 6 * Math.PI) * 0.12, lerp(z0, z1, (i + 0.5) / 6), { ry: x0 === x1 ? Math.PI / 2 : 0, rz: Math.PI / 4 });
+  g.add(b.mesh());
+  return { group: g, seats, update(dt, r) {
+    for (const j of jumpers) {
+      const q = r.animT * j.sp + j.ph, k = Math.floor(q / Math.PI), f = q / Math.PI - k, h = Math.sin(f * Math.PI);
+      j.out.position.y = 0.3 + h * 1.05 * r.spin; j.out.rotation.y = j.ry;
+      j.piv.rotation.x = k % 2 && r.spin > 0.6 ? -smooth(0.12, 0.88, f) * TAU : 0;   // tucked forwards, once round
+    }
+  } };
+}
+
+/* ----- pony farm: ponies walk round the paddock ----- */
+function mPony() {
+  const g = new T.Group(), b = new Builder();
+  plate(b, 4, 3, LAWN); b.cyl(1.0, 1.0, 0.02, SANDY, 0.25, 0.07, 0.05, { seg: 20, sx: 1.55, sz: 1.05 });
+  fenceInto(b, -1.86, -1.36, 1.86, -1.36); fenceInto(b, -1.86, 1.36, -0.5, 1.36); fenceInto(b, 0.5, 1.36, 1.86, 1.36); fenceInto(b, -1.86, -1.36, -1.86, 1.36); fenceInto(b, 1.86, -1.36, 1.86, 1.36);
+  b.box(0.9, 0.7, 0.6, K.wood, -1.3, 0.41, -0.95); b.box(1.0, 0.06, 0.48, K.redD, -1.3, 0.92, -1.12, { rx: -0.6 }); b.box(1.0, 0.06, 0.48, K.redD, -1.3, 0.92, -0.78, { rx: 0.6 }); b.box(0.34, 0.46, 0.03, K.woodD, -1.3, 0.3, -0.64);
+  b.box(0.4, 0.24, 0.28, 0xe0c060, -0.55, 0.18, -1.08); b.box(0.36, 0.1, 0.16, K.woodD, 1.45, 0.11, -1.1); b.box(0.3, 0.02, 0.1, WAT, 1.45, 0.165, -1.1);
+  g.add(b.mesh());
+  const c = circuit(g, { pts: OVAL(1.5, 0.82, 0.07).map((p) => [p[0] + 0.25, p[1], p[2] + 0.05]), K: 100, n: 6, mesh: critter('pony', 0xa9764c), seats: [[0, 0.445, -0.03]], pose: 'straddle', speed: 0.42 });
+  const cols = [0xa9764c, 0xf1e4cf, 0x5a4636, 0xd9b27a, 0x8a8f9c, 0xf1e4cf];
+  c.vs.forEach((v, i) => { if (i) v.traverse((o) => { if (o.isMesh) { o.geometry = o.geometry.clone(); const a = o.geometry.attributes.color, k = new T.Color(cols[i]), base = new T.Color(0xa9764c); for (let q = 0; q < a.count; q++) if (Math.abs(a.getX(q) - base.r) < 0.02 && Math.abs(a.getY(q) - base.g) < 0.02) a.setXYZ(q, k.r, k.g, k.b); } }); });
+  return { group: g, seats: c.seats, update(dt, r) { if (r.spin > 0.01) { c.step(dt, r.spin); for (let i = 0; i < c.vs.length; i++) c.vs[i].position.y += Math.abs(Math.sin(r.animT * 5 + i)) * 0.015; } } };
+}
+
+/* ----- petting zoo: goats, sheep and rabbits wander between the visitors ----- */
+function mPetting() {
+  const g = new T.Group(), b = new Builder(), seats = [], pets = [];
+  plate(b, 3, 3, LAWN);
+  fenceInto(b, -1.36, -1.36, 1.36, -1.36, K.wood); fenceInto(b, -1.36, 1.36, -0.45, 1.36, K.wood); fenceInto(b, 0.45, 1.36, 1.36, 1.36, K.wood); fenceInto(b, -1.36, -1.36, -1.36, 1.36, K.wood); fenceInto(b, 1.36, -1.36, 1.36, 1.36, K.wood);
+  b.box(0.8, 0.5, 0.55, K.wood, -0.85, 0.31, -0.95); b.box(0.9, 0.05, 0.42, 0x5cb85c, -0.85, 0.66, -1.1, { rx: -0.55 }); b.box(0.9, 0.05, 0.42, 0x5cb85c, -0.85, 0.66, -0.8, { rx: 0.55 }); b.box(0.26, 0.3, 0.03, 0x4a3a2a, -0.85, 0.21, -0.67);
+  b.box(0.5, 0.1, 0.18, K.woodD, 0.85, 0.11, -1.1); b.box(0.44, 0.02, 0.12, 0xe0c060, 0.85, 0.165, -1.1); b.box(0.36, 0.2, 0.26, 0xe0c060, 0.2, 0.16, -1.1);
+  addBush(b, 1.0, 0.95, 0.55);
+  g.add(b.mesh());
+  for (const [k, col, s, cx, cz, rad] of [['goat', 0xf1e4cf, 1, -0.3, 0.2, 0.45], ['goat', 0x8a6a4a, 0.9, 0.5, -0.35, 0.4], ['sheep', 0xfdfbf3, 1, 0.45, 0.5, 0.42], ['sheep', 0xfdfbf3, 0.8, -0.6, -0.2, 0.3], ['rabbit', 0xd9c2a0, 1, 0.0, -0.6, 0.3], ['rabbit', 0xffffff, 1, -0.7, 0.75, 0.28], ['rabbit', 0x8a8f9c, 1, 0.8, 0.0, 0.25]]) {
+    const m = critter(k, col, s); g.add(m); pets.push({ m, cx, cz, rad, w: rnd(0.25, 0.5) * (Math.random() < 0.5 ? -1 : 1), ph: rnd(TAU), hop: k === 'rabbit' });
+  }
+  for (const [x, z, ry] of [[-0.95, 0.3, 1.6], [-0.2, 0.85, 3.0], [0.75, 0.95, -2.4], [1.0, -0.4, -1.6], [0.1, -0.15, 0.4], [-0.5, -0.55, 0.9], [0.45, 0.15, -2.0], [-0.15, 0.35, 2.4]]) { const s = seatAt(g, x, 0.06, z, ry); s.userData.pose = 'stand'; seats.push(s); }
+  let t = rnd(20);
+  return { group: g, seats, update(dt) {
+    t += dt;
+    for (const p of pets) { const a = t * p.w + p.ph; p.m.position.set(p.cx + Math.cos(a) * p.rad, 0.06 + (p.hop ? Math.abs(Math.sin(t * 4 + p.ph)) * 0.04 : 0), p.cz + Math.sin(a * 1.3) * p.rad * 0.7); p.m.rotation.y = Math.atan2(-Math.sin(a) * p.w, Math.cos(a * 1.3) * 1.3 * 0.7 * p.w); }
+  } };
+}
+
+/* ----- water playground: jets that come and go, children running through them ----- */
+function mSplash() {
+  const g = new T.Group(), b = new Builder(), seats = [], jets = [];
+  plate(b, 3, 3, 0x9fd8f0); b.cyl(1.25, 1.25, 0.03, 0x7cc4e6, 0, 0.075, 0, { seg: 24 });
+  for (let i = 0; i < 12; i++) { const a = i / 12 * TAU; b.cyl(0.1, 0.1, 0.02, [K.yel, K.pink, K.mint][i % 3], Math.cos(a) * 0.95, 0.095, Math.sin(a) * 0.95, { seg: 10 }); }
+  b.cyl(0.06, 0.08, 1.1, K.paper, 0, 0.63, 0, { seg: 8 }); b.sph(1, K.red, 0, 1.2, 0, { sx: 0.5, sy: 0.2, sz: 0.5, seg: 14, seg2: 6 }); for (let i = 0; i < 6; i++) { const a = i / 6 * TAU; b.sph(0.07, K.paper, Math.cos(a) * 0.3, 1.28, Math.sin(a) * 0.3, { seg: 6, seg2: 4, sy: 0.5 }); }
+  for (const [x, z, c] of [[-1.15, -1.15, K.yel], [1.15, -1.15, K.pink]]) { b.tor(0.3, 0.035, c, x, 0.36, z, { ry: x > 0 ? -0.8 : 0.8, rs: 5, seg: 14 }); }
+  g.add(b.mesh());
+  const jb = new Builder(); jb.cone(0.05, 0.5, 0xd9f3ff, 0, 0.25, 0, { rx: Math.PI, seg: 6 }); jb.sph(0.045, 0xeefaff, 0, 0.5, 0, { seg: 6, seg2: 4 });
+  const j0 = jb.mesh(false);
+  for (let i = 0; i < 12; i++) { const a = i / 12 * TAU, m = i ? j0.clone() : j0; m.position.set(Math.cos(a) * 0.95, 0.1, Math.sin(a) * 0.95); g.add(m); jets.push(m); }
+  const cur = new Builder(); for (let i = 0; i < 10; i++) { const a = i / 10 * TAU; cur.cyl(0.012, 0.012, 0.95, 0xd9f3ff, Math.cos(a) * 0.46, 0.68, Math.sin(a) * 0.46, { seg: 3 }); }
+  const curtain = cur.mesh(false); g.add(curtain);
+  const rot = new T.Group(); g.add(rot);
+  for (let i = 0; i < 10; i++) { const a = i / 10 * TAU, rr = i % 2 ? 0.72 : 1.08, s = seatAt(rot, Math.cos(a) * rr, 0.09, Math.sin(a) * rr, -a); s.userData.pose = 'jump'; s.userData.ph = rnd(TAU); seats.push(s); }
+  let t = rnd(20);
+  return { group: g, seats, update(dt, r) {
+    t += dt;
+    for (let i = 0; i < 12; i++) { const k = Math.max(0, Math.sin(t * 2.2 - i * 0.52)); jets[i].scale.y = 0.05 + k * (1.1 + 0.8 * r.spin); }
+    curtain.rotation.y = t * 0.6; curtain.scale.y = 0.9 + 0.1 * Math.sin(t * 9);
+    if (r.spin > 0.01) { rot.rotation.y += dt * 0.8 * r.spin; for (const s of seats) s.position.y = 0.09 + Math.abs(Math.sin(r.animT * 5.5 + s.userData.ph)) * 0.16 * r.spin; }
+  } };
+}
+
+/* ----- mirror maze: a pavilion of glass and mirrors; visitors disappear inside ----- */
+function mMirror() {
+  const g = new T.Group(), b = new Builder(), GL = 0xcfeaff, FR = K.vio;
+  plate(b, 3, 3, 0x6a6480);
+  b.box(2.7, 0.12, 2.5, 0x4d4868, 0, 0.12, -0.1);
+  for (let i = 0; i < 6; i++) { const x = -1.125 + i * 0.45; if (i !== 2 && i !== 3) b.box(0.4, 1.3, 0.05, GL, x, 0.83, 1.12); b.box(0.4, 1.3, 0.05, GL, x, 0.83, -1.32); b.box(0.05, 1.42, 0.07, FR, x - 0.225, 0.89, 1.12); b.box(0.05, 1.42, 0.07, FR, x - 0.225, 0.89, -1.32); }
+  b.box(0.05, 1.42, 0.07, FR, 1.35, 0.89, 1.12); b.box(0.05, 1.42, 0.07, FR, 1.35, 0.89, -1.32);
+  for (let i = 0; i < 5; i++) { const z = -1.08 + i * 0.49; for (const x of [-1.35, 1.35]) { b.box(0.05, 1.3, 0.44, GL, x, 0.83, z); b.box(0.07, 1.42, 0.05, FR, x, 0.89, z - 0.245); } }
+  for (const [x, z, ry] of [[-0.6, 0.4, 0.5], [0.5, 0.2, -0.6], [-0.2, -0.5, 1.1], [0.7, -0.8, 0.3], [-0.85, -0.6, -0.4]]) b.box(0.55, 1.2, 0.03, 0xe6f6ff, x, 0.78, z, { ry });
+  for (let i = 0; i < 12; i++) b.box(0.02, 0.5, 0.012, 0xffffff, -1.2 + (i % 6) * 0.45 + 0.08, 0.95 + (i % 2) * 0.2, (i < 6 ? 1.15 : -1.35), { rz: -0.5 });   // gleams on the glass
+  b.box(2.86, 0.1, 2.6, FR, 0, 1.6, -0.1); b.box(2.5, 0.06, 2.24, K.pink, 0, 1.68, -0.1);
+  for (let i = 0; i < 5; i++) b.cone(0.22, 0.4, i % 2 ? K.mint : GL, -1.0 + i * 0.5, 1.9, -0.1, { seg: 4, ry: Math.PI / 4 });
+  b.box(1.0, 0.36, 0.08, K.ink, 0, 1.44, 1.16); b.box(0.9, 0.05, 0.3, K.yel, 0, 1.6, 1.3);
+  for (const x of [-0.42, 0.42]) b.sph(0.05, K.bulb, x, 1.44, 1.22, { glow: true, seg: 6, seg2: 4 });
+  g.add(b.mesh());
+  return { group: g, seats: [], update() {} };
+}
+
+/* ----- inline skating course: bumps, a banked turn and a slalom ----- */
+function mSkate() {
+  const g = new T.Group(), b = new Builder(), AS = 0x7b819a;
+  const pts = [[-1.4, 0.08, 1.0], [0, 0.08, 1.0], [1.3, 0.08, 1.0], [2.05, 0.3, 0.35], [2.05, 0.3, -0.4], [1.2, 0.08, -1.0], [0.3, 0.42, -1.0], [-0.6, 0.08, -1.0], [-1.5, 0.08, -0.95], [-2.1, 0.34, -0.25], [-2.05, 0.22, 0.5]];
+  const tr = makeTrack(pts, 150);
+  plate(b, 5, 3, AS);
+  railInto(b, tr, 0, -0.1, 0.17, 0x9aa0b8, 6);
+  b.box(0.5, 0.3, 0.9, K.blue, 2.2, 0.2, 0, { rz: 0.5 }); b.box(0.5, 0.3, 0.9, K.blue, -2.2, 0.2, 0.1, { rz: -0.5 });
+  b.box(0.5, 0.05, 0.5, K.yel, -0.05, 0.25, -1.0, { rz: 0.72 }); b.box(0.5, 0.05, 0.5, K.yel, 0.62, 0.25, -1.0, { rz: -0.72 }); b.box(0.24, 0.36, 0.5, K.ora, 0.3, 0.2, -1.0);
+  for (let i = 0; i < 5; i++) { b.cone(0.05, 0.14, K.ora, -1.2 + i * 0.5, 0.13, 0.25 + (i % 2) * 0.22, { seg: 6 }); }
+  b.box(1.6, 0.03, 0.03, K.inkD, 0, 0.3, -0.3); for (const x of [-0.75, 0.75]) b.cyl(0.02, 0.02, 0.26, K.inkD, x, 0.17, -0.3, { seg: 5 });
+  b.box(1.5, 0.24, 0.22, K.stone, 0, 0.15, 1.32); canopyInto(b, 0, 1.3, 1.7, K.mint, K.paper);
+  for (const x of [-2.3, 2.3]) { b.cyl(0.02, 0.02, 1.1, K.paper, x, 0.58, -1.3, { seg: 5 }); b.box(0.3, 0.18, 0.02, x < 0 ? K.pink : K.yel, x + 0.16, 1.02, -1.3); }
+  g.add(b.mesh());
+  const c = circuit(g, { tr, n: 8, speed: 1.55, pose: 'skate', seats: [[0, 0.0, 0]], veh(v) { for (const x of [-0.028, 0.028]) { v.box(0.026, 0.02, 0.09, K.inkD, x, 0.022, 0.01); for (const z of [-0.025, 0.01, 0.045]) v.cyl(0.013, 0.013, 0.014, K.yel, x, 0.012, z, { rz: Math.PI / 2, seg: 6 }); } }, lift: 0.07 });
+  return { group: g, seats: c.seats, update(dt, r) { if (r.spin > 0.01) c.step(dt, r.spin); } };
+}
+
+/* ----- pump track: rollers and berms, ridden on small bikes ----- */
+function mPump() {
+  const g = new T.Group(), b = new Builder(), DIRT = 0xb08a5e;
+  const pts = []; for (let i = 0; i < 16; i++) { const a = i / 16 * TAU, x = Math.sin(a) * 2.0, z = Math.cos(a) * 1.0; pts.push([x, 0.16 + (i % 2 ? 0.16 : 0) + Math.abs(Math.sin(a)) * 0.12, z]); }
+  const tr = makeTrack(pts, 170);
+  plate(b, 5, 3, LAWN);
+  railInto(b, tr, 0, -0.14, 0.22, DIRT, 7); railInto(b, tr, 0, -0.05, 0.13, 0xc4a377, 6);
+  b.cyl(0.9, 0.9, 0.05, LAWN, 0, 0.08, 0, { seg: 16, sx: 1.4, sz: 0.55 }); addBush(b, -0.6, 0.0, 0.6); addBush(b, 0.5, 0.05, 0.7); addTree(b, 0.0, -0.05, 0.55);
+  for (const x of [-2.25, 2.25]) { b.cyl(0.02, 0.02, 1.0, K.paper, x, 0.53, 1.3, { seg: 5 }); b.box(0.28, 0.16, 0.02, x < 0 ? K.red : K.blue, x + (x < 0 ? 0.15 : -0.15), 0.94, 1.3); }
+  b.box(1.2, 0.2, 0.2, K.stone, 0, 0.13, 1.34);
+  g.add(b.mesh());
+  const c = circuit(g, { tr, n: 6, speed: 1.9, pose: 'straddle', seats: [[0, 0.215, -0.03]], lift: 0.08, veh(v) {
+    for (const z of [-0.13, 0.13]) { v.tor(0.06, 0.012, K.inkD, 0, 0.06, z, { ry: Math.PI / 2, rs: 4, seg: 10 }); v.cyl(0.012, 0.012, 0.02, K.stone, 0, 0.06, z, { rz: Math.PI / 2, seg: 5 }); }
+    v.box(0.02, 0.02, 0.2, K.red, 0, 0.13, 0.0, { rx: -0.25 }); v.box(0.02, 0.14, 0.02, K.red, 0, 0.13, -0.07, { rx: 0.3 }); v.box(0.02, 0.17, 0.02, K.red, 0, 0.14, 0.11, { rx: -0.3 });
+    v.box(0.05, 0.02, 0.08, K.inkD, 0, 0.205, -0.05); v.box(0.16, 0.015, 0.015, K.stone, 0, 0.23, 0.085);
+  } });
+  return { group: g, seats: c.seats, update(dt, r) { if (r.spin > 0.01) c.step(dt, r.spin); } };
+}
+
+/* ----- cable car: gondolas climb from the station over two pylons and come back ----- */
+function mCable() {
+  const g = new T.Group(), b = new Builder(), HY = 0.74;
+  const pts = [[-3.25, 1.3, 0.36], [-2.3, 1.5, 0.36], [-0.6, 2.9, 0.36], [1.4, 3.3, 0.36], [3.1, 3.2, 0.3], [3.5, 3.2, 0], [3.1, 3.2, -0.3], [1.4, 3.3, -0.36], [-0.6, 2.9, -0.36], [-2.3, 1.5, -0.36], [-3.25, 1.3, -0.36], [-3.6, 1.3, 0]];
+  const tr = makeTrack(pts, 180);
+  plate(b, 8, 2, LAWN);
+  railInto(b, tr, 0, 0, 0.016, K.inkD, 4);
+  // valley station with a platform and a roof
+  b.box(1.5, 0.5, 1.6, K.stone, -3.1, 0.31, 0); b.box(0.5, 0.25, 0.5, K.stoneD, -2.2, 0.18, 0.55); b.box(0.5, 0.12, 0.5, K.stoneD, -1.8, 0.12, 0.55);
+  for (const z of [-0.74, 0.74]) for (const x of [-3.75, -2.45]) b.cyl(0.04, 0.04, 1.5, K.paper, x, 1.3, z, { seg: 6 });
+  b.box(1.56, 0.08, 1.7, K.red, -3.1, 2.08, 0); b.box(1.3, 0.1, 1.44, K.paper, -3.1, 2.16, 0); b.cyl(0.42, 0.42, 0.05, K.yel, -3.25, 1.36, 0, { seg: 14 }); b.cyl(0.05, 0.05, 0.66, K.inkD, -3.25, 1.7, 0, { seg: 6 });
+  // pylons and the wheel at the far end
+  for (const [x, h] of [[-0.6, 2.9], [1.4, 3.3]]) { b.cyl(0.07, 0.12, h, K.stone, x, h / 2 + 0.03, 0, { seg: 8 }); b.box(0.1, 0.07, 0.9, K.stone, x, h + 0.04, 0); for (const z of [-0.36, 0.36]) b.cyl(0.06, 0.06, 0.04, K.yel, x, h + 0.04, z, { rx: Math.PI / 2, seg: 8 }); }
+  b.cyl(0.1, 0.16, 3.2, K.stone, 3.3, 1.63, 0, { seg: 8 }); b.cyl(0.34, 0.34, 0.05, K.yel, 3.25, 3.24, 0, { seg: 14 }); b.box(0.5, 0.3, 0.5, K.stoneD, 3.3, 0.21, 0);
+  addTree(b, 0.4, -0.55, 0.7); addTree(b, 2.2, 0.5, 0.6); addBush(b, -1.2, -0.6, 0.7);
+  g.add(b.mesh());
+  const c = circuit(g, { tr, n: 3, speed: 0.7, level: true, seats: [[-0.09, -HY + 0.2, 0.09], [0.09, -HY + 0.2, 0.09], [-0.09, -HY + 0.2, -0.09, Math.PI], [0.09, -HY + 0.2, -0.09, Math.PI]], veh(v) {
+    v.box(0.03, 0.42, 0.03, K.inkD, 0, -0.2, 0); v.box(0.3, 0.03, 0.05, K.inkD, 0, -0.4, 0);
+    v.box(0.42, 0.06, 0.46, K.red, 0, -HY + 0.03, 0); v.box(0.42, 0.14, 0.46, K.red, 0, -HY + 0.12, 0); v.box(0.44, 0.06, 0.48, K.paper, 0, -0.43, 0);
+    for (const x of [-0.2, 0.2]) for (const z of [-0.22, 0.22]) v.box(0.025, 0.26, 0.025, K.paper, x, -0.56, z);
+    v.box(0.4, 0.035, 0.12, K.inkD, 0, -HY + 0.18, 0.16); v.box(0.4, 0.035, 0.12, K.inkD, 0, -HY + 0.18, -0.16);
+  } });
+  return { group: g, seats: c.seats, update(dt, r) { if (r.spin > 0.01) { c.step(dt, r.spin); for (const v of c.vs) v.rotation.z = Math.sin(r.animT * 1.6 + v.position.x) * 0.05; } } };
+}
+
+/* ----- Schwanenstein castle: towers, banners and two swans on the pond ----- */
+function mCastle() {
+  const g = new T.Group(), b = new Builder(), WALL = 0xfff3e6, SH = 0xe9d9c6, ROOF = 0x4f7fe0, seats = [];
+  plate(b, 5, 4, LAWN);
+  const tower = (x, z, r, h, roof) => {
+    b.cyl(r, r * 1.06, h, WALL, x, h / 2 + 0.05, z, { seg: 12 }); b.cyl(r * 1.16, r * 1.16, 0.09, SH, x, h + 0.02, z, { seg: 12 });
+    for (let i = 0; i < 8; i++) { const a = i / 8 * TAU; b.box(r * 0.42, 0.1, 0.07, WALL, x + Math.cos(a) * r * 1.1, h + 0.11, z + Math.sin(a) * r * 1.1, { ry: -a + Math.PI / 2 }); }
+    b.cone(r * 1.08, roof, ROOF, x, h + 0.06 + roof / 2, z, { seg: 12 }); b.cyl(0.012, 0.012, 0.3, K.inkD, x, h + roof + 0.2, z, { seg: 4 }); b.box(0.2, 0.1, 0.012, K.pink, x + 0.1, h + roof + 0.28, z);
+    for (let k = 0; k < 2; k++) b.box(0.07, 0.16, 0.02, K.bulb, x, h * (0.45 + k * 0.3), z + r * 1.02, { glow: true });
+  };
+  b.box(2.5, 1.4, 1.7, WALL, -0.1, 0.75, -0.75); b.box(2.62, 0.1, 1.82, SH, -0.1, 1.47, -0.75);
+  for (let i = 0; i < 9; i++) for (const z of [-1.62, 0.12]) b.box(0.16, 0.12, 0.1, WALL, -1.3 + i * 0.3, 1.58, z);
+  b.box(1.5, 0.9, 1.0, WALL, -0.1, 1.95, -0.85); b.box(1.7, 0.06, 0.7, ROOF, -0.1, 2.58, -1.14, { rx: -0.7 }); b.box(1.7, 0.06, 0.7, ROOF, -0.1, 2.58, -0.56, { rx: 0.7 });
+  tower(-1.45, 0.1, 0.34, 2.2, 0.9); tower(1.25, 0.1, 0.34, 2.2, 0.9); tower(-1.45, -1.6, 0.38, 2.9, 1.1); tower(1.25, -1.6, 0.3, 3.6, 1.2); tower(-0.1, -0.85, 0.26, 3.3, 1.0);
+  // gatehouse with a balcony
+  b.box(0.9, 1.0, 0.5, WALL, -0.1, 0.55, 0.32); b.box(0.46, 0.66, 0.06, 0x6b4a2a, -0.1, 0.38, 0.58); b.cyl(0.23, 0.23, 0.06, 0x6b4a2a, -0.1, 0.71, 0.58, { rx: Math.PI / 2, seg: 12 });
+  b.box(1.1, 0.06, 0.6, SH, -0.1, 1.08, 0.36); for (let i = 0; i < 6; i++) b.box(0.03, 0.14, 0.03, WALL, -0.6 + i * 0.2, 1.18, 0.64); b.box(1.1, 0.03, 0.03, WALL, -0.1, 1.26, 0.64);
+  for (const x of [-0.42, 0.22]) { b.box(0.1, 0.3, 0.02, K.bulb, x + 0.1, 1.05, -0.74 + 0.86, { glow: true }); }
+  for (const x of [-0.62, 0.42]) { b.cyl(0.015, 0.015, 0.5, K.inkD, x, 1.4, 0.6, { seg: 4 }); b.box(0.02, 0.3, 0.2, x < 0 ? K.pink : K.yel, x, 1.45, 0.72); }
+  // moat pond with the swans, a path of slabs to the gate
+  b.cyl(0.7, 0.72, 0.05, 0xdfe7ee, 1.55, 0.085, 1.25, { seg: 18, sx: 1.2 }); b.cyl(0.62, 0.62, 0.02, WAT, 1.55, 0.115, 1.25, { seg: 18, sx: 1.2 });
+  for (let i = 0; i < 4; i++) b.box(0.4, 0.03, 0.26, 0xd8cbb8, -0.1, 0.075, 0.82 + i * 0.3);
+  addTree(b, -2.05, 1.3, 0.7); addBush(b, -1.5, 1.45, 0.6); addFlowers(b, 0.7, 1.55);
+  g.add(b.mesh());
+  const swans = [critter('swan', 0, 1.1), critter('swan', 0, 0.95)]; swans.forEach((m) => g.add(m));
+  for (const x of [-0.42, -0.1, 0.22]) { const s = seatAt(g, x, 1.11, 0.42); s.userData.pose = 'stand'; seats.push(s); }
+  let t = rnd(20);
+  return { group: g, seats, update(dt) {
+    t += dt;
+    swans.forEach((m, i) => { const a = t * 0.35 + i * Math.PI; m.position.set(1.55 + Math.cos(a) * 0.45, 0.11, 1.25 + Math.sin(a) * 0.33); m.rotation.y = -a; });
+  } };
+}
+
+/* ----- quiet garden: benches by a pond, where queasy stomachs settle ----- */
+function mRest() {
+  const g = new T.Group(), b = new Builder(), seats = [];
+  plate(b, 3, 3, LAWN);
+  b.cyl(0.62, 0.66, 0.06, 0xb9bdd0, 0, 0.09, 0, { seg: 16, sx: 1.15 }); b.cyl(0.54, 0.54, 0.02, WAT, 0, 0.125, 0, { seg: 16, sx: 1.15 });
+  for (const [x, z] of [[0.25, 0.1], [-0.2, -0.15], [-0.05, 0.25]]) { b.cyl(0.11, 0.11, 0.012, 0x4caf50, x, 0.14, z, { seg: 8 }); }
+  b.sph(0.05, K.pink, 0.25, 0.17, 0.1, { seg: 6, seg2: 4, sy: 0.7 });
+  addTree(b, -1.05, -1.05, 0.85); addTree(b, 1.1, -0.95, 0.7); addBush(b, 1.15, 1.1, 0.6); addFlowers(b, -1.1, 1.1); addFlowers(b, 0.1, -1.2);
+  for (const [x, z, ry] of [[0, 1.05, Math.PI], [-1.1, 0.1, Math.PI / 2], [1.1, 0.15, -Math.PI / 2], [-0.1, -0.95, 0]]) {
+    const c = Math.cos(ry), s = Math.sin(ry), at = (lx, lz) => [x + lx * c + lz * s, z - lx * s + lz * c];
+    let p = at(0, 0); b.box(0.62, 0.04, 0.2, K.wood, p[0], 0.3, p[1], { ry }); p = at(0, -0.1); b.box(0.62, 0.2, 0.03, K.wood, p[0], 0.42, p[1], { ry });
+    for (const lx of [-0.26, 0.26]) { p = at(lx, 0); b.box(0.04, 0.26, 0.18, K.inkD, p[0], 0.17, p[1], { ry }); }
+    for (const lx of [-0.15, 0.15]) { p = at(lx, 0.02); seats.push(seatAt(g, p[0], 0.32, p[1], ry)); }
+  }
+  b.cyl(0.02, 0.025, 0.7, K.inkD, 0.75, 0.4, 0.75, { seg: 5 }); b.sph(0.07, K.bulb, 0.75, 0.8, 0.75, { glow: true, seg: 8, seg2: 5 });
+  g.add(b.mesh());
+  return { group: g, seats, update() {} };
+}
+/* ================= water, wild and high attractions ================= */
+
+/* ----- water slide: from the tower through three bends into the pool ----- */
+function mSlide() {
+  const g = new T.Group(), b = new Builder(), N = 6, seats = [], mats = [];
+  const pts = [[-0.9, 2.62, -1.3], [0.2, 2.42, -1.55], [1.05, 2.0, -1.0], [0.2, 1.55, -0.4], [-0.8, 1.15, -0.1], [-1.05, 0.8, 0.6], [-0.3, 0.52, 1.05], [0.5, 0.36, 1.3], [1.0, 0.33, 1.32], [1.35, 1.0, -0.2], [0.3, 2.1, -1.9]];
+  const tr = makeTrack(pts, 220), uEnd = tr.uOf(8), iEnd = Math.round(uEnd * tr.K);
+  plate(b, 3, 4, 0xf1e6d0);
+  railPart(b, tr, 0, iEnd, 0, -0.07, 0.15, WAT, 8); railPart(b, tr, 0, iEnd, 0.17, 0.02, 0.05, K.yel, 5); railPart(b, tr, 0, iEnd, -0.17, 0.02, 0.05, K.yel, 5);
+  for (let i = 6; i < iEnd - 8; i += 9) { const p = tr.P[i]; if (p.y > 0.7) b.cyl(0.03, 0.03, p.y - 0.2, K.paper, p.x, (p.y - 0.2) / 2 + 0.05, p.z, { seg: 5 }); }
+  // the tower with its stairs
+  for (const x of [-1.25, -0.55]) for (const z of [-1.7, -1.0]) b.cyl(0.04, 0.04, 2.6, K.wood, x, 1.33, z, { seg: 6 });
+  b.box(0.86, 0.06, 0.86, K.woodD, -0.9, 2.5, -1.35); for (let i = 0; i < 3; i++) b.box(0.8, 0.04, 0.04, K.wood, -0.9, 0.7 + i * 0.6, -1.7);
+  b.box(0.3, 0.05, 1.7, K.woodD, -1.25, 1.3, -0.95, { rx: 1.0 }); b.box(1.0, 0.05, 0.5, K.red, -0.9, 3.3, -1.55, { rx: -0.5 }); b.box(1.0, 0.05, 0.5, K.red, -0.9, 3.3, -1.15, { rx: 0.5 });
+  for (const x of [-1.25, -0.55]) for (const z of [-1.7, -1.0]) b.cyl(0.02, 0.02, 0.7, K.wood, x, 2.88, z, { seg: 5 });
+  poolInto(b, 0.45, 1.3, 1.9, 1.1, 0.2);
+  b.box(0.2, 0.02, 0.5, 0xff8fc7, -1.1, 0.09, 1.6, { ry: 0.3 }); addBush(b, -1.15, 0.9, 0.55); b.cyl(0.02, 0.02, 0.9, K.paper, 1.25, 0.5, 0.4, { seg: 5 }); b.cone(0.4, 0.2, K.mint, 1.25, 1.0, 0.4, { seg: 8 });
+  g.add(b.mesh());
+  const mb = new Builder(); mb.tor(0.11, 0.045, K.pink, 0, 0.03, 0, { rx: Math.PI / 2, rs: 5, seg: 12 });
+  const m0 = mb.mesh(false);
+  for (let i = 0; i < N; i++) { const m = i ? m0.clone() : m0; g.add(m); mats.push(m); seats.push(seatAt(m, 0, 0.06, -0.02)); }
+  const splash = splashMesh(7, 0.14, 0.5, 0.06); splash.position.set(0.95, 0.3, 1.32); g.add(splash);
+  let sp = 0;
+  const place = (t) => { for (let i = 0; i < N; i++) {
+    const q = (t * 0.085 + i / N) % 1, m = mats[i];
+    if (q < 0.62) { const k = q / 0.62; onTrack(m, tr, uEnd * (0.25 * k + 0.75 * k * k), 0.05); m.scale.setScalar(1); if (k > 0.96 && sp < 0.3) sp = 1; }
+    else m.scale.setScalar(0.0001);
+  } };
+  place(0);
+  return { group: g, seats, update(dt, r) {
+    if (sp > 0) { sp = Math.max(0, sp - dt * 2.2); if (sp > 0) splash.scale.set(1.6 - sp * 0.8, Math.sin(sp * Math.PI) * 1.2 + 0.01, 1.6 - sp * 0.8); else splash.scale.setScalar(0.001); }
+    if (r.spin > 0.01) place(r.animT);
+  } };
+}
+
+/* ----- swimming pool: swimmers, a slide and a row of loungers ----- */
+function mPool() {
+  const g = new T.Group(), b = new Builder(), seats = [], swim = [], WY = 0.31;
+  plate(b, 5, 4, 0xf1e6d0);
+  poolInto(b, -0.3, -0.45, 4.0, 2.5, 0.22);
+  for (let i = 0; i < 12; i++) b.box(0.14, 0.03, 0.03, i % 2 ? K.red : K.paper, -1.95 + i * 0.3, 0.325, -0.45);
+  b.box(0.7, 0.05, 0.22, K.paper, -2.15, 0.5, -1.2); b.box(0.12, 0.2, 0.2, K.stone, -2.35, 0.38, -1.2);   // diving board
+  // slide tower in the corner
+  for (const x of [1.75, 2.25]) for (const z of [-1.75, -1.25]) b.cyl(0.03, 0.03, 1.3, K.paper, x, 0.68, z, { seg: 5 });
+  b.box(0.6, 0.05, 0.6, K.blue, 2.0, 1.3, -1.5); b.box(0.36, 0.05, 1.45, K.yel, 1.6, 0.86, -0.9, { rx: -0.65, ry: 0.5 }); b.box(0.2, 0.04, 0.9, K.paper, 2.3, 0.7, -1.0, { rx: 0.9 });
+  for (const sx of [-1, 1]) b.box(0.04, 0.12, 1.45, K.yel, 1.6 + sx * 0.17 * 0.88, 0.92, -0.9 - sx * 0.17 * 0.48, { rx: -0.65, ry: 0.5 });
+  // deck: loungers, parasols, a lifeguard's chair
+  for (let i = 0; i < 3; i++) { const x = -1.9 + i * 0.75; b.box(0.3, 0.05, 0.62, [K.red, K.blue, K.mint][i], x, 0.2, 1.5); b.box(0.3, 0.05, 0.3, [K.red, K.blue, K.mint][i], x, 0.31, 1.82, { rx: -0.8 }); for (const z of [1.3, 1.7]) b.box(0.26, 0.12, 0.03, K.paper, x, 0.12, z); }
+  for (const x of [-1.5, -0.75]) { b.cyl(0.02, 0.02, 1.1, K.paper, x, 0.6, 1.72, { seg: 5 }); b.cone(0.42, 0.2, x < -1 ? K.yel : K.pink, x, 1.2, 1.72, { seg: 8 }); }
+  for (const x of [0.75, 1.05]) for (const z of [1.4, 1.7]) b.cyl(0.02, 0.02, 0.9, K.paper, x, 0.5, z, { seg: 5 }); b.box(0.36, 0.04, 0.36, K.red, 0.9, 0.95, 1.55); b.box(0.36, 0.3, 0.04, K.red, 0.9, 1.1, 1.72);
+  b.tor(0.12, 0.04, K.red, 1.6, 0.12, 1.6, { rx: Math.PI / 2, rs: 5, seg: 12 }); b.sph(0.14, K.yel, 2.1, 0.2, 1.3, { seg: 10, seg2: 7 });
+  g.add(b.mesh());
+  for (let i = 0; i < 12; i++) {
+    const s = seatAt(g, 0, WY - 0.4, 0); s.userData.pose = 'swim'; seats.push(s);
+    swim.push({ s, cx: -1.75 + (i % 4) * 0.95 + rnd(-0.1, 0.1), cz: -1.2 + ((i / 4) | 0) * 0.72 + rnd(-0.08, 0.08), rx: rnd(0.22, 0.4), rz: rnd(0.14, 0.26), w: rnd(0.6, 1.0) * (i % 2 ? 1 : -1), ph: rnd(TAU) });
+  }
+  for (const x of [-1.9, -0.4]) seats.push(seatAt(g, x, 0.25, 1.55, Math.PI));
+  const put = (t) => { for (const w of swim) { const a = t * w.w + w.ph; w.s.position.set(w.cx + Math.cos(a) * w.rx, WY - 0.4 + Math.sin(t * 3 + w.ph) * 0.015, w.cz + Math.sin(a) * w.rz); w.s.rotation.y = Math.atan2(-Math.sin(a) * w.rx * w.w, Math.cos(a) * w.rz * w.w); } };
+  put(0);
+  return { group: g, seats, update(dt, r) { if (r.spin > 0.01) put(r.animT); } };
+}
+
+/* ----- water coaster: boats climb high, plunge into a pool and take a hill on the way home ----- */
+function mWCoaster() {
+  let splash = 0, drops = null, sPool = 0;
+  return trackRide({
+    pts: [[-1.6, 0.42, 1.5], [0, 0.42, 1.5], [1.8, 0.42, 1.5], [2.95, 0.5, 0.9], [3.1, 1.1, -0.3], [2.3, 2.3, -1.35], [1.0, 3.3, -1.55], [-0.2, 3.2, -1.5], [-1.5, 0.5, -1.45], [-2.6, 0.42, -1.25], [-3.15, 1.25, -0.3], [-2.85, 0.7, 0.95]],
+    K: 260, cars: 2, gap: 1.0, lift: 0.02, seats: [[-0.09, 0.1, 0.16], [0.09, 0.1, 0.16], [-0.09, 0.1, -0.14], [0.09, 0.1, -0.14]],
+    base(b, tr) {
+      plate(b, 7, 4, LAWN);
+      railInto(b, tr, 0, -0.07, 0.18, WAT, 8); railInto(b, tr, 0.22, 0.03, 0.05, K.paper, 5); railInto(b, tr, -0.22, 0.03, 0.05, K.paper, 5);
+      supportsInto(b, tr, 7, 0.7, K.blue, 0.045);
+      poolInto(b, -2.05, -1.4, 2.1, 1.0, 0.2);
+      b.box(3.6, 0.3, 0.26, K.stone, 0.1, 0.18, 1.82); canopyInto(b, 0.1, 1.8, 3.7, K.blue, K.paper);
+      for (const x of [-0.6, 0.7]) addBush(b, x, 0.2, 0.7); addPalm(b, 0.1, -0.5, 0.8); addPalm(b, 1.3, 0.5, 0.65);
+      sPool = tr.uOf(8) * tr.len - CO.home;
+    },
+    car(c) {
+      c.box(0.36, 0.16, 0.7, K.yel, 0, 0.1, 0); c.box(0.3, 0.03, 0.6, K.blue, 0, 0.19, 0); c.cone(0.21, 0.3, K.yel, 0, 0.1, 0.48, { rx: Math.PI / 2, seg: 4, ry: Math.PI / 4 });
+      c.box(0.34, 0.14, 0.04, K.paper, 0, 0.24, -0.32); c.box(0.34, 0.1, 0.03, K.paper, 0, 0.22, 0.02);
+    },
+    tick(dt, m, st, running) {
+      if (!drops) { drops = splashMesh(9, 0.3, 0.7, 0.12); drops.position.set(-2.0, 0.3, -1.42); m.group.add(drops); }
+      if (running && st.s >= sPool && st.s - st.v * dt * 1.5 < sPool) splash = 1;
+      if (splash > 0) { splash = Math.max(0, splash - dt * 1.4); const k = Math.sin(splash * Math.PI); if (splash > 0) drops.scale.set(0.6 + (1 - splash) * 1.2, 0.05 + k * 1.5, 0.6 + (1 - splash) * 1.2); else drops.scale.setScalar(0.001); }
+    },
+  });
+}
+
+/* ----- the wild octopus: five arms rise and fall, the tubs at their ends spin ----- */
+function mOcto() {
+  const g = new T.Group(), b = new Builder(), BODY = K.vio, seats = [], arms = [];
+  b.cyl(1.36, 1.4, 0.1, K.teal, 0, 0.05, 0, { seg: 24 }); b.cyl(0.3, 0.42, 1.2, 0x6f48d6, 0, 0.7, 0, { seg: 12 });
+  g.add(b.mesh());
+  const rot = new T.Group(); g.add(rot);
+  const h = new Builder();
+  h.sph(1, BODY, 0, 1.75, 0, { sx: 0.55, sy: 0.62, sz: 0.55, seg: 16, seg2: 11 }); h.cyl(0.5, 0.4, 0.3, BODY, 0, 1.3, 0, { seg: 14 });
+  for (const x of [-1, 1]) { h.sph(0.13, 0xffffff, x * 0.2, 1.82, 0.44, { seg: 10, seg2: 7 }); h.sph(0.06, 0x1b1530, x * 0.21, 1.83, 0.54, { seg: 7, seg2: 5 }); h.sph(0.07, K.pink, x * 0.36, 1.62, 0.4, { seg: 6, seg2: 4, sz: 0.4 }); }
+  h.tor(0.12, 0.025, 0x1b1530, 0, 1.62, 0.5, { rz: Math.PI, rs: 4, seg: 10 });
+  for (let i = 0; i < 7; i++) h.sph(0.06, 0xb79bff, Math.cos(i * 0.9) * 0.36, 2.12 + (i % 2) * 0.1, Math.sin(i * 0.9) * 0.36 - 0.1, { seg: 6, seg2: 4 });
+  rot.add(h.mesh());
+  const ab = new Builder(), L = Math.hypot(0.95, 0.5);
+  ab.cyl(0.07, 0.11, L, BODY, 0.72, -0.25, 0, { rz: -Math.atan2(0.95, -0.5), seg: 8 }); ab.sph(0.12, BODY, 0.25, 0, 0, { seg: 8, seg2: 6 });
+  for (let i = 0; i < 4; i++) ab.sph(0.035, K.pink, 0.4 + i * 0.2, -0.16 - i * 0.105, 0, { seg: 5, seg2: 4 });
+  const arm0 = ab.mesh(), cb = new Builder();
+  cb.cyl(0.27, 0.22, 0.2, K.yel, 0, 0, 0, { seg: 12 }); cb.cyl(0.23, 0.23, 0.03, K.ora, 0, 0.09, 0, { seg: 12 }); cb.cyl(0.03, 0.03, 0.2, K.inkD, 0, 0.16, 0, { seg: 6 }); cb.cyl(0.08, 0.08, 0.02, K.inkD, 0, 0.26, 0, { seg: 8 });
+  const car0 = cb.mesh();
+  for (let i = 0; i < 5; i++) {
+    const a = i / 5 * TAU, piv = new T.Group(); piv.rotation.y = -a; piv.position.y = 1.25; rot.add(piv);
+    const ag = new T.Group(); piv.add(ag); ag.add(i ? arm0.clone() : arm0);
+    const car = new T.Group(); car.position.set(1.2, -0.62, 0); ag.add(car); car.add(i ? car0.clone() : car0);
+    seats.push(seatAt(car, 0.0, 0.1, 0.11, 0), seatAt(car, 0.0, 0.1, -0.11, Math.PI));
+    arms.push({ ag, car, ph: i * 1.9 });
+  }
+  return { group: g, seats, update(dt, r) {
+    if (r.spin < 0.01) return;
+    rot.rotation.y -= dt * 1.3 * r.spin;
+    for (const m of arms) { const t = Math.sin(r.animT * 1.7 + m.ph) * 0.34 * r.spin + 0.1 * r.spin; m.ag.rotation.z = t; m.car.rotation.z = -t; m.car.rotation.y += dt * 3.2 * r.spin; }
+  } };
+}
+
+/* ----- the saucer: a ring that spins flat and then tips up on its edge ----- */
+function mUfo() {
+  const g = new T.Group(), b = new Builder(), seats = [], SIL = 0xc9cfe0;
+  b.cyl(1.36, 1.4, 0.1, 0x3a3f66, 0, 0.05, 0, { seg: 24 }); b.cyl(0.26, 0.4, 1.25, 0x6a70a0, 0, 0.72, 0, { seg: 10 });
+  for (let i = 0; i < 4; i++) { const a = i / 4 * TAU + 0.4; b.box(0.5, 0.06, 0.3, 0x8a8fa8, Math.cos(a) * 0.95, 0.42 - 0, Math.sin(a) * 0.95, { ry: -a, rz: 0.0 }); b.cyl(0.03, 0.03, 0.36, 0x8a8fa8, Math.cos(a) * 1.1, 0.24, Math.sin(a) * 1.1, { seg: 5 }); }
+  g.add(b.mesh());
+  const tilt = new T.Group(); tilt.position.y = 1.38; g.add(tilt);
+  const ring = new T.Group(); tilt.add(ring);
+  const r0 = new Builder();
+  r0.cyl(1.2, 1.05, 0.12, SIL, 0, 0, 0, { seg: 24 }); r0.cyl(0.6, 1.0, 0.16, 0x9aa0c0, 0, -0.13, 0, { seg: 20 }); r0.tor(1.18, 0.06, K.vio, 0, 0.04, 0, { rx: Math.PI / 2, rs: 6, seg: 28 });
+  r0.sph(1, K.mint, 0, 0.06, 0, { sx: 0.5, sy: 0.36, sz: 0.5, seg: 14, seg2: 8 }); r0.sph(0.07, K.bulb, 0, 0.44, 0, { glow: true, seg: 6, seg2: 4 });
+  for (let i = 0; i < 12; i++) { const a = i / 12 * TAU; r0.sph(0.05, i % 2 ? K.bulb : K.pink, Math.cos(a) * 1.18, 0.11, Math.sin(a) * 1.18, { glow: true, seg: 6, seg2: 4 }); r0.box(0.26, 0.26, 0.04, K.ink, Math.cos(a + 0.26) * 1.03, 0.2, Math.sin(a + 0.26) * 1.03, { ry: -(a + 0.26) + Math.PI / 2 }); }
+  ring.add(r0.mesh());
+  for (let i = 0; i < 12; i++) { const a = i / 12 * TAU + 0.26; seats.push(seatAt(ring, Math.cos(a) * 0.9, 0.09, Math.sin(a) * 0.9, Math.atan2(-Math.cos(a), -Math.sin(a)))); }
+  return { group: g, seats, update(dt, r) {
+    if (r.spin < 0.01 && tilt.rotation.z === 0) return;
+    ring.rotation.y -= dt * 2.6 * r.spin;
+    tilt.rotation.z = 0.92 * smooth(0.55, 1, r.spin) * (0.85 + 0.15 * Math.sin(r.animT * 0.8));
+  } };
+}
+
+/* ----- bungee: from the top of the mast, head first ----- */
+function mBungee() {
+  const g = new T.Group(), b = new Builder(), H = 5.5, seats = [], jump = [];
+  plate(b, 2, 2, LAWN);
+  for (const x of [-0.82, -0.42]) for (const z of [-0.82, -0.42]) b.cyl(0.035, 0.045, H, K.stone, x, H / 2 + 0.05, z, { seg: 6 });
+  for (let y = 0.6; y < H; y += 0.82) { b.box(0.44, 0.03, 0.03, K.stoneD, -0.62, y, -0.82); b.box(0.44, 0.03, 0.03, K.stoneD, -0.62, y, -0.42); b.box(0.03, 0.03, 0.44, K.stoneD, -0.82, y, -0.62); b.box(0.03, 0.03, 0.44, K.stoneD, -0.42, y, -0.62); b.box(0.56, 0.025, 0.025, K.red, -0.62, y + 0.41, -0.42, { rz: (Math.round(y / 0.82) % 2 ? 1 : -1) * 0.95 }); }
+  b.box(1.5, 0.07, 0.9, K.red, -0.05, H, -0.2); b.box(1.5, 0.03, 0.03, K.paper, -0.05, H + 0.34, 0.24); b.box(1.5, 0.03, 0.03, K.paper, -0.05, H + 0.34, -0.64); b.box(0.03, 0.03, 0.9, K.paper, 0.69, H + 0.34, -0.2);
+  for (const [x, z] of [[-0.78, 0.24], [0.69, 0.24], [-0.78, -0.64], [0.69, -0.64], [0, 0.24], [0, -0.64]]) b.cyl(0.015, 0.015, 0.34, K.paper, x, H + 0.17, z, { seg: 4 });
+  b.box(0.08, 0.08, 1.5, K.yel, 0.2, H + 0.75, 0.25); b.cyl(0.03, 0.03, 0.75, K.yel, 0.2, H + 0.38, -0.45, { seg: 5 }); b.box(0.9, 0.07, 0.08, K.yel, 0.2, H + 0.75, 0.9);
+  b.box(1.3, 0.3, 1.0, K.blue, 0.25, 0.2, 0.42); for (let i = 0; i < 4; i++) b.box(0.08, 0.31, 1.02, K.yel, -0.3 + i * 0.36, 0.2, 0.42);
+  b.sph(0.06, K.bulb, -0.62, H + 0.1, -0.62, { glow: true, seg: 6, seg2: 4 });
+  g.add(b.mesh());
+  const rg = new T.CylinderGeometry(0.014, 0.014, 1, 5); rg.translate(0, -0.5, 0);
+  const rm = softMat({ color: 0xff4f64 }, 0.2, 0);
+  for (const x of [-0.15, 0.55]) {
+    const hold = new T.Group(); hold.position.set(x, H + 0.04, 0.9); g.add(hold);
+    const s = seatAt(hold, 0, 0, 0, Math.PI / 2); s.userData.pose = 'jump'; seats.push(s);
+    const rope = new T.Mesh(rg, rm); rope.position.set(x, H + 0.72, 0.9); rope.scale.y = 0.001; g.add(rope);
+    jump.push({ hold, rope, x });
+  }
+  return { group: g, seats, update(dt, r) {
+    jump.forEach((j, i) => {
+      const t = r.state === 'run' ? r.runT - 0.6 - i * 1.5 : -1;
+      if (t <= 0) { j.hold.position.set(j.x, H + 0.04, 0.3 + 0.0); j.hold.rotation.x = 0; j.rope.scale.y = 0.001; return; }
+      const y = 2.9 + 2.64 * Math.exp(-0.38 * t) * Math.cos(2.4 * t);
+      j.hold.position.set(j.x, y, lerp(0.3, 0.9, smooth(0, 0.5, t))); j.hold.rotation.x = Math.PI * smooth(0.05, 0.6, t) + Math.sin(t * 2.4) * 0.12 * Math.exp(-0.3 * t);
+      j.rope.scale.y = Math.max(0.01, H + 0.72 - y);
+    });
+  } };
+}
+/* ================= shows ================= */
+// The audience sits on a grandstand at the front and looks at a stage, an arena or a pool behind it.
+// While a show runs (spin > 0) the performers do their act; in between they rest.
+
+/* ----- magic show: a magician, a hat with a rabbit in it, cards in the air ----- */
+function mMagic() {
+  const g = new T.Group(), b = new Builder(), seats = [];
+  plate(b, 4, 3, 0x4a3a78);
+  b.box(3.3, 0.3, 1.0, 0x6b4a2a, 0, 0.21, -0.9); b.box(3.3, 0.06, 0.04, K.yel, 0, 0.33, -0.39);
+  for (let i = 0; i < 10; i++) b.box(0.33, 1.7, 0.08, i % 2 ? K.red : K.redD, -1.485 + i * 0.33, 1.2, -1.38);
+  for (const x of [-1.55, 1.55]) { b.box(0.3, 1.75, 0.3, K.redD, x, 1.22, -1.15); b.box(0.34, 0.06, 0.34, K.yel, x, 1.1, -1.15); }
+  b.box(3.4, 0.32, 0.36, K.redD, 0, 2.1, -1.2); b.box(3.4, 0.06, 0.38, K.yel, 0, 1.94, -1.2);
+  for (let i = 0; i < 7; i++) b.sph(0.05, K.bulb, -1.35 + i * 0.45, 2.12, -1.0, { glow: true, seg: 6, seg2: 4 });
+  b.cyl(0.03, 0.03, 0.34, K.inkD, 0.75, 0.53, -0.8, { seg: 6 }); b.cyl(0.22, 0.25, 0.14, K.vio, 0.75, 0.66, -0.8, { seg: 12 }); b.cyl(0.23, 0.23, 0.02, K.yel, 0.75, 0.74, -0.8, { seg: 12 });
+  b.cyl(0.1, 0.085, 0.17, 0x1c1c22, 0.75, 0.835, -0.8, { seg: 12 }); b.cyl(0.15, 0.15, 0.015, 0x1c1c22, 0.75, 0.925, -0.8, { seg: 12 }); b.cyl(0.102, 0.102, 0.03, K.red, 0.75, 0.9, -0.8, { seg: 12 });
+  standInto(g, b, seats, 0, 0.3, 7, 2, K.red);
+  g.add(b.mesh());
+  const mg = actor({ shirt: 0x1c1c22, pants: 0x1c1c22, trim: 0xffffff, hair: 16, hairCol: 0x1c1c22, browCol: 0x3d2616, cape: K.red, shoe: 0x1c1c22, eye: 0x3f8fe0 });
+  mg.group.position.set(-0.45, 0.36, -0.85); mg.group.scale.setScalar(1.15); g.add(mg.group);
+  const wb = new Builder(); wb.cyl(0.006, 0.006, 0.16, 0x1c1c22, 0, -0.17, 0.04, { rx: 1.2, seg: 5 }); wb.cyl(0.0065, 0.0065, 0.03, 0xffffff, 0, -0.2, 0.115, { rx: 1.2, seg: 5 });
+  const wand = wb.mesh(false); mg.foreR.add(wand);
+  const rabbit = critter('rabbit', 0xffffff, 1.25); rabbit.position.set(0.75, 0.6, -0.8); g.add(rabbit);
+  const cb = new Builder(); cb.box(0.09, 0.13, 0.008, 0xffffff, 0, 0, 0); cb.box(0.04, 0.05, 0.01, K.red, 0, 0, 0);
+  const c0 = cb.mesh(false), cards = [c0, c0.clone(), c0.clone()]; cards.forEach((c) => g.add(c));
+  let t = 0;
+  return { group: g, seats, update(dt, r) {
+    t += dt; const k = r.spin;
+    rabbit.position.y = 0.6 + k * (0.3 + Math.max(0, Math.sin(t * 2.3)) * 0.14); rabbit.rotation.y = Math.sin(t * 1.4) * 0.6;
+    mg.armR.rotation.x = lerp(0.05, -2.3 + Math.sin(t * 3.2) * 0.35, k); mg.foreR.rotation.x = lerp(-0.3, -0.5, k); mg.armL.rotation.x = lerp(0.05, -1.1, k); mg.foreL.rotation.x = lerp(-0.3, -1.0, k);
+    mg.group.rotation.y = Math.sin(t * 0.7) * 0.35 * k; mg.head.rotation.y = Math.sin(t * 1.1) * 0.3;
+    cards.forEach((c, i) => { const a = t * 2.4 + i * 2.1; c.scale.setScalar(k > 0.3 ? 1 : 0.001); c.position.set(-0.85 + Math.cos(a) * 0.2, 1.05 + Math.sin(a * 1.3) * 0.1, -0.7 + Math.sin(a) * 0.14); c.rotation.set(a, a * 0.7, 0); });
+  } };
+}
+
+/* ----- animal show: two dogs through the hoop, a seal with a ball ----- */
+function mAnimals() {
+  const g = new T.Group(), b = new Builder(), seats = [], CZ = -0.6;
+  plate(b, 4, 4, LAWN);
+  b.cyl(1.32, 1.32, 0.05, SANDY, 0, 0.085, CZ, { seg: 24 });
+  for (let i = 0; i < 16; i++) { const a = i / 16 * TAU; b.box(0.5, 0.16, 0.12, i % 2 ? K.red : K.yel, Math.sin(a) * 1.34, 0.14, CZ + Math.cos(a) * 1.34, { ry: a }); }
+  for (const [x, z] of [[-0.72, -1.05], [0.72, -1.05]]) { b.scyl(0.15, 0.2, 0.24, [K.blue, K.paper], 8, x, 0.23, z); b.cyl(0.16, 0.16, 0.03, K.yel, x, 0.36, z, { seg: 10 }); }
+  b.tor(0.3, 0.03, K.ora, 0, 0.62, CZ + 0.98, { ry: Math.PI / 2, rs: 5, seg: 16 }); b.cyl(0.02, 0.02, 0.24, K.inkD, 0, 0.2, CZ + 0.98, { seg: 5 });
+  for (const x of [-1.75, 1.75]) { b.cyl(0.03, 0.03, 1.6, K.paper, x, 0.86, -1.75, { seg: 6 }); b.sph(0.07, K.bulb, x, 1.7, -1.75, { glow: true, seg: 6, seg2: 4 }); }
+  for (let i = 0; i < 9; i++) b.box(0.24, 0.16, 0.012, [K.red, K.yel, K.blue, K.mint][i % 4], -1.55 + i * 0.39, 1.5 - Math.sin(i / 8 * Math.PI) * 0.22, -1.75, { rz: Math.PI / 4 });
+  standInto(g, b, seats, 0, 1.02, 8, 2, K.blue);
+  g.add(b.mesh());
+  const tr = actor({ shirt: 0xc8a96a, pants: 0x6b5a3a, trim: 0xfff6dc, hair: 5, hairCol: 0xe8cf8a, top: 0, shoe: 0x6b4a2a });
+  tr.group.position.set(0.1, 0.11, CZ - 0.05); tr.group.scale.setScalar(1.1); g.add(tr.group);
+  const dogs = [critter('dog', 0xd9a86c, 1.15), critter('dog', 0xfdfbf3, 1.0)]; dogs.forEach((d) => g.add(d));
+  const seal = critter('seal', 0x6f7890, 1.1); seal.position.set(-0.72, 0.375, -1.05); seal.rotation.y = 0.5; g.add(seal);
+  const bb = new Builder(); bb.sph(0.09, K.red, 0, 0, 0, { seg: 10, seg2: 7 }); bb.cyl(0.091, 0.091, 0.03, K.yel, 0, 0, 0, { seg: 10 });
+  const ball = bb.mesh(false); g.add(ball);
+  let t = rnd(10);
+  return { group: g, seats, update(dt, r) {
+    t += dt * (0.25 + 0.75 * r.spin); const k = r.spin;
+    dogs.forEach((d, i) => {
+      const a = t * 1.5 + i * Math.PI, da = Math.atan2(Math.sin(a), Math.cos(a)), up = Math.abs(da) < 0.6 ? Math.cos(da / 0.6 * Math.PI / 2) : 0;
+      d.position.set(Math.sin(a) * 0.98, 0.11 + up * 0.5 * k + Math.abs(Math.sin(t * 9 + i)) * 0.02, CZ + Math.cos(a) * 0.98); d.rotation.y = a + Math.PI / 2; d.rotation.x = -Math.sin(da / 0.6 * Math.PI / 2) * 0.5 * (Math.abs(da) < 0.6 ? k : 0);
+    });
+    seal.rotation.z = Math.sin(t * 5) * 0.08 * k;
+    ball.position.set(-0.68, 0.84 + Math.abs(Math.sin(t * 3.1)) * 0.3 * k, -0.9); ball.rotation.z = t * 3;
+    tr.group.rotation.y = t * 0.6; tr.armR.rotation.x = lerp(0.05, -2.5 + Math.sin(t * 4) * 0.25, k); tr.foreR.rotation.x = lerp(-0.3, -0.35, k);
+  } };
+}
+
+/* ----- freak show: a strongman, torches and a crystal ball in front of a striped tent ----- */
+function mFreak() {
+  const g = new T.Group(), b = new Builder(), seats = [], PU = 0x6f48d6;
+  plate(b, 4, 3, 0x3a3052);
+  for (let i = 0; i < 8; i++) b.box(0.42, 1.9, 0.08, i % 2 ? PU : K.yel, -1.47 + i * 0.42, 1.0, -1.38);
+  for (let i = 0; i < 4; i++) b.cone(0.5, 0.55, i % 2 ? K.yel : PU, -1.26 + i * 0.84, 2.22, -1.34, { seg: 4, ry: Math.PI / 4 });
+  for (const [x, c] of [[-1.15, K.red], [0, K.mint], [1.15, K.ora]]) { b.box(0.56, 0.76, 0.03, K.paper, x, 1.25, -1.32); b.box(0.5, 0.12, 0.035, K.ink, x, 0.96, -1.31); b.sph(0.16, c, x, 1.34, -1.3, { seg: 9, seg2: 6, sz: 0.2 }); }
+  b.box(3.2, 0.26, 0.9, 0x6b4a2a, 0, 0.19, -0.85); b.box(3.2, 0.05, 0.04, K.yel, 0, 0.3, -0.39);
+  for (const x of [-1.45, 1.45]) { b.cyl(0.03, 0.04, 0.8, K.inkD, x, 0.72, -0.5, { seg: 6 }); b.cyl(0.07, 0.04, 0.1, K.inkD, x, 1.15, -0.5, { seg: 7 }); }
+  b.cyl(0.03, 0.03, 0.3, K.inkD, 0.85, 0.47, -0.85, { seg: 6 }); b.cyl(0.2, 0.2, 0.03, PU, 0.85, 0.63, -0.85, { seg: 10 }); b.cyl(0.07, 0.09, 0.05, K.yel, 0.85, 0.67, -0.85, { seg: 8 }); b.sph(0.11, 0x9ff0e0, 0.85, 0.8, -0.85, { glow: true, seg: 10, seg2: 7 });
+  standInto(g, b, seats, 0, 0.3, 6, 2, PU);
+  g.add(b.mesh());
+  const sm = actor({ shirt: K.red, pants: 0x1c1c22, trim: K.yel, hair: -1, top: 1, skin: 0xf1c39a, mouth: 0, shoe: 0x1c1c22 });
+  sm.group.position.set(-0.45, 0.32, -0.85); sm.group.scale.set(1.5, 1.3, 1.5); g.add(sm.group);
+  const bar = new Builder(); bar.cyl(0.012, 0.012, 0.74, K.stoneD, 0, 0, 0, { rz: Math.PI / 2, seg: 6 }); for (const x of [-0.37, 0.37]) { bar.sph(0.13, 0x2b2b33, x, 0, 0, { seg: 10, seg2: 7 }); bar.cyl(0.05, 0.05, 0.04, K.stone, x * 0.78, 0, 0, { rz: Math.PI / 2, seg: 8 }); }
+  const bell = bar.mesh(false); g.add(bell);
+  const fb = new Builder(); fb.cone(0.07, 0.26, K.ora, 0, 0.13, 0, { seg: 6 }); fb.cone(0.04, 0.16, K.yel, 0, 0.1, 0, { seg: 5, glow: true });
+  const f0 = fb.mesh(false), flames = [f0, f0.clone()]; flames.forEach((f, i) => { f.position.set(i ? 1.45 : -1.45, 1.2, -0.5); g.add(f); });
+  let t = 0;
+  return { group: g, seats, update(dt, r) {
+    t += dt; const k = r.spin, lift = k * (0.5 + 0.5 * Math.sin(t * 1.6));
+    sm.armL.rotation.x = sm.armR.rotation.x = lerp(-0.9, -2.95, lift); sm.foreL.rotation.x = sm.foreR.rotation.x = lerp(-1.5, -0.12, lift);
+    bell.position.set(-0.45, 0.32 + lerp(0.52, 1.0, lift), -0.85 + lerp(0.13, 0.03, lift));
+    flames.forEach((f, i) => { const s = 0.7 + 0.3 * Math.sin(t * 13 + i * 2) + k * 0.5; f.scale.set(0.8 + k * 0.4, s, 0.8 + k * 0.4); });
+  } };
+}
+
+/* ----- dolphin show and orca show: a pool behind glass-blue walls, leaps and a splash ----- */
+function mSeaShow(orca) {
+  const g = new T.Group(), b = new Builder(), seats = [], W = orca ? 6 : 5, PW = W - 0.5, PZ = -0.78, WY = 0.39;
+  plate(b, W, 4, 0xdfe7ee);
+  poolInto(b, 0, PZ, PW, 2.1, 0.3);
+  b.box(1.5, 0.14, 0.4, 0xf2f6fb, 0, WY + 0.05, PZ - 0.8); b.box(1.5, 0.03, 0.4, K.blue, 0, WY + 0.13, PZ - 0.8);
+  b.cyl(0.07, 0.06, 0.12, K.stone, 0.5, WY + 0.2, PZ - 0.8, { seg: 8 }); b.sph(0.1, K.yel, -0.45, WY + 0.24, PZ - 0.8, { seg: 9, seg2: 6 }); b.cyl(0.101, 0.101, 0.03, K.red, -0.45, WY + 0.24, PZ - 0.8, { seg: 9 });
+  if (!orca) for (const x of [-1.05, 1.05]) { b.tor(0.33, 0.03, x < 0 ? K.red : K.yel, x, WY + 0.72, PZ, { ry: Math.PI / 2, rs: 5, seg: 18 }); b.cyl(0.02, 0.02, 0.42, K.paper, x, WY + 0.2, PZ, { seg: 5 }); }
+  for (const x of [-PW / 2 + 0.1, PW / 2 - 0.1]) { b.cyl(0.03, 0.03, 1.5, K.paper, x, 0.8, PZ - 1.0, { seg: 6 }); b.box(0.36, 0.2, 0.02, orca ? K.ink : K.mint, x + (x < 0 ? 0.2 : -0.2), 1.42, PZ - 1.0); }
+  for (let i = 0; i < 5; i++) b.sph(0.05, i % 2 ? K.red : K.paper, -PW / 2 + 0.5 + i * (PW - 1) / 4, WY + 0.02, PZ + 0.9, { seg: 6, seg2: 4 });
+  standInto(g, b, seats, 0, 0.78, orca ? 11 : 9, 2, orca ? K.ink : K.blue);
+  g.add(b.mesh());
+  const fish = orca ? [critter('orca', 0, 1.15)] : [critter('dolphin', 0, 1.2), critter('dolphin', 0, 1.05)];
+  fish.forEach((f) => { f.rotation.order = 'YXZ'; g.add(f); });
+  const s0 = splashMesh(8, 0.3, 0.6, 0.1), spl = fish.map((f, i) => { const m = i ? s0.clone() : s0; m.scale.setScalar(0.001); g.add(m); return { m, k: 0 }; });
+  const R = PW / 2 - (orca ? 0.75 : 0.55), prev = fish.map(() => ({ x: 0, y: WY, air: false }));
+  let t = rnd(10);
+  return { group: g, seats, update(dt, r) {
+    t += dt * (0.3 + 0.7 * r.spin);
+    fish.forEach((f, i) => {
+      const a = t * (orca ? 0.9 : 1.25) + i * Math.PI, x = Math.cos(a) * R, p = prev[i], J = (orca ? 1.15 : 0.82) * r.spin;
+      const d = orca ? x / 0.95 : (Math.abs(x) - 1.05) / 0.6, up = Math.abs(d) < 1 ? 1 - d * d : 0, y = WY - 0.07 + up * J + Math.sin(t * 3 + i) * 0.015;
+      f.position.set(x, y, PZ + (orca ? 0.1 : (i ? 0.28 : -0.28)));
+      f.rotation.y = x > p.x ? Math.PI / 2 : -Math.PI / 2; f.rotation.x = -Math.atan2(y - p.y, Math.abs(x - p.x) + 1e-4) * 0.9;
+      const air = y > WY + 0.12; if (p.air && !air) { spl[i].k = 1; spl[i].m.position.set(x, WY, f.position.z); } p.air = air; p.x = x; p.y = y;
+      const s = spl[i]; if (s.k > 0) { s.k = Math.max(0, s.k - dt * 1.6); const q = Math.sin(s.k * Math.PI), w = (orca ? 1.6 : 0.9) * (1.2 - s.k * 0.5); if (s.k > 0) s.m.scale.set(w, 0.05 + q * (orca ? 1.6 : 0.9), w); else s.m.scale.setScalar(0.001); }
+    });
+  } };
+}
+
+/* ----- circus: the big top; the audience disappears inside ----- */
+function mCircus() {
+  const g = new T.Group(), b = new Builder(), CZ = -0.2;
+  plate(b, 5, 5, 0xd9c7a0);
+  b.scyl(2.0, 2.0, 1.2, [K.red, K.paper], 16, 0, 0.66, CZ); b.scone(2.28, 1.5, [K.red, K.paper], 16, 0, 2.0, CZ); b.cone(0.55, 0.5, K.yel, 0, 2.92, CZ, { seg: 12 });
+  b.tor(2.06, 0.07, K.yel, 0, 1.27, CZ, { rx: Math.PI / 2, rs: 5, seg: 32 });
+  for (let i = 0; i < 20; i++) { const a = i / 20 * TAU; b.sph(0.05, K.bulb, Math.sin(a) * 2.14, 1.34, CZ + Math.cos(a) * 2.14, { glow: true, seg: 6, seg2: 4 }); }
+  for (const x of [-0.75, 0.75]) b.cyl(0.035, 0.035, 1.2, K.inkD, x, 3.2, CZ, { seg: 6 });
+  // the entrance with its sign
+  b.box(0.9, 0.95, 0.12, K.inkD, 0, 0.53, 1.78); for (const x of [-0.56, 0.56]) b.box(0.24, 1.0, 0.16, K.redD, x, 0.56, 1.82, { rz: x < 0 ? -0.12 : 0.12 });
+  b.box(1.6, 0.4, 0.1, K.ink, 0, 1.36, 1.92); b.box(1.7, 0.06, 0.14, K.yel, 0, 1.59, 1.92); for (let i = 0; i < 6; i++) b.sph(0.045, K.bulb, -0.66 + i * 0.264, 1.36, 1.99, { glow: true, seg: 6, seg2: 4 });
+  for (const x of [-0.78, 0.78]) b.cyl(0.03, 0.03, 1.2, K.yel, x, 0.65, 1.95, { seg: 6 });
+  // a ticket wagon and a few crates
+  b.box(0.8, 0.5, 0.46, K.blue, -1.85, 0.47, 1.98); b.box(0.86, 0.06, 0.52, K.yel, -1.85, 0.75, 1.98); b.box(0.36, 0.2, 0.03, K.paper, -1.85, 0.5, 2.22); for (const x of [-2.12, -1.58]) b.cyl(0.11, 0.11, 0.05, K.inkD, x, 0.16, 2.22, { rx: Math.PI / 2, seg: 10 });
+  b.box(0.3, 0.3, 0.3, K.wood, 1.9, 0.21, 2.0); b.box(0.24, 0.24, 0.24, K.woodD, 1.6, 0.18, 2.1, { ry: 0.5 }); b.sph(0.16, K.red, 2.0, 0.23, 1.6, { seg: 10, seg2: 7 }); b.cyl(0.161, 0.161, 0.05, K.paper, 2.0, 0.23, 1.6, { seg: 10 });
+  g.add(b.mesh());
+  const fb = new Builder(); fb.box(0.4, 0.2, 0.015, K.yel, 0.2, 0, 0); fb.box(0.12, 0.2, 0.016, K.red, 0.34, 0, 0);
+  const f0 = fb.mesh(false), flags = [f0, f0.clone()]; flags.forEach((f, i) => { f.position.set(i ? 0.75 : -0.75, 3.68, CZ); g.add(f); });
+  let t = rnd(10);
+  return { group: g, seats: [], update(dt) { t += dt; flags.forEach((f, i) => { f.rotation.y = Math.sin(t * 2.2 + i) * 0.5; f.rotation.z = Math.sin(t * 5 + i * 2) * 0.06; }); } };
+}
+/* ================= restaurants, shops and the high striker ================= */
+
+/* ----- restaurant: a kitchen at the back, tables under parasols in front; guests eat at the tables ----- */
+function mRestaurant(kind) {
+  const g = new T.Group(), b = new Builder(), seats = [];
+  const C = { pizza: [K.red, K.paper, 0xd9c7a0], steak: [0x8a3b24, 0xcaa56f, 0x8a8fa8], vegan: [0x55c26a, K.paper, 0xcfe3c0], fish: [K.blue, 0xf2f6fb, 0xbfd9e6] }[kind], c1 = C[0], Z = -0.6;
+  plate(b, 3, 2, C[2]);
+  b.box(2.7, 0.9, 0.62, C[1], 0, 0.51, Z); b.box(2.84, 0.12, 0.76, c1, 0, 1.02, Z); b.box(2.6, 0.06, 0.6, K.paper, 0, 1.1, Z);
+  b.box(1.0, 0.38, 0.03, 0x2b2b33, -0.5, 0.64, Z + 0.315); b.box(1.1, 0.05, 0.18, K.paper, -0.5, 0.43, Z + 0.36); b.box(0.34, 0.7, 0.03, K.woodD, 0.85, 0.41, Z + 0.315); b.sph(0.02, K.yel, 0.74, 0.42, Z + 0.34, { seg: 5, seg2: 4 });
+  for (let i = 0; i < 9; i++) b.box(0.3, 0.04, 0.36, i % 2 ? c1 : K.paper, -1.2 + i * 0.3, 0.97, Z + 0.46, { rx: 0.42 });
+  for (const x of [-0.82, -0.5, -0.18]) b.sph(0.045, K.bulb, x, 0.86, Z + 0.33, { glow: true, seg: 6, seg2: 4 });
+  const Y = 1.52;
+  if (kind === 'pizza') {
+    b.cyl(0.4, 0.4, 0.05, 0xe0a860, 0, Y, Z, { rx: Math.PI / 2, seg: 18 }); b.cyl(0.34, 0.34, 0.06, 0xd9432f, 0, Y, Z, { rx: Math.PI / 2, seg: 18 }); b.cyl(0.31, 0.31, 0.07, 0xffe08a, 0, Y, Z, { rx: Math.PI / 2, seg: 18 });
+    for (const [x, y] of [[0.12, 0.1], [-0.14, 0.08], [0.02, -0.14], [-0.1, -0.1], [0.17, -0.08], [0, 0.2]]) b.cyl(0.055, 0.055, 0.08, 0xb9243a, x, Y + y, Z, { rx: Math.PI / 2, seg: 8 });
+    for (const [x, y] of [[-0.02, 0.02], [0.2, 0.05], [-0.2, -0.02]]) b.sph(0.03, 0x3d9a45, x, Y + y, Z + 0.04, { seg: 5, seg2: 4, sz: 0.4 });
+  } else if (kind === 'steak') {
+    b.sph(1, 0xf2d9c4, 0, Y, Z - 0.01, { sx: 0.44, sy: 0.3, sz: 0.06, seg: 12, seg2: 6 }); b.sph(1, 0x9b3a2a, 0.02, Y, Z + 0.01, { sx: 0.38, sy: 0.24, sz: 0.07, seg: 12, seg2: 6 });
+    b.box(0.3, 0.05, 0.1, 0xfff6dc, -0.06, Y + 0.02, Z + 0.04, { rz: 0.5 }); b.box(0.05, 0.2, 0.1, 0xfff6dc, -0.12, Y + 0.02, Z + 0.04, { rz: 0.5 });
+    for (let i = 0; i < 3; i++) b.box(0.3, 0.025, 0.02, 0x4a1e14, 0.08, Y - 0.1 + i * 0.09, Z + 0.075, { rz: -0.4 });
+    for (const x of [-0.9, 0.9]) { b.cone(0.08, 0.28, K.ora, x, 1.26, Z, { seg: 6 }); b.cone(0.045, 0.18, K.yel, x, 1.23, Z, { seg: 5, glow: true }); }
+  } else if (kind === 'vegan') {
+    b.cone(0.16, 0.66, K.ora, 0.08, Y - 0.04, Z, { rz: 2.5, seg: 9 }); for (let i = 0; i < 3; i++) b.box(0.2, 0.014, 0.03, 0xc96a14, 0.02 + i * 0.07, Y - 0.14 + i * 0.1, Z + 0.1, { rz: -0.6 });
+    for (const rz of [0.2, 0.75, 1.3]) b.cone(0.06, 0.34, 0x3d9a45, -0.2 - Math.cos(rz) * 0.1, Y + 0.3 + Math.sin(rz) * 0.05, Z, { rz, seg: 5 });
+    for (const x of [-0.85, 0.85]) b.sph(1, 0x55c26a, x, 1.3, Z, { sx: 0.2, sy: 0.12, sz: 0.04, seg: 8, seg2: 5, rz: x < 0 ? 0.5 : -0.5 });
+  } else {
+    b.sph(1, 0x5aa9f0, 0.06, Y, Z, { sx: 0.4, sy: 0.2, sz: 0.08, seg: 12, seg2: 7 }); b.cone(0.2, 0.26, 0x5aa9f0, -0.46, Y, Z, { rz: -Math.PI / 2, seg: 4, sz: 0.3 });
+    b.cone(0.1, 0.16, K.blue, 0.05, Y + 0.24, Z, { seg: 4, sz: 0.3 }); b.sph(0.045, 0xffffff, 0.28, Y + 0.05, Z + 0.06, { seg: 6, seg2: 4 }); b.sph(0.022, 0x1b1530, 0.29, Y + 0.05, Z + 0.1, { seg: 5, seg2: 3 });
+    for (let i = 0; i < 6; i++) b.tor(0.11, 0.022, 0xdff3ff, -1.05 + i * 0.42, 1.2, Z + 0.2, { rs: 4, seg: 8 });
+  }
+  for (const x of [-1.0, 0, 1.0]) {
+    const tz = 0.42;
+    b.cyl(0.03, 0.05, 0.3, K.inkD, x, 0.21, tz, { seg: 6 }); b.cyl(0.22, 0.22, 0.03, K.paper, x, 0.37, tz, { seg: 12 }); b.cyl(0.015, 0.015, 0.95, K.paper, x, 0.85, tz, { seg: 5 }); b.scone(0.5, 0.22, [c1, K.paper], 8, x, 1.36, tz);
+    b.cyl(0.05, 0.05, 0.015, c1, x - 0.08, 0.39, tz + 0.04, { seg: 8 }); b.cyl(0.05, 0.05, 0.015, c1, x + 0.08, 0.39, tz - 0.03, { seg: 8 });
+    for (const [dx, dz, ry] of [[-0.34, 0, Math.PI / 2], [0.34, 0, -Math.PI / 2], [0, 0.34, Math.PI]]) {
+      const cx = x + dx, cz = tz + dz; b.box(0.17, 0.03, 0.17, K.wood, cx, 0.27, cz); b.box(dx ? 0.03 : 0.17, 0.2, dx ? 0.17 : 0.03, K.wood, cx + Math.sign(dx) * 0.085, 0.38, cz + Math.sign(dz) * 0.085);
+      for (const lx of [-0.065, 0.065]) for (const lz of [-0.065, 0.065]) b.box(0.025, 0.22, 0.025, K.woodD, cx + lx, 0.16, cz + lz);
+      const s = seatAt(g, cx, 0.285, cz, ry); s.userData.pose = 'eat'; seats.push(s);
+    }
+  }
+  g.add(b.mesh());
+  return { group: g, seats };
+}
+
+/* ----- a small shop with a display window: hats or costumes ----- */
+function mStore(kind) {
+  const g = new T.Group(), b = new Builder(), hat = kind === 'hat', c1 = hat ? K.teal : 0x6f48d6, Z = -0.12;
+  b.box(1.84, 0.05, 0.84, K.stoneD, 0, 0.025, 0);
+  b.box(1.7, 0.95, 0.5, K.paper, 0, 0.525, Z); b.box(1.8, 0.1, 0.6, c1, 0, 1.05, Z); b.box(1.6, 0.05, 0.44, K.paper, 0, 1.12, Z);
+  b.box(1.06, 0.52, 0.03, 0xcfeaff, -0.22, 0.6, Z + 0.255); b.box(1.12, 0.05, 0.05, c1, -0.22, 0.87, Z + 0.26); b.box(1.12, 0.05, 0.05, c1, -0.22, 0.33, Z + 0.26);
+  b.box(0.32, 0.68, 0.03, K.woodD, 0.6, 0.39, Z + 0.255); b.sph(0.02, K.yel, 0.5, 0.4, Z + 0.28, { seg: 5, seg2: 4 });
+  for (let i = 0; i < 8; i++) b.box(0.225, 0.04, 0.36, i % 2 ? c1 : K.paper, -0.79 + i * 0.225, 0.98, Z + 0.4, { rx: 0.4 });
+  if (hat) {
+    b.cyl(0.2, 0.18, 0.32, 0x1c1c22, 0, 1.36, Z, { seg: 14 }); b.cyl(0.32, 0.32, 0.03, 0x1c1c22, 0, 1.2, Z, { seg: 14 }); b.cyl(0.205, 0.19, 0.07, K.red, 0, 1.26, Z, { seg: 14 });
+    for (const [x, k] of [[-0.55, 0], [-0.22, 1], [0.1, 2]]) {
+      b.cyl(0.012, 0.012, 0.2, K.inkD, x, 0.45, Z + 0.3, { seg: 4 }); b.sph(0.07, 0xf1c39a, x, 0.6, Z + 0.3, { seg: 8, seg2: 6 });
+      if (k === 0) { b.cone(0.06, 0.16, K.pink, x, 0.74, Z + 0.3, { seg: 8 }); b.sph(0.022, K.yel, x, 0.83, Z + 0.3, { seg: 5, seg2: 4 }); }
+      else if (k === 1) { b.cyl(0.06, 0.07, 0.07, 0x9b6a4a, x, 0.68, Z + 0.3, { seg: 9 }); b.cyl(0.13, 0.13, 0.012, 0x9b6a4a, x, 0.645, Z + 0.3, { seg: 10 }); }
+      else { b.cyl(0.085, 0.085, 0.04, K.yel, x, 0.67, Z + 0.3, { seg: 9 }); for (let i = 0; i < 5; i++) b.cone(0.02, 0.05, K.yel, x + Math.cos(i * 1.257) * 0.07, 0.71, Z + 0.3 + Math.sin(i * 1.257) * 0.07, { seg: 4 }); }
+    }
+  } else {
+    b.cyl(0.24, 0.24, 0.1, K.yel, 0, 1.26, Z, { seg: 12 }); for (let i = 0; i < 6; i++) { const a = i / 6 * TAU; b.cone(0.06, 0.16, K.yel, Math.cos(a) * 0.2, 1.38, Z + Math.sin(a) * 0.2, { seg: 4 }); b.sph(0.03, i % 2 ? K.red : K.mint, Math.cos(a) * 0.245, 1.27, Z + Math.sin(a) * 0.245, { seg: 5, seg2: 4 }); }
+    b.cyl(0.3, 0.3, 0.05, K.vio, 0, 1.18, Z, { seg: 12 });
+    for (const [x, c] of [[-0.5, K.red], [-0.05, K.vio]]) {
+      b.cyl(0.012, 0.012, 0.14, K.inkD, x, 0.4, Z + 0.3, { seg: 4 }); b.cone(0.12, 0.3, c, x, 0.55, Z + 0.3, { seg: 8 }); b.sph(0.055, 0xf1c39a, x, 0.74, Z + 0.3, { seg: 8, seg2: 6 });
+      if (c === K.vio) b.cone(0.06, 0.16, K.vio, x, 0.85, Z + 0.3, { seg: 7 }); else b.cyl(0.05, 0.05, 0.025, K.yel, x, 0.795, Z + 0.3, { seg: 8 });
+    }
+  }
+  g.add(b.mesh());
+  return { group: g, seats: [] };
+}
+
+/* ----- high striker: hit the pad, send the puck up the tower, ring the bell ----- */
+function mLukas() {
+  const g = new T.Group(), b = new Builder(), X = 0.16, Z = -0.28;
+  b.box(0.9, 0.05, 0.9, K.stoneD, 0, 0.025, 0);
+  b.box(0.28, 2.3, 0.08, K.red, X, 1.2, Z); for (let i = 0; i < 8; i++) b.box(0.22, 0.035, 0.085, i % 2 ? K.paper : K.yel, X, 0.42 + i * 0.25, Z);
+  b.box(0.045, 2.1, 0.09, K.inkD, X, 1.2, Z + 0.005); b.box(0.36, 0.1, 0.12, K.yel, X, 2.38, Z); b.sph(0.11, K.yel, X, 2.56, Z, { seg: 10, seg2: 7 }); b.cyl(0.12, 0.12, 0.025, K.ora, X, 2.5, Z, { seg: 10 });
+  b.sph(0.045, K.bulb, X, 2.72, Z, { glow: true, seg: 6, seg2: 4 });
+  b.box(0.34, 0.14, 0.34, K.inkD, X, 0.12, 0.08); b.cyl(0.11, 0.11, 0.05, K.red, X, 0.215, 0.08, { seg: 10 });
+  b.cyl(0.018, 0.018, 0.5, K.wood, -0.14, 0.3, 0.26, { rz: 0.5, seg: 5 }); b.cyl(0.07, 0.07, 0.16, K.woodD, -0.26, 0.5, 0.26, { rz: 0.5 + Math.PI / 2, seg: 8 });
+  b.box(0.36, 0.56, 0.2, K.wood, -0.26, 0.33, Z); b.box(0.4, 0.03, 0.24, K.woodD, -0.26, 0.62, Z); b.box(0.4, 0.03, 0.24, K.woodD, -0.26, 0.36, Z);
+  for (const [x, y, c] of [[-0.34, 0.69, 0xb5651d], [-0.18, 0.69, K.pink], [-0.26, 0.43, 0xffffff]]) { b.sph(0.05, c, x, y, Z + 0.04, { seg: 7, seg2: 5 }); b.sph(0.038, c, x, y + 0.065, Z + 0.05, { seg: 7, seg2: 5 }); for (const s of [-1, 1]) b.sph(0.015, c, x + s * 0.03, y + 0.1, Z + 0.05, { seg: 4, seg2: 3 }); }
+  g.add(b.mesh());
+  const pb = new Builder(); pb.box(0.12, 0.07, 0.06, K.mint, 0, 0, 0);
+  const puck = pb.mesh(false); puck.position.set(X, 0.32, Z + 0.06); g.add(puck);
+  let vy = 0;
+  return { group: g, seats: [],
+    // how hard the hit was: 0 … 1; at 1 the puck reaches the bell
+    play(p) { vy = Math.sqrt(2 * 9 * 2.02 * clamp(p, 0.15, 1)) + 0.01; },
+    update(dt) {
+      if (!vy && puck.position.y <= 0.32) return;
+      puck.position.y += vy * dt; vy -= 9 * dt;
+      if (puck.position.y >= 2.3) { puck.position.y = 2.3; if (vy > 0) { vy = -0.4; sfxAt('bell', g.position.x, g.position.z, 0.9); } }
+      if (puck.position.y <= 0.32) { puck.position.y = 0.32; vy = 0; }
+    } };
 }
 /* ================= catalogue ================= */
 const DEFS = {}, ORDER = { path: [], ride: [], shop: [], deco: [], fac: [] };
@@ -1775,6 +2677,86 @@ const lvlOf = (b) => { let l = 1; for (const t of LVL) if (b.count >= t) l++; re
 const excOf = (b) => b.def.exc * (1 + 0.05 * (lvlOf(b) - 1));
 const fairB = (b) => (b.def.cat === 'ride' ? excOf(b) / 12 : b.def.fair);
 
+/* ================= catalogue, second part: the newer attractions, shows, food and shops ================= */
+// grp sorts the cards in the tray: kid, fam (special), crazy, adr (adrenaline), water, show for attractions;
+// eat, sweet, rest (restaurants), fun (shops and games) for booths.
+// children
+def('train', { cat: 'ride', grp: 'kid', name: 'Kindereisenbahn', w: 4, h: 3, cost: 700, cap: 8, dur: 16, exc: 30, nau: 2, price: 2.5, upkeep: 36, need: 1, model: mTrain, info: 'Eine kleine Lok zieht vier Wagen im Kreis, durch den Tunnel und am Wäldchen vorbei.' });
+def('tramp', { cat: 'ride', grp: 'kid', name: 'Salto-Trampolin', w: 2, h: 2, cost: 550, cap: 4, dur: 12, exc: 36, nau: 14, price: 2.5, upkeep: 28, need: 1, model: mTramp, info: 'Vier Trampoline. Jeder zweite Sprung wird ein Salto.' });
+def('pony', { cat: 'ride', grp: 'kid', name: 'Ponyhof', w: 4, h: 3, cost: 900, cap: 6, dur: 16, exc: 32, nau: 2, price: 2.5, upkeep: 60, need: 2, model: mPony, info: 'Sechs Ponys drehen gemütlich ihre Runden durch die Koppel.' });
+def('petting', { cat: 'ride', grp: 'kid', name: 'Streichelzoo', w: 3, h: 3, cost: 650, cap: 8, dur: 14, exc: 28, nau: 0, price: 2, upkeep: 48, need: 2, model: mPetting, info: 'Ziegen, Schafe und Kaninchen zum Anfassen.' });
+def('ponyc', { cat: 'ride', grp: 'kid', name: 'Pferde-Achterbahn', w: 5, h: 3, cost: 1500, cap: 8, dur: 0, exc: 44, nau: 12, price: 3.5, upkeep: 56, need: 3, model: mPonyCoaster, info: 'Die erste Achterbahn für Kinder: sanfte Hügel, und die Wagen sind Pferde.' });
+// special
+def('rest', { cat: 'ride', grp: 'fam', calm: true, name: 'Ruhepark', w: 3, h: 3, cost: 500, cap: 8, dur: 12, exc: 12, nau: 0, price: 0, upkeep: 20, need: 1, beauty: 3, rad: 3, model: mRest, info: 'Bänke am Teich. Wem flau ist, der erholt sich hier, und die Umgebung wird schöner.' });
+def('mirror', { cat: 'ride', grp: 'fam', name: 'Spiegellabyrinth', w: 3, h: 3, cost: 1100, cap: 10, dur: 14, exc: 44, nau: 6, price: 3.5, upkeep: 44, need: 3, model: mMirror, info: 'Glas und Spiegel in alle Richtungen. Wer hineingeht, braucht eine Weile wieder heraus.' });
+def('skate', { cat: 'ride', grp: 'fam', name: 'Inline-Parcours', w: 5, h: 3, cost: 1200, cap: 8, dur: 16, exc: 48, nau: 8, price: 3.5, upkeep: 40, need: 4, model: mSkate, info: 'Parcoursbahn für Inlineskater: Wellen, Steilkurve und Slalom.' });
+def('pump', { cat: 'ride', grp: 'fam', name: 'Pumptrack', w: 5, h: 3, cost: 1300, cap: 6, dur: 15, exc: 52, nau: 10, price: 4, upkeep: 44, need: 5, model: mPump, info: 'Wellen und Anlieger für kleine Räder. Wer richtig pumpt, braucht nicht zu treten.' });
+def('cable', { cat: 'ride', grp: 'fam', name: 'Seilbahn', w: 8, h: 2, cost: 2800, cap: 12, dur: 22, exc: 46, nau: 2, price: 3.5, upkeep: 96, need: 7, model: mCable, info: 'Gondeln schweben von der Talstation über zwei Masten und zurück. Die beste Aussicht im Park.' });
+def('castle', { cat: 'ride', grp: 'fam', name: 'Schloss Schwanenstein', w: 5, h: 4, cost: 6000, cap: 20, dur: 18, exc: 58, nau: 0, price: 4.5, upkeep: 150, need: 9, beauty: 6, rad: 5, model: mCastle, info: 'Märchenschloss mit fünf Türmen und einem Schwanenteich. Besucher winken vom Balkon, und der ganze Park wirkt schöner.' });
+// water
+def('splash', { cat: 'ride', grp: 'water', name: 'Wasserpark', w: 3, h: 3, cost: 800, cap: 10, dur: 14, exc: 34, nau: 2, price: 2.5, upkeep: 40, need: 3, model: mSplash, info: 'Fontänen schiessen aus dem Boden, und die Kinder rennen mitten hindurch.' });
+def('slide', { cat: 'ride', grp: 'water', name: 'Wasserrutsche', w: 3, h: 4, cost: 1800, cap: 6, dur: 14, exc: 60, nau: 14, price: 4.5, upkeep: 80, need: 5, model: mSlide, info: 'Vom Turm durch drei Kurven ins Becken.' });
+def('pool', { cat: 'ride', grp: 'water', name: 'Schwimmbad', w: 5, h: 4, cost: 2400, cap: 14, dur: 18, exc: 46, nau: 2, price: 3.5, upkeep: 110, need: 6, model: mPool, info: 'Grosses Becken mit Rutsche, Sprungbrett und Liegestühlen.' });
+def('wcoaster', { cat: 'ride', grp: 'water', name: 'Wasserachterbahn', w: 7, h: 4, cost: 5600, cap: 8, dur: 0, exc: 92, nau: 36, price: 7.5, upkeep: 230, need: 10, model: mWCoaster, info: 'Boote klettern hoch hinauf, stürzen ins Becken und nehmen auf dem Heimweg noch einen Hügel.' });
+// crazy
+def('octo', { cat: 'ride', grp: 'crazy', name: 'Wilde Krake', w: 3, h: 3, cost: 1700, cap: 10, dur: 15, exc: 66, nau: 40, price: 5, upkeep: 84, need: 5, model: mOcto, info: 'Fünf Arme heben und senken sich, und die Gondeln daran drehen sich auch noch.' });
+def('ufo', { cat: 'ride', grp: 'crazy', name: 'Ufo-Wirbel', w: 3, h: 3, cost: 2300, cap: 12, dur: 15, exc: 74, nau: 48, price: 6, upkeep: 100, need: 7, model: mUfo, info: 'Die Scheibe dreht sich erst flach und stellt sich dann fast senkrecht auf.' });
+// adrenaline
+def('swing2', { cat: 'ride', grp: 'adr', name: 'Hoher Kettenflieger', w: 3, h: 3, cost: 2900, cap: 12, dur: 16, exc: 78, nau: 30, price: 6, upkeep: 120, need: 8, model: () => mSwing(true), info: 'Der Kettenflieger für Mutige: die Krone steigt am Mast doppelt so hoch.' });
+def('bungee', { cat: 'ride', grp: 'adr', name: 'Bungee-Jumping', w: 2, h: 2, cost: 2000, cap: 2, dur: 9, exc: 90, nau: 26, price: 7.5, upkeep: 70, need: 8, model: mBungee, info: 'Kopfüber vom Turm, am Gummiseil. Zwei springen nacheinander.' });
+def('loop', { cat: 'ride', grp: 'adr', name: 'Überschlag-Schaukel', w: 4, h: 2, cost: 3400, cap: 12, dur: 14, exc: 88, nau: 56, price: 7, upkeep: 150, need: 9, model: () => mShip(true), info: 'Schwingt immer höher und geht dann mehrmals ganz über den Kopf.' });
+// shows
+def('magic', { cat: 'ride', grp: 'show', name: 'Zaubershow', w: 4, h: 3, cost: 1500, cap: 14, dur: 18, exc: 42, nau: 0, price: 3.5, upkeep: 70, need: 3, model: mMagic, info: 'Ein Zauberer, ein Zylinder, ein Kaninchen. Das Publikum sitzt auf der Tribüne.' });
+def('animals', { cat: 'ride', grp: 'show', name: 'Tiershow', w: 4, h: 4, cost: 1900, cap: 16, dur: 18, exc: 46, nau: 0, price: 3.5, upkeep: 100, need: 4, model: mAnimals, info: 'Zwei Hunde springen durch den Reifen, ein Seehund balanciert den Ball.' });
+def('freak', { cat: 'ride', grp: 'show', name: 'Freakshow', w: 4, h: 3, cost: 1700, cap: 12, dur: 16, exc: 50, nau: 4, price: 4, upkeep: 64, need: 5, model: mFreak, info: 'Der stärkste Mann der Insel, Fackeln und eine Kristallkugel.' });
+def('dolphin', { cat: 'ride', grp: 'show', name: 'Delfinshow', w: 5, h: 4, cost: 4200, cap: 18, dur: 20, exc: 54, nau: 0, price: 4.5, upkeep: 150, need: 7, model: () => mSeaShow(false), info: 'Zwei Delfine springen durch die Reifen.' });
+def('circus', { cat: 'ride', grp: 'show', name: 'Zirkus', w: 5, h: 5, cost: 7500, cap: 30, dur: 22, exc: 62, nau: 0, price: 5, upkeep: 180, need: 8, model: mCircus, info: 'Das grosse Zelt: dreissig Plätze pro Vorstellung.' });
+def('orca', { cat: 'ride', grp: 'show', name: 'Orca-Show', w: 6, h: 4, cost: 6500, cap: 22, dur: 20, exc: 60, nau: 0, price: 5, upkeep: 200, need: 9, model: () => mSeaShow(true), info: 'Der Orca springt in voller Länge aus dem Wasser. Die vorderen Reihen werden nass.' });
+// food stalls
+def('wurst', { cat: 'shop', grp: 'eat', sells: 'food', name: 'Wurstbude', cost: 240, price: 3.5, fair: 3.7, goods: 1.2, upkeep: 20, svc: 1.3, need: 1, model: () => mShop('wurst'), info: 'Bratwurst im Brötchen, mit Senf.' });
+def('doener', { cat: 'shop', grp: 'eat', sells: 'food', name: 'Dönerbude', cost: 360, price: 5, fair: 5.3, goods: 1.8, upkeep: 24, svc: 1.5, need: 5, model: () => mShop('doener'), info: 'Frisch vom Spiess. Macht lange satt.' });
+def('brezel', { cat: 'shop', grp: 'sweet', sells: 'treat', name: 'Brezelbude', cost: 200, price: 2.5, fair: 2.7, goods: 0.5, upkeep: 16, svc: 1.0, need: 1, model: () => mShop('brezel'), info: 'Etwas Kleines auf die Hand.' });
+def('candy', { cat: 'shop', grp: 'sweet', sells: 'treat', name: 'Süssigkeitenbude', cost: 240, price: 2.5, fair: 2.7, goods: 0.5, upkeep: 18, svc: 1.0, need: 2, model: () => mShop('candy'), info: 'Lutscher und Bonbons in allen Farben.' });
+def('cotton', { cat: 'shop', grp: 'sweet', sells: 'treat', name: 'Zuckerwattebude', cost: 230, price: 2.5, fair: 2.8, goods: 0.4, upkeep: 18, svc: 1.1, need: 2, model: () => mShop('cotton'), info: 'Rosa Wolken am Stiel.' });
+def('marroni', { cat: 'shop', grp: 'sweet', sells: 'treat', name: 'Marronistand', cost: 220, price: 3, fair: 3.2, goods: 0.7, upkeep: 18, svc: 1.1, need: 3, model: () => mShop('marroni'), info: 'Heisse Marroni aus der Pfanne.' });
+// restaurants: guests sit down at a table
+def('pizza', { cat: 'shop', grp: 'rest', sells: 'food', dine: 9, name: 'Pizzarestaurant', w: 3, h: 2, cost: 1400, price: 8, fair: 8.5, goods: 3, upkeep: 70, svc: 1.0, need: 4, model: () => mRestaurant('pizza'), info: 'Gäste setzen sich an die Tische. Ein Essen macht ganz satt, stillt auch den Durst und hebt die Laune.' });
+def('vegan', { cat: 'shop', grp: 'rest', sells: 'food', dine: 9, name: 'Veganes Restaurant', w: 3, h: 2, cost: 1300, price: 7.5, fair: 8, goods: 2.6, upkeep: 64, svc: 1.0, need: 5, model: () => mRestaurant('vegan'), info: 'Frisch vom Feld auf den Teller. Gäste essen am Tisch.' });
+def('fish', { cat: 'shop', grp: 'rest', sells: 'food', dine: 10, name: 'Fischrestaurant', w: 3, h: 2, cost: 1800, price: 10, fair: 10.5, goods: 4, upkeep: 84, svc: 1.0, need: 7, model: () => mRestaurant('fish'), info: 'Fisch vom Grill, serviert unter blauen Sonnenschirmen.' });
+def('steak', { cat: 'shop', grp: 'rest', sells: 'food', dine: 11, name: 'Steakhouse', w: 3, h: 2, cost: 2200, price: 12, fair: 12.5, goods: 5, upkeep: 100, svc: 1.0, need: 8, model: () => mRestaurant('steak'), info: 'Das teuerste Essen im Park, und das beliebteste bei Gästen mit vollem Geldbeutel.' });
+// shops and games
+def('hats', { cat: 'shop', grp: 'fun', sells: 'hat', name: 'Hutgeschäft', w: 2, h: 1, cost: 500, price: 6, fair: 6.5, goods: 2, upkeep: 28, svc: 1.6, need: 4, model: () => mStore('hat'), info: 'Cowboyhut, Partyhut, Krone, Zauberhut oder Zylinder: Wer hier einkauft, trägt den Hut den ganzen Tag.' });
+def('costume', { cat: 'shop', grp: 'fun', sells: 'costume', name: 'Kostümgeschäft', w: 2, h: 1, cost: 700, price: 9, fair: 9.5, goods: 3.5, upkeep: 32, svc: 2, need: 6, model: () => mStore('costume'), info: 'Gäste verlassen den Laden als Superheldin, König, Zauberer oder Cowboy.' });
+def('lukas', { cat: 'shop', grp: 'fun', sells: 'game', prize: 0.28, name: 'Hau den Lukas', cost: 320, price: 3, fair: 3.2, goods: 0.6, upkeep: 16, svc: 1.8, need: 2, model: mLukas, info: 'Wer die Glocke trifft, gewinnt ein Plüschtier. Du kannst hier selbst zuschlagen.' });
+// the existing ones get their groups, and the can toss its prizes
+Object.assign(DEFS.throw, { name: 'Büchsenwerfen', prize: 0.3, goods: 0.6, info: 'Wer alle Büchsen abräumt, gewinnt ein Plüschtier. Du kannst hier selbst mitspielen.' });
+{
+  const G = { bouncy: 'kid', carousel: 'kid', custom: 'adr', cups: 'crazy', dunk: 'fam', swing: 'fam', mini: 'kid', ship: 'crazy', ghost: 'fam', bumper: 'crazy', wheel: 'fam', kart: 'adr', tower: 'adr', tower2: 'adr', flume: 'water', coaster: 'adr',
+    fries: 'eat', drink: 'eat', wc: 'eat', burger: 'eat', ice: 'sweet', balloon: 'fun', throw: 'fun' };
+  for (const k in G) DEFS[k].grp = G[k];
+  // in the tray: what unlocks first comes first
+  for (const t of ['ride', 'shop']) ORDER[t].sort((a, b) => DEFS[a].need - DEFS[b].need || DEFS[a].cost - DEFS[b].cost);
+}
+const GROUPS = {
+  ride: [['', 'Alle'], ['kid', 'Kinder'], ['fam', 'Spezial'], ['crazy', 'Crazy'], ['adr', 'Adrenalin'], ['water', 'Wasser'], ['show', 'Shows']],
+  shop: [['', 'Alle'], ['eat', 'Imbiss'], ['sweet', 'Süsses'], ['rest', 'Restaurants'], ['fun', 'Läden & Spiele']],
+};
+// hats that the hat shop sells, with the colours they come in; soft toys to win; costumes
+const HAT_SHOP = [[12, [0x9b6a4a, 0x5a4636, 0xe8cf8a]], [13, [0xff4f64, 0x3d8bfd, 0xffd23f, 0x3ddbb4, 0xff8fc7]], [14, [0xffd23f]], [15, [0x6f48d6, 0x3d5fd0, 0x1c1c22]], [16, [0x1c1c22, 0x3a2f5a]], [5, [0xe8cf8a, 0xfff6dc, 0xff8fc7]], [3, [0xff4f64, 0x3d8bfd, 0x3ddbb4]]];
+const PLUSH = [0xb5651d, 0xff8fc7, 0xffffff, 0x9fd8ff, 0xffd23f, 0x8a6a4a];
+const COSTUMES = [
+  { cape: 0xff4f64, shirt: 0x3d8bfd, pants: 0x1f3f7a, trim: 0xffd23f, top: 2, bottom: 0 },                       // superhero
+  { cape: 0xb9243a, shirt: 0xfff6dc, pants: 0x6f48d6, trim: 0xffd23f, top: 2, bottom: 0, hair: 14, hairCol: 0xffd23f },   // king or queen (trousers: a skirt would push through the cape)
+  { cape: 0x6f48d6, shirt: 0x3a2f5a, pants: 0x2a2350, trim: 0xffd23f, top: 2, bottom: 0, hair: 15, hairCol: 0x6f48d6 },   // wizard
+  { shirt: 0xc8a96a, pants: 0x4f6fb0, trim: 0xb9243a, top: 0, bottom: 0, hair: 12, hairCol: 0x9b6a4a },            // cowboy
+  { cape: 0x1c1c22, shirt: 0xb9243a, pants: 0x1c1c22, trim: 0xffffff, top: 2, bottom: 0, hair: 16, hairCol: 0x1c1c22 },   // magician
+];
+function wearCostume(g) {
+  const c = pick(COSTUMES); g.cape = c.cape || 0; g.shirt = c.shirt; g.pants = c.pants; g.trim = c.trim; g.top = c.top; if (c.bottom !== undefined) g.bottom = c.bottom;
+  if (c.hair) { g.hair = c.hair; g.hairCol = c.hairCol; }
+  g.pack = 0; g.legs = g.skin; g.costume = 1; colorsDirty = true;
+}
+function wearHat(g) { const h = pick(HAT_SHOP); g.hair = h[0]; g.hairCol = pick(h[1]); g.hat = 1; colorsDirty = true; }
 /* ================= game state ================= */
 const S = { money: 4000, loan: 0, time: DAY * 0.1, ticket: 5, rating: 55, goal: 0, speed: 1, exitAvg: 62, visitors: 0, muted: false, coach: true, shadows: true, outline: false, rep: 70, wage: 1, cur: null, secLvl: 1, secXp: 0, music: true, wx: null, devInit: false, b1: false };
 const newFin = () => ({ tick: 0, ride: 0, shop: 0, bonus: 0, goods: 0, upkeep: 0, wage: 0, build: 0, loan: 0 });
@@ -1844,7 +2826,7 @@ function placeObj(k, x, y, rot, opt) {
     Object.assign(ob, { queue: [], riders: [], state: 'idle', runT: 0, animT: 0, spin: 0, loadT: 0, price: d.price, open: true, broken: false, wear: 0, count: 0, income: 0, svcT: 0, distV: 0, dist: null, access: [], fixer: null, resting: [], res: 0, miniDay: -1 });
     m.group.updateMatrixWorld(true);
     ob.top = new T.Box3().setFromObject(m.group).max.y;
-    builds.push(ob); dressRide(ob);
+    builds.push(ob); dressRide(ob); applyBeauty(ob, 1);   // a castle or a garden also makes its surroundings nicer
     if (custom) { ob.nodes = opt.nodes; ob.extra = []; for (const t of m.tiles) if (tType[t] === 0) { tType[t] = 2; tObj[t] = ob; ob.extra.push(t); } }
   }
   pathVersion++;
@@ -1874,13 +2856,14 @@ function removeObj(ob) {
   ob.removed = true;
   for (let j = 0; j < ob.h; j++) for (let i = 0; i < ob.w; i++) { const t = idx(ob.x + i, ob.y + j); tType[t] = 0; tObj[t] = null; }
   if (ob.extra) for (const t of ob.extra) if (tObj[t] === ob) { tType[t] = 0; tObj[t] = null; }
-  scene.remove(ob.group); ob.group.traverse((o) => { if (o.geometry) o.geometry.dispose(); });
+  scene.remove(ob.group); ob.group.traverse((o) => { if (o.geometry && !o.userData.shared) o.geometry.dispose(); });   // performers share the people's own parts
   if (ob.def.cat === 'deco') {
     decos = decos.filter((o) => o !== ob); animDecos = animDecos.filter((o) => o !== ob); applyBeauty(ob, -1); if (ob.def.bin) rebuildBins();
     if (ob.nat) plotDirty[ob.plot] = 1;
     if (ob.cut) { ob.cut = false; const i = cuts.indexOf(ob); if (i >= 0) cuts.splice(i, 1); if (ob.cutter && ob.cutter.cutT === ob) ob.cutter.cutT = null; }
   } else {
     if (ob.site) endSite(ob);
+    applyBeauty(ob, -1);
     for (const s of ob.resting.slice()) endBreak(s);
     if (pov && pov.b === ob) exitMode();
     for (const g of ob.queue.concat(ob.riders)) releaseGuest(g);
@@ -2126,9 +3109,16 @@ function nearestShop(g, here, sells) {
     const df = distOf(b); if (!df || df[here] < 0) continue;
     if (b.price > g.cash) continue;
     if (b.price > d.fair * g.gen + 0.01) { exp = true; continue; }
-    const sc = df[here] + b.queue.length * 2; if (sc < bd) { bd = sc; best = b; }
+    // whoever has money to spare likes to sit down at a restaurant, even if it is a little further
+    const sc = df[here] + b.queue.length * 2 - (d.dine && g.cash > b.price * 2.5 ? 9 : 0); if (sc < bd) { bd = sc; best = b; }
   }
   if (!best && exp) gripe(g, 'money');
+  return best;
+}
+// the nearest quiet garden that can be reached
+function nearestCalm(g, here) {
+  let best = null, bd = 1e9;
+  for (const b of builds) { if (!b.def.calm || !b.open || b.site || b.price > g.cash) continue; const df = distOf(b); if (!df || df[here] < 0) continue; if (df[here] < bd) { bd = df[here]; best = b; } }
   return best;
 }
 function pickRide(g, here) {
@@ -2142,6 +3132,9 @@ function pickRide(g, here) {
     if (g.nausea > 45 && d.nau > 25) continue;
     let w = excOf(b) / (1 + (g.rides[b.k] || 0) * 1.2) / (1 + df[here] * 0.05) / (1 + b.queue.length / d.cap) * (1.25 - 0.3 * b.price / fair);
     if (d.exc > 45 + g.brave * 65) w *= 0.12;
+    // children love their own rides and stay away from the wildest ones; grown-ups mostly leave the children's rides to them
+    if (g.kid) w *= d.grp === 'kid' ? 2.2 : d.grp === 'adr' ? 0.08 : d.grp === 'crazy' ? 0.5 : 1; else if (d.grp === 'kid') w *= 0.4;
+    if (d.calm) w *= g.nausea > 30 ? 6 : 0.5;
     c.push(b, w); tot += w;
   }
   if (!c.length) { if (exp) gripe(g, 'money'); else if (poor) g.stay = 0; return null; }
@@ -2160,8 +3153,9 @@ function decide(g) {
   if (g.wc > 60) { tg = nearestShop(g, here, 'wc'); if (!tg) gripe(g, 'wc'); }
   if (!tg && g.hunger > 58) { tg = nearestShop(g, here, 'food'); if (!tg) gripe(g, 'food'); }
   if (!tg && g.thirst > 58) { tg = nearestShop(g, here, 'drink'); if (!tg) gripe(g, 'drink'); }
+  if (!tg && g.nausea > 50) tg = nearestCalm(g, here);
   if (!tg && Math.random() < 0.82) tg = pickRide(g, here);
-  if (!tg && Math.random() < 0.35) tg = nearestShop(g, here, pick(g.balloon ? ['treat', 'game'] : ['balloon', 'treat', 'game']));
+  if (!tg && Math.random() < 0.35) { const w = ['treat', 'game']; if (!g.balloon) w.push('balloon'); if (!g.hat && !g.costume) w.push('hat'); if (!g.costume) w.push('costume'); tg = nearestShop(g, here, pick(w)); }
   if (tg) { g.target = tg; g.state = 'walk'; } else { g.target = null; g.state = 'wander'; g.steps = rint(3, 9); }
   advance(g);
 }
@@ -2249,18 +3243,31 @@ function serve(b, g) {
   g.cash -= b.price; if (b.price) earn(b.price, 'shop'); if (d.goods) spend(d.goods, 'goods');
   b.income += b.price - d.goods; b.count++;
   const val = clamp(1.4 - 0.5 * b.price / d.fair, 0.3, 1.3);
-  if (d.sells === 'food') { g.hunger = Math.max(0, g.hunger - 75); g.thirst += 10; g.happy += 4 * val; if (Math.random() < 0.6) g.trash = rint(3, 9); }
+  if (d.dine) { g.hunger = 0; g.thirst = Math.max(0, g.thirst - 45); g.wc += 8; g.happy += 9 * val; }   // a proper meal at a table
+  else if (d.sells === 'food') { g.hunger = Math.max(0, g.hunger - 75); g.thirst += 10; g.happy += 4 * val; if (Math.random() < 0.6) g.trash = rint(3, 9); }
   else if (d.sells === 'drink') { g.thirst = Math.max(0, g.thirst - 80); g.wc += 16; g.happy += 3 * val; if (Math.random() < 0.35) g.trash = rint(3, 9); }
   else if (d.sells === 'treat') { g.hunger = Math.max(0, g.hunger - 22); g.happy += 7 * val; if (Math.random() < 0.25) g.trash = rint(3, 9); }
   else if (d.sells === 'balloon') { g.balloon = pick(SHIRT); g.happy += 9 * val; }
-  else if (d.sells === 'game') g.happy += 8 * val;
+  else if (d.sells === 'game') {   // with luck there is a soft toy to take home
+    g.happy += 8 * val; const win = !!d.prize && Math.random() < d.prize;
+    if (win) { g.prize = pick(PLUSH); g.happy += 6; think(g, 'great'); }
+    if (b.model.play) b.model.play(win ? 1 : rnd(0.3, 0.92));
+  }
+  else if (d.sells === 'hat') { wearHat(g); g.happy += 9 * val; }
+  else if (d.sells === 'costume') { wearCostume(g); g.happy += 11 * val; }
   else { g.wc = 0; g.happy += 2; }
   if (d.sells !== 'wc') personVoice(g, 'nom');
+  if (d.dine) {   // sits down at a free place and eats; without one the meal is taken away
+    const seat = b.model.seats.find((s) => !b.riders.some((r) => r.seat === s));
+    if (seat) { g.state = 'ride'; g.seat = seat; g.dineT = d.dine * rnd(0.8, 1.25); g.tile = g.acc; b.riders.push(g); colorsDirty = true; return; }
+  }
   g.state = 'decide'; g.wait = rnd(0.6, 1.6); g.tile = g.acc;
 }
 function levelUp(b) {
   const l = lvlOf(b);
-  toast(b.def.name + ' erreicht Stufe ' + l + (l === 2 ? '. Du kannst jetzt selbst hinein.' : '. Der Nervenkitzel steigt.'), 'gold', b); sfx('goal'); uiDirty = true;
+  const show = b.def.grp === 'show';
+  if (!b.def.calm) toast(b.def.name + ' erreicht Stufe ' + l + (l === 2 ? (show ? '. Du kannst jetzt selbst zuschauen.' : '. Du kannst jetzt selbst hinein.') : show ? '. Die Vorstellung wird noch besser.' : '. Der Nervenkitzel steigt.'), 'gold', b);
+  sfx('goal'); uiDirty = true;
   if (sel && sel.obj === b) renderPanel();
 }
 function startRide(b) {
@@ -2291,13 +3298,14 @@ function endRide(b) {
     const times = g.rides[b.k] || 0;
     let gain = clamp(ex * 0.16 / (1 + times * 0.8) * (1.35 - 0.5 * b.price / fair), -4, 22);
     g.nausea += d.nau * rnd(0.5, 1.1) * (1.2 - g.brave * 0.6);
+    if (d.calm) { g.nausea = 0; gain = 5; }   // a rest in the garden settles the stomach
     if (g.nausea > 75) { gain -= 6; think(g, 'sick'); if (Math.random() < 0.35) dropLitter(g.acc); g.nausea = 40; }
     else if (Math.random() < 0.5) think(g, gain > 8 ? 'great' : 'happy');
     g.happy = clamp(g.happy + gain, 0, 100); g.rides[b.k] = times + 1; g.nRides++;
     releaseGuest(g);
   }
   b.riders = []; b.state = 'idle'; b.loadT = 0; b.wear++;
-  if (Math.random() < (0.004 + b.wear * 0.0008) * (staffN('mech') ? 0.5 : 1)) breakDown(b);
+  if (!d.calm && Math.random() < (0.004 + b.wear * 0.0008) * (staffN('mech') ? 0.5 : 1)) breakDown(b);
 }
 function stepBuild(b, dt) {
   const d = b.def, q = b.queue;
@@ -2306,6 +3314,8 @@ function stepBuild(b, dt) {
   if (d.cat === 'shop') {
     b.svcT -= dt;
     if (b.svcT <= 0 && q.length && q[0].qt > 0.5) { serve(b, q.shift()); b.svcT = d.svc; }
+    if (b.riders.length) for (let i = b.riders.length - 1; i >= 0; i--) { const g = b.riders[i]; g.dineT -= dt; if (g.dineT <= 0) { b.riders.splice(i, 1); g.happy = Math.min(100, g.happy + 2); releaseGuest(g); } }   // diners finish their meal
+    if (b.model.update) b.model.update(dt, b);
     return;
   }
   const want = b.state === 'run' && (b.model.done || b.runT < d.dur - 1.6) ? 1 : 0;
@@ -2897,6 +3907,9 @@ const GOALS = [
   { t: 'Kaufe 4 Stücke Land dazu', r: 2500, p: () => (plotsOwned() - START_PLOTS.length) / 4 },
   { t: 'Besitze die halbe Insel (18 Stücke Land)', r: 8000, p: () => plotsOwned() / 18 },
   { t: 'Die ganze Insel gehört dir', r: 25000, p: () => plotsOwned() / (PN * PN) },
+  { t: 'Zeige zwei verschiedene Shows', r: 3000, p: () => new Set(rideList().filter((b) => b.def.grp === 'show').map((b) => b.k)).size / 2 },
+  { t: 'Eröffne ein Restaurant, ein Hutgeschäft und ein Kostümgeschäft', r: 4000, p: () => ((builds.some((b) => b.def.dine) ? 1 : 0) + has('hats') + has('costume')) / 3 },
+  { t: 'Betreibe 20 verschiedene Attraktionen', r: 15000, p: () => rideTypes() / 20 },
 ];
 function checkGoal() {
   const g = GOALS[S.goal]; if (!g || g.p() < 1) return;
@@ -2966,11 +3979,11 @@ const FGL = figureGeos(0), FGH = figureGeos(1), MAT_FIG = MAT_INST(0.5, 0.16), M
 function figSet(G, cap) {
   const all = [], part = (g, n, mat) => { const m = inst(g, mat || MAT_FIG, n, false, false); all.push(m); return m; };
   return {
-    all, cap, nFig: 0, nLimb: 0, nSkirt: 0, nPack: 0, nShades: 0, nMask: 0, nHoops: 0, nHair: G.hair.map(() => 0), nMouth: G.mouth.map(() => 0),
+    all, cap, nFig: 0, nLimb: 0, nSkirt: 0, nPack: 0, nShades: 0, nMask: 0, nHoops: 0, nCape: 0, nPlush: 0, nHair: G.hair.map(() => 0), nMouth: G.mouth.map(() => 0),
     iTorso: part(G.torso, cap), iTrim: part(G.trim, cap), iZip: part(G.zip, cap), iHoops: part(G.hoops, 16), iPelvis: part(G.pelvis, cap), iHead: part(G.head, cap),
     iThigh: part(G.thigh, cap * 2), iShin: part(G.shin, cap * 2), iShort: part(G.short, cap * 2), iShoe: part(G.shoe, cap * 2), iSole: part(G.sole, cap * 2),
     iUpper: part(G.upper, cap * 2), iCap: part(G.cap, cap * 2), iStripe: part(G.stripe, cap * 2), iFore: part(G.forearm, cap * 2), iWrist: part(G.wrist, cap * 2), iHand: part(G.hand, cap * 2),
-    iHair: G.hair.map((g) => part(g, cap)), iSkirt: part(G.skirt, cap), iPack: part(G.pack, cap), iShades: part(G.shades, cap), iMask: part(G.mask, 16),
+    iHair: G.hair.map((g) => part(g, cap)), iSkirt: part(G.skirt, cap), iPack: part(G.pack, cap), iShades: part(G.shades, cap), iMask: part(G.mask, 16), iCape: part(G.cape, cap), iPlush: part(G.plush, cap),
     iEyes: part(G.eye, cap * 2, MAT_EYE), iIris: part(G.iris, cap * 2, MAT_EYE), iLid: part(G.lid, cap * 2, MAT_EYE), iBrow: part(G.brow, cap * 2), iMouth: G.mouth.map((g) => part(g, cap)),
   };
 }
@@ -3007,18 +4020,22 @@ function eyePart(mesh, k, sd, lx, ly, sx, sy, rz) { facePart(mesh, k, sd * FIG.E
 function follow(o, m) { o.matrix.copy(m); o.matrixWorldNeedsUpdate = true; }
 let nBall = 0, nBlob = 0, figT = 0, figFaces = true, figReach = 1, figR2 = 0, figNear = 0;
 // Mouths: 0 smile, 1 open, 2 frown, 3 a round "o", 4 straight.
+// seat poses in which a person stands on the seat's spot instead of sitting on it
+const STANDING = { jump: 1, throw: 1, stand: 1, skate: 1, swim: 1 };
 function drawFigure(f, seat, ride, rdt) {
   if (LO.nFig + HI.nFig >= FIGMAX) return;
   const sc = f.sc, time = S.time, rt = figT, ph = f.ph, ty = f.type, tk = f.think > 0 && !ty && !f.thief ? f.tk : '';
-  let pose = 0, p = 0, lean = 0;
+  let pose = 0, p = 0, lean = 0, sp = '';
   if (seat) {
-    const sp = seat.userData.pose, e = seat.matrixWorld.elements;
+    const e = seat.matrixWorld.elements; sp = seat.userData.pose || '';
     if (!_fr.intersectsSphere(_sph.set(_gp.set(e[12], e[13] + 0.2, e[14]), 0.9))) return;
     _rm.copy(seat.matrixWorld);
-    if (sp !== 'jump' && sp !== 'throw') _rm.multiply(_lm.makeTranslation(0, -FIG.SEAT * sc, 0));
+    if (!STANDING[sp]) _rm.multiply(_lm.makeTranslation(0, -FIG.SEAT * sc, 0));
+    else if (sp === 'skate') _rm.multiply(_lm.makeRotationX(0.2));   // leaning into the stride
     if (f.shake > 0) _rm.multiply(_lm.makeTranslation(Math.sin(rt * 60) * 0.02, 0, 0));   // a knock on a dozing guard
     _rm.scale(_gs.set(sc, sc, sc));
-    pose = sp === 'jump' ? 3 : sp === 'throw' ? 7 : sp === 'straddle' ? 4 : 2;
+    pose = sp === 'jump' ? 3 : sp === 'throw' ? 7 : sp === 'straddle' ? 4 : sp === 'stand' ? 0 : sp === 'skate' ? 8 : sp === 'swim' ? 9 : 2;
+    p = time * (pose === 8 ? 6.5 : 4.2) + ph;
   } else {
     let d = f.rot - f.rr; d = Math.atan2(Math.sin(d), Math.cos(d)); f.rr += d * Math.min(1, rdt * 14);
     if (!_fr.intersectsSphere(_sph.set(_gp.set(f.x, (f.fy || 0) + 0.4, f.z), 0.95))) return;
@@ -3044,7 +4061,7 @@ function drawFigure(f, seat, ride, rdt) {
   // the people who appear largest are drawn from the smooth set, as long as it has room
   const me = _rm.elements, cp = camera.position, qx = me[12] - cp.x, qy = me[13] + 0.35 * sc - cp.y, qz = me[14] - cp.z;
   let M = LO; if (qx * qx + qy * qy + qz * qz < figR2) { figNear++; if (HI.nFig < HI.cap) M = HI; }
-  const thrill = !!(seat && ride && ride.state === 'run' && ride.spin > 0.5 && ride.def.exc >= 40);
+  const thrill = !!(seat && ride && ride.state === 'run' && ride.spin > 0.5 && ride.def.exc >= 40 && ride.def.grp !== 'show' && !ride.def.calm);
   // joint angles: thighs, knees, upper arms, elbows, and the head's turn, nod and tilt
   let tl = 0, tr = 0, kl = 0, kr = 0, al = 0.05, ar = 0.05, el = -0.3, er = -0.3, zl = 0.13, zr = 0.13, spread = 0, hy = 0, hx = 0, hz = 0;
   const stride = f.bottom === 2 ? 0.44 : 0.6;   // a skirt allows shorter steps
@@ -3058,10 +4075,17 @@ function drawFigure(f, seat, ride, rdt) {
     al = ar = -0.5; el = er = -1.0; hy = Math.sin(time * 0.9 + ph) * 0.3;
     if (f.asleep) { hx = 0.42 + Math.sin(rt * 1.7 + ph) * 0.05; hy = 0.22; hz = 0.1; al = ar = -0.3; el = er = -1.25; }   // dozing on a chair
     if (thrill && f.brave > 0.45 && ride.def.exc >= 54) { const w = Math.sin(time * 7 + ph) * 0.2; al = -2.7 + w; ar = -2.7 - w; el = er = -0.15; }
+    if (sp === 'eat') { ar = -0.55; er = -1.5 - 0.4 * Math.max(0, Math.sin(time * 5 + ph)); hy *= 0.3; hx = 0.1; }   // fork to mouth
+    else if (ride && ride.def.grp === 'show' && ride.state === 'run') {   // watching, and clapping now and then
+      hy = Math.sin(time * 0.5 + ph) * 0.12;
+      if (Math.sin(time * 1.3 + ph * 3) > 0.5) { const w = Math.sin(time * 16 + ph) * 0.1; al = ar = -1.2; el = -1.7 + w; er = -1.7 - w; zl = zr = -0.06; }
+    }
   } else if (pose === 3) { const w = Math.sin(time * 6 + ph); tl = -0.3 - w * 0.2; tr = -0.3 + w * 0.2; kl = kr = 0.6; al = -2.3 + w * 0.4; ar = -2.3 - w * 0.4; el = er = -0.2; }
   else if (pose === 5) { tl = tr = -1.5; kl = kr = 0.06; al = ar = -0.35; el = er = -0.95; hx = f.shake > 0 ? 0.15 : 0.5 + Math.sin(rt * 1.7 + ph) * 0.06; hy = 0.3; hz = 0.12; }
   else if (pose === 6) { const w = rt * 18 + ph; tl = Math.sin(w) * 0.9; tr = -tl; kl = kr = 0.6; al = -2 + Math.cos(w); ar = -2 - Math.cos(w); }
   else if (pose === 7) { const w = (time * 0.9 + ph) % 1; ar = w < 0.35 ? lerp(0.4, -2.6, w / 0.35) : lerp(-2.6, 0.2, Math.min(1, (w - 0.35) / 0.15)); er = -0.5; al = -0.2; }
+  else if (pose === 8) { const sn = Math.sin(p); tl = -0.22 + 0.34 * sn; tr = -0.22 - 0.34 * sn; kl = 0.5 + 0.22 * sn; kr = 0.5 - 0.22 * sn; spread = 0.1; al = 0.55 * sn; ar = -0.55 * sn; el = er = -0.7; hx = -0.16; }   // skating
+  else if (pose === 9) { const sn = Math.sin(p); al = -1.35 + 0.55 * sn; ar = -1.35 - 0.55 * sn; el = er = -0.5; zl = zr = 0.5; tl = 0.28 * sn; tr = -0.28 * sn; kl = kr = 0.25; hy = Math.sin(rt * 0.7 + ph) * 0.3; }   // swimming
   else { hy = Math.sin(rt * 0.6 + ph * 3) * 0.5; hz = Math.sin(rt * 0.43 + ph * 5) * 0.07; }
   if (f.state === 'held') { al = ar = -2.75; el = er = -0.25; zl = zr = 0.3; hy = 0; tl = Math.sin(rt * 31) * 0.05; tr = -tl; }
   if (f.job === 'hold') { ar = -1.35; er = -0.15; hy = 0; }
@@ -3090,7 +4114,7 @@ function drawFigure(f, seat, ride, rdt) {
   if (u && u.head) follow(u.head, _hm);
   if (f.hair >= 0) {
     const h = f.hair, k = M.nHair[h]++; M.iHair[h].setMatrixAt(k, _hm); M.iHair[h].setColorAt(k, _gc.set(f.hairCol));
-    if (h === 3 || h === 5 || h === 10 || h === 11) { const k2 = M.nHair[9]++; M.iHair[9].setMatrixAt(k2, _hm); M.iHair[9].setColorAt(k2, _gc.set(f.browCol || 0x3d2616)); }   // hair under the cap or hat
+    if (HATS[h]) { const u = HATS[h] === 2 ? 0 : 9, k2 = M.nHair[u]++; M.iHair[u].setMatrixAt(k2, _hm); M.iHair[u].setColorAt(k2, _gc.set(f.browCol || 0x3d2616)); }   // hair under the cap or hat
   }
   if (f.shades) M.iShades.setMatrixAt(M.nShades++, _hm);
   if (f.thief && M.nMask < 16) { M.iMask.setMatrixAt(M.nMask++, _hm); M.iHoops.setMatrixAt(M.nHoops, _rm); M.iHoops.setColorAt(M.nHoops++, _gc.set(0x25252e)); }
@@ -3114,7 +4138,9 @@ function drawFigure(f, seat, ride, rdt) {
       else if (f.job === 'fix' || f.job === 'clean' || f.job === 'cut' || f.job === 'build') { mo = 4; mw = 0.7; ba = -0.15; ly = -0.006; }
     } else if (thrill) {
       if (f.brave > 0.45) { mo = 1; ms = 1.2; bl = 0.014; if (f.brave > 0.8) { eo = 0; ec = 2; } } else { mo = 3; ms = 1.3; ba = 0.45; bl = 0.014; ps = 0.72; }
-    } else if (pose === 3) { mo = 1; bl = 0.01; }
+    } else if (sp === 'eat') { mo = Math.sin(time * 5 + ph) > 0 ? 3 : 4; ms = 0.7; }
+    else if (seat && ride && ride.def.grp === 'show' && ride.state === 'run') { mo = 1; ms = 0.8; bl = 0.012; }
+    else if (pose === 3 || pose === 8 || pose === 9) { mo = 1; bl = 0.01; }
     else if (f.chatT > 0) { mo = 1; ms = 0.6 + 0.4 * Math.abs(Math.sin(rt * 10)); bl = 0.008; }
     else if (tk === 'great') { mo = 1; ms = 1.15; bl = 0.014; eo = 0; ec = 2; }
     else if (tk === 'happy' || tk === 'bye') { mw = 1.15; bl = 0.008; }
@@ -3149,9 +4175,11 @@ function drawFigure(f, seat, ride, rdt) {
   limb(_rm, -FIG.LX, FIG.HIP, 0, tl, -spread, _tm); M.iThigh.setMatrixAt(j, _tm); M.iShort.setMatrixAt(j, shorts ? _tm : M0); limb(_tm, 0, -FIG.THIGH, 0, kl, 0, _km); M.iShin.setMatrixAt(j, _km); M.iShoe.setMatrixAt(j, _km); M.iSole.setMatrixAt(j, _km);
   limb(_rm, FIG.LX, FIG.HIP, 0, tr, spread, _tm); M.iThigh.setMatrixAt(j + 1, _tm); M.iShort.setMatrixAt(j + 1, shorts ? _tm : M0); limb(_tm, 0, -FIG.THIGH, 0, kr, 0, _km); M.iShin.setMatrixAt(j + 1, _km); M.iShoe.setMatrixAt(j + 1, _km); M.iSole.setMatrixAt(j + 1, _km);
   limb(_rm, -FIG.SX, FIG.SHO, 0, al, -zl, _tm); M.iUpper.setMatrixAt(j, _tm); M.iCap.setMatrixAt(j, tee ? _tm : M0); M.iStripe.setMatrixAt(j, long ? _tm : M0); limb(_tm, 0, -FIG.UARM, 0, el, 0, _km); M.iFore.setMatrixAt(j, _km); M.iWrist.setMatrixAt(j, _km); M.iHand.setMatrixAt(j, _km); if (u && u.handL) follow(u.handL, _km);
+  if (f.prize) { M.iPlush.setMatrixAt(M.nPlush, _km); M.iPlush.setColorAt(M.nPlush, _gc.set(f.prize)); M.nPlush++; }   // a soft toy won at a game
   limb(_rm, FIG.SX, FIG.SHO, 0, ar, zr, _tm); M.iUpper.setMatrixAt(j + 1, _tm); M.iCap.setMatrixAt(j + 1, tee ? _tm : M0); M.iStripe.setMatrixAt(j + 1, long ? _tm : M0); limb(_tm, 0, -FIG.UARM, 0, er, 0, _km); M.iFore.setMatrixAt(j + 1, _km); M.iWrist.setMatrixAt(j + 1, _km); M.iHand.setMatrixAt(j + 1, _km); if (u && u.handR) follow(u.handR, _km);
   const skirt = f.bottom === 2 && !seated;
   if (skirt) { M.iSkirt.setMatrixAt(M.nSkirt, _rm); M.iSkirt.setColorAt(M.nSkirt, _gc.set(f.pants)); M.nSkirt++; }
+  if (f.cape) { M.iCape.setMatrixAt(M.nCape, _rm); M.iCape.setColorAt(M.nCape, _gc.set(f.cape)); M.nCape++; }
   if (f.pack) { M.iPack.setMatrixAt(M.nPack, _rm); M.iPack.setColorAt(M.nPack, _gc.set(f.pack)); M.nPack++; }
   if (f.balloon && nBall < MAXG) {   // the balloon floats above the right hand, wherever that is; it sways and trails behind while walking
     _lp.set(0, -FIG.HAND, 0).applyMatrix4(_km); _lq.setFromEuler(_eb.set(pose === 1 ? -0.2 : 0, seat ? 0 : f.rr, Math.sin(rt * 1.3 + ph) * 0.05));
@@ -3169,7 +4197,7 @@ function drawFigure(f, seat, ride, rdt) {
   M.nFig++; M.nLimb += 2;
 }
 function renderPeople(rdt) {
-  for (const M of FIGSETS) { M.nFig = M.nLimb = M.nSkirt = M.nPack = M.nShades = M.nMask = M.nHoops = 0; M.nHair.fill(0); M.nMouth.fill(0); }
+  for (const M of FIGSETS) { M.nFig = M.nLimb = M.nSkirt = M.nPack = M.nShades = M.nMask = M.nHoops = M.nCape = M.nPlush = 0; M.nHair.fill(0); M.nMouth.fill(0); }
   nBall = nBlob = figNear = 0;
   figT = performance.now() * 0.001; figFaces = !!(fp || pov) || cam.d < 30;
   // The smooth set is for people who appear large: within a reach that depends on the lens. When more people are
@@ -3204,7 +4232,7 @@ function renderPeople(rdt) {
     const nFace = figFaces ? M.nLimb : 0;
     M.iTorso.count = M.iTrim.count = M.iZip.count = M.iPelvis.count = M.iHead.count = M.nFig;
     M.iThigh.count = M.iShin.count = M.iShort.count = M.iShoe.count = M.iSole.count = M.iUpper.count = M.iCap.count = M.iStripe.count = M.iFore.count = M.iWrist.count = M.iHand.count = M.nLimb;
-    M.iSkirt.count = M.nSkirt; M.iPack.count = M.nPack; M.iShades.count = M.nShades; M.iMask.count = M.nMask; M.iHoops.count = M.nHoops; M.iEyes.count = M.iIris.count = M.iLid.count = M.iBrow.count = nFace;
+    M.iSkirt.count = M.nSkirt; M.iPack.count = M.nPack; M.iShades.count = M.nShades; M.iMask.count = M.nMask; M.iHoops.count = M.nHoops; M.iCape.count = M.nCape; M.iPlush.count = M.nPlush; M.iEyes.count = M.iIris.count = M.iLid.count = M.iBrow.count = nFace;
     for (let h = 0; h < M.iHair.length; h++) M.iHair[h].count = M.nHair[h];
     for (let k = 0; k < M.iMouth.length; k++) M.iMouth[k].count = figFaces ? M.nMouth[k] : 0;
     for (const m of M.all) { const on = m.count > 0; m.visible = on; if (on) { m.instanceMatrix.needsUpdate = true; m.instanceColor.needsUpdate = true; } }   // parts that nobody wears are not drawn at all
@@ -3470,27 +4498,47 @@ function resize() {
 window.addEventListener('resize', resize);
 if (window.ResizeObserver) new ResizeObserver(resize).observe(canvas);
 
+/* ----- pictures for the cards ----- */
+// They are taken in the background, one per frame, on a small off-screen target; the cards of an opened tab come first.
+// So nothing holds up the start of the game, however many attractions there are.
+const TH = { queue: [], scene: null, cam: null, rt: null, buf: null, big: null, small: null, box: new T.Box3(), sph: new T.Sphere() }, TH_BLANK = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
 function makeThumbs() {
-  const ts = new T.Scene(); ts.background = new T.Color(0xfff6dc);
-  ts.add(new T.HemisphereLight(0xffffff, 0x9aa0c0, 0.72));
-  const dl = new T.DirectionalLight(0xffffff, 0.6); dl.position.set(3, 6, 4); ts.add(dl);
-  const tc = new T.PerspectiveCamera(28, 1, 0.1, 300), box = new T.Box3(), sph = new T.Sphere();
-  const pr0 = renderer.getPixelRatio(); renderer.setPixelRatio(1); renderer.setSize(128, 128, false);
-  const shoot = (group) => {
-    group.traverse((o) => { if (o.material === MAT_LAMP) o.visible = false; });
-    for (const c of group.children.slice()) if (c.material === MAT_LAMP) group.remove(c);
-    ts.add(group); group.updateMatrixWorld(true); box.setFromObject(group); box.getBoundingSphere(sph);
-    const d = sph.radius / Math.sin(14 * Math.PI / 180) * 1.02;
-    tc.position.set(sph.center.x + d * 0.55, sph.center.y + d * 0.5, sph.center.z + d * 0.67); tc.lookAt(sph.center);
-    renderer.render(ts, tc);
-    const url = canvas.toDataURL('image/png');
-    ts.remove(group); group.traverse((o) => { if (o.geometry && !o.userData.shared) o.geometry.dispose(); });
-    return url;
-  };
-  for (const k in DEFS) DEFS[k].thumb = shoot(DEFS[k].model().group);
-  for (const k in STAFF) STAFF[k].thumb = shoot(staffStatue(k));
-  renderer.setPixelRatio(pr0);
+  TH.scene = new T.Scene(); TH.scene.background = new T.Color(0xfff6dc);
+  TH.scene.add(new T.HemisphereLight(0xffffff, 0x9aa0c0, 0.72));
+  const dl = new T.DirectionalLight(0xffffff, 0.6); dl.position.set(3, 6, 4); TH.scene.add(dl);
+  TH.cam = new T.PerspectiveCamera(28, 1, 0.1, 300);
+  TH.rt = new T.WebGLRenderTarget(256, 256); TH.buf = new Uint8Array(256 * 256 * 4);
+  TH.big = document.createElement('canvas'); TH.big.width = TH.big.height = 256; TH.small = document.createElement('canvas'); TH.small.width = TH.small.height = 128;
+  for (const k in DEFS) TH.queue.push(k); for (const k in STAFF) TH.queue.push('@' + k);
 }
+function shootThumb(group) {
+  group.traverse((o) => { if (o.material === MAT_LAMP) o.visible = false; });
+  for (const c of group.children.slice()) if (c.material === MAT_LAMP) group.remove(c);
+  TH.scene.add(group); group.updateMatrixWorld(true); TH.box.setFromObject(group); TH.box.getBoundingSphere(TH.sph);
+  const d = TH.sph.radius / Math.sin(14 * Math.PI / 180) * 1.02, c = TH.sph.center;
+  TH.cam.position.set(c.x + d * 0.55, c.y + d * 0.5, c.z + d * 0.67); TH.cam.lookAt(c);
+  renderer.setRenderTarget(TH.rt); renderer.render(TH.scene, TH.cam); renderer.readRenderTargetPixels(TH.rt, 0, 0, 256, 256, TH.buf); renderer.setRenderTarget(null);
+  TH.scene.remove(group); group.traverse((o) => { if (o.geometry && !o.userData.shared) o.geometry.dispose(); });
+  // the pixels come bottom row first; turned over and halved in size, which also smooths the edges
+  const cb = TH.big.getContext('2d'), img = cb.createImageData(256, 256);
+  for (let y = 0; y < 256; y++) img.data.set(TH.buf.subarray((255 - y) * 1024, (256 - y) * 1024), y * 1024);
+  cb.putImageData(img, 0, 0);
+  const cs = TH.small.getContext('2d'); cs.imageSmoothingQuality = 'high'; cs.drawImage(TH.big, 0, 0, 128, 128);
+  return TH.small.toDataURL('image/png');
+}
+// the picture of a card, taken now if it does not exist yet; q is a key of DEFS, or of STAFF with an @ in front
+function thumbNow(q) { const d = q[0] === '@' ? STAFF[q.slice(1)] : DEFS[q]; if (!d.thumb) d.thumb = shootThumb(q[0] === '@' ? staffStatue(q.slice(1)) : d.model().group); return d.thumb; }
+// once per frame: the next picture that is still missing; cards that wait for theirs get it
+function thumbTick() {
+  while (TH.queue.length) {
+    const q = TH.queue.shift(), d = q[0] === '@' ? STAFF[q.slice(1)] : DEFS[q]; if (d.thumb) continue;
+    thumbNow(q);
+    const im = document.querySelector('#tray img[data-th="' + q + '"]'); if (im) { im.src = d.thumb; im.removeAttribute('data-th'); }
+    break;
+  }
+}
+// the cards of the tab that was just opened come first
+function thumbFirst(keys) { TH.queue = keys.filter((q) => !(q[0] === '@' ? STAFF[q.slice(1)] : DEFS[q]).thumb).concat(TH.queue); }
 
 /* ================= living world ================= */
 // Things that make the island feel alive: moving water and surf, gulls, sailing boats, a lighthouse, a hot-air balloon,
@@ -3729,7 +4777,9 @@ function personVoice(g, kind) {
   voiceAt = now;
   try { speak(e[0], (g.kid ? 1.5 : 1) * (0.85 + (g.ph % 1) * 0.4), v * 0.085); } catch (err) { /* audio is optional */ }
 }
-const RIDE_SFX = { carousel: 'organ', cups: 'organ', bouncy: 'boing', swing: 'bell', ship: 'bell', bumper: 'honk', wheel: 'bell', tower: 'climb', tower2: 'climb', flume: 'bell', coaster: 'climb', custom: 'climb', mini: 'climb', ghost: 'spook', kart: 'vroom', dunk: 'bell' };
+const RIDE_SFX = { carousel: 'organ', cups: 'organ', bouncy: 'boing', swing: 'bell', ship: 'bell', bumper: 'honk', wheel: 'bell', tower: 'climb', tower2: 'climb', flume: 'bell', coaster: 'climb', custom: 'climb', mini: 'climb', ghost: 'spook', kart: 'vroom', dunk: 'bell',
+  train: 'honk', tramp: 'boing', ponyc: 'climb', cable: 'climb', castle: 'organ', splash: 'splash', slide: 'splash', pool: 'splash', wcoaster: 'climb', octo: 'organ', ufo: 'spook', bungee: 'climb', magic: 'organ', animals: 'clap', freak: 'spook',
+  dolphin: 'splash', circus: 'organ', orca: 'splash' };
 function rideSound(b) { const p = b.group.position; sfxAt(RIDE_SFX[b.k] || 'bell', p.x, p.z, 0.8); if (actx && actx.currentTime - cashAt > 1.5 && hearing(p.x, p.z) > 0.3) { cashAt = actx.currentTime; sfx('coin', 0.5); } }
 
 /* ----- a waltz for the fairground organ: 32 bars in C, three beats each ----- */
@@ -3859,7 +4909,7 @@ function enterPOV(b) {
   exitMode(); setTool(null); select(null);
   pov = { b, seat, yaw: 0, pitch: -0.08, ran: false };
   if (b.state !== 'run' && !b.broken) { b.state = 'run'; b.runT = 0; b.loadT = 0; if (b.model.start) b.model.start(); }
-  setImmersive(true, b.def.name + (b.model.povSeat ? ' · du fliegst mit dem Gespenst' : ' · du fährst mit'));
+  setImmersive(true, b.def.name + (b.model.povSeat ? ' · du fliegst mit dem Gespenst' : b.def.grp === 'show' ? ' · du schaust zu' : b.def.calm ? ' · du ruhst dich aus' : ' · du fährst mit'));
 }
 function enterFP() {
   exitMode(); setTool(null); select(null);
@@ -4079,7 +5129,7 @@ const IC = {
   plus: svg(stroke('M12 5v14M5 12h14', 2.8)), minus: svg(stroke('M5 12h14', 2.8)), x: svg(stroke('M6 6l12 12M18 6L6 18', 2.8)), check: svg(stroke('M5 12.5l4.5 4.5L19 7.5', 3)),
 };
 document.querySelectorAll('[data-ic]').forEach((e) => { e.innerHTML = IC[e.dataset.ic]; });
-const ui = { tab: null, modal: false, ask: null, lastSpeed: 1, nightIcon: false, onClose: null, mini: false, panelMin: false };
+const ui = { grp: { ride: '', shop: '' }, tab: null, modal: false, ask: null, lastSpeed: 1, nightIcon: false, onClose: null, mini: false, panelMin: false };
 // which boxes are folded away is remembered on this device
 const UI_KEY = 'rummelinsel.ui.v1';
 function uiPref(k, v) {
@@ -4118,7 +5168,12 @@ function modal(html) {
 function closeModal() { const f = ui.onClose; ui.onClose = null; if (f) f(); const m = $('#modal'); m.hidden = true; m.innerHTML = ''; ui.modal = false; ui.ask = null; }
 $('#modal').addEventListener('click', (e) => { if (e.target.id === 'modal') closeModal(); });
 
-const SHY = { Schiffschaukel: 'Schiff\u00ADschaukel', Wildwasserbahn: 'Wild\u00ADwasser\u00ADbahn', Kettenflieger: 'Ketten\u00ADflieger', Wirbeltassen: 'Wirbel\u00ADtassen', Freifallturm: 'Freifall\u00ADturm', Autoscooter: 'Auto\u00ADscooter', Reinigungskraft: 'Reinigungs\u00ADkraft', Springbrunnen: 'Spring\u00ADbrunnen', Abfalleimer: 'Abfall\u00ADeimer', Pommesbude: 'Pommes\u00ADbude', Ballonstand: 'Ballon\u00ADstand', Burgerbude: 'Burger\u00ADbude', Maskottchen: 'Maskott\u00ADchen', Blumenbeet: 'Blumen\u00ADbeet', Geisterhaus: 'Geister\u00ADhaus', Personalhaus: 'Personal\u00ADhaus', Pausenraum: 'Pausen\u00ADraum', Sicherheit: 'Sicher\u00ADheit', Wachposten: 'Wach\u00ADposten', Tauchbecken: 'Tauch\u00ADbecken', Himmelsturm: 'Himmels\u00ADturm' };
+const SHY = { Schiffschaukel: 'Schiff\u00ADschaukel', Wildwasserbahn: 'Wild\u00ADwasser\u00ADbahn', Kettenflieger: 'Ketten\u00ADflieger', Wirbeltassen: 'Wirbel\u00ADtassen', Freifallturm: 'Freifall\u00ADturm', Autoscooter: 'Auto\u00ADscooter', Reinigungskraft: 'Reinigungs\u00ADkraft', Springbrunnen: 'Spring\u00ADbrunnen', Abfalleimer: 'Abfall\u00ADeimer', Pommesbude: 'Pommes\u00ADbude', Ballonstand: 'Ballon\u00ADstand', Burgerbude: 'Burger\u00ADbude', Maskottchen: 'Maskott\u00ADchen', Blumenbeet: 'Blumen\u00ADbeet', Geisterhaus: 'Geister\u00ADhaus', Personalhaus: 'Personal\u00ADhaus', Pausenraum: 'Pausen\u00ADraum', Sicherheit: 'Sicher\u00ADheit', Wachposten: 'Wach\u00ADposten', Tauchbecken: 'Tauch\u00ADbecken', Himmelsturm: 'Himmels\u00ADturm',
+  Kindereisenbahn: 'Kinder\u00ADeisen\u00ADbahn', Streichelzoo: 'Streichel\u00ADzoo', Spiegellabyrinth: 'Spiegel\u00ADlabyrinth', 'Schloss Schwanenstein': 'Schloss Schwanen\u00ADstein', Wasserpark: 'Wasser\u00ADpark', Wasserrutsche: 'Wasser\u00ADrutsche',
+  Schwimmbad: 'Schwimm\u00ADbad', Wasserachterbahn: 'Wasser\u00ADachter\u00ADbahn', 'Hoher Kettenflieger': 'Hoher Ketten\u00ADflieger', Zaubershow: 'Zauber\u00ADshow', Freakshow: 'Freak\u00ADshow', Delfinshow: 'Delfin\u00ADshow', Wurstbude: 'Wurst\u00ADbude',
+  Dönerbude: 'Döner\u00ADbude', Brezelbude: 'Brezel\u00ADbude', Süssigkeitenbude: 'Süssig\u00ADkeiten\u00ADbude', Zuckerwattebude: 'Zucker\u00ADwatte\u00ADbude', Marronistand: 'Marroni\u00ADstand', Pizzarestaurant: 'Pizza\u00ADrestaurant',
+  Fischrestaurant: 'Fisch\u00ADrestaurant', Steakhouse: 'Steak\u00ADhouse', Hutgeschäft: 'Hut\u00ADgeschäft', Kostümgeschäft: 'Kostüm\u00ADgeschäft', Büchsenwerfen: 'Büchsen\u00ADwerfen', 'Pferde-Achterbahn': 'Pferde-Achter\u00ADbahn',
+  'Überschlag-Schaukel': 'Überschlag-Schau\u00ADkel', 'Eigene Achterbahn': 'Eigene Achter\u00ADbahn', 'Mini-Achterbahn': 'Mini-Achter\u00ADbahn' };
 const nm = (n) => SHY[n] || n;
 const TABS = [['path', 'Wege', 'Wege'], ['ride', 'Attraktionen', 'Fahrten'], ['shop', 'Buden', 'Buden'], ['deco', 'Deko', 'Deko'], ['staff', 'Personal', 'Team'], ['land', 'Land', 'Land'], ['doze', 'Abriss', 'Abriss']];
 function buildTabs() {
@@ -4132,21 +5187,30 @@ function openTab(k) {
   if (k === 'land' && cam.dist < 46) cam.dist = 46;
   renderTray();
 }
+const thumbImg = (q) => { const d = q[0] === '@' ? STAFF[q.slice(1)] : DEFS[q]; return d.thumb ? '<img src="' + d.thumb + '" alt="">' : '<img src="' + TH_BLANK + '" data-th="' + q + '" alt="">'; };
 function renderTray() {
   const tray = $('#tray');
   document.querySelectorAll('#tabs button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.k === ui.tab));
-  if (!ui.tab || ui.tab === 'doze' || ui.tab === 'land') { tray.hidden = true; tray.innerHTML = ''; return; }
+  if (!ui.tab || ui.tab === 'doze' || ui.tab === 'land') { tray.hidden = true; tray.innerHTML = ''; $('#chips').hidden = true; $('#chips').innerHTML = ''; return; }
   let h = '';
   const card = (k) => { const d = DEFS[k], ok = unlocked(d);
-    return '<button class="card' + (ok ? '' : ' locked') + '" data-act="card" data-k="' + k + '" aria-pressed="false" title="' + (d.info || d.name) + '"><img src="' + d.thumb + '" alt=""><span class="nm">' + nm(d.name) + '</span><span class="pr">' + (ok ? (d.from ? 'ab ' : '') + eur(d.cost) : 'nach Ziel ' + d.need) + '</span></button>'; };
+    return '<button class="card' + (ok ? '' : ' locked') + '" data-act="card" data-k="' + k + '" aria-pressed="false" title="' + (d.info || d.name) + '">' + thumbImg(k) + '<span class="nm">' + nm(d.name) + '</span><span class="pr">' + (ok ? (d.from ? 'ab ' : '') + eur(d.cost) : 'nach Ziel ' + d.need) + '</span></button>'; };
   if (ui.tab === 'staff') {
     h += '<button class="card team" data-act="team" title="Stimmung, Pausen und Löhne"><span class="big" id="team-mood"></span><span class="nm">Team-Übersicht</span><span class="pr">Stimmung</span></button>';
     for (const k of ORDER.fac) h += card(k);
     for (const k in STAFF) { const d = STAFF[k], ok = S.goal >= (d.need || 0);
-      h += '<div class="card staff' + (ok ? '' : ' locked') + '" title="' + d.info + '"><span class="cnt" data-cnt="' + k + '">0</span><img src="' + d.thumb + '" alt=""><span class="nm">' + nm(d.name) + '</span>' +
+      h += '<div class="card staff' + (ok ? '' : ' locked') + '" title="' + d.info + '"><span class="cnt" data-cnt="' + k + '">0</span>' + thumbImg('@' + k) + '<span class="nm">' + nm(d.name) + '</span>' +
         (ok ? '<span class="pr" data-hire="' + k + '"></span><span class="pm"><button data-act="fire" data-k="' + k + '" aria-label="' + d.name + ' entlassen">' + IC.minus + '</button><button data-act="hire" data-k="' + k + '" aria-label="' + d.name + ' einstellen">' + IC.plus + '</button></span>' : '<span class="pr">nach Ziel ' + d.need + '</span>') + '</div>'; }
-  } else for (const k of ORDER[ui.tab]) h += card(k);
-  tray.innerHTML = h; tray.hidden = false; refreshTray();
+  } else {
+    const g = ui.grp[ui.tab] || '', keys = ORDER[ui.tab].filter((k) => !g || DEFS[k].grp === g);
+    thumbFirst(keys); for (const k of keys) h += card(k);
+  }
+  if (ui.tab === 'staff') thumbFirst(ORDER.fac.concat(Object.keys(STAFF).map((k) => '@' + k)));
+  // chips above the cards sort the long lists into groups
+  const chips = $('#chips'), gs = GROUPS[ui.tab];
+  if (gs) { chips.innerHTML = gs.map((c) => '<button class="chip" data-act="grp" data-k="' + c[0] + '" aria-pressed="' + ((ui.grp[ui.tab] || '') === c[0]) + '">' + c[1] + '<i>' + ORDER[ui.tab].filter((k) => !c[0] || DEFS[k].grp === c[0]).length + '</i></button>').join(''); chips.hidden = false; }
+  else { chips.hidden = true; chips.innerHTML = ''; }
+  tray.innerHTML = h; tray.hidden = false; tray.scrollLeft = 0; refreshTray();
 }
 function refreshTray() {
   document.querySelectorAll('#tray .card[data-k]').forEach((c) => {
@@ -4374,14 +5438,15 @@ function renderPanel() {
       '<div class="row"><button class="btn line" data-act="team">Team-Übersicht</button><button class="btn red" data-act="demolish">Abriss · +' + eur(refundOf(b)) + '</button></div>';
     else {
       const ride = d.cat === 'ride', lv = ride ? lvlOf(b) : 0; let extra = '';
-      if (b.k === 'throw') extra = '<button class="btn" data-act="mini" data-k="cans">Dosenwerfen spielen</button>';
-      else if (ride && (lv >= 2 || DEV)) extra = (b.k === 'ghost' ? '<button class="btn" data-act="mini" data-k="ghosts">Hineingehen: Geisterjagd</button>' : '') + (b.k === 'kart' ? '<button class="btn" data-act="mini" data-k="kart">Selbst ans Steuer</button>' : '') + (b.k === 'dunk' ? '<button class="btn" data-act="mini" data-k="dunk">Selbst werfen</button>' : '') + (b.model.povSeat || b.model.seats.length ? '<button class="btn" data-act="ridePov">' + (b.k === 'ghost' ? 'Mit dem Gespenst fliegen' : 'Mitfahren') + '</button>' : '');
+      if (b.k === 'throw') extra = '<button class="btn" data-act="mini" data-k="cans">Büchsenwerfen spielen</button>';
+      else if (b.k === 'lukas') extra = '<button class="btn" data-act="mini" data-k="lukas">Selbst zuschlagen</button>';
+      else if (ride && (lv >= 2 || DEV)) extra = (b.k === 'ghost' ? '<button class="btn" data-act="mini" data-k="ghosts">Hineingehen: Geisterjagd</button>' : '') + (b.k === 'kart' ? '<button class="btn" data-act="mini" data-k="kart">Selbst ans Steuer</button>' : '') + (b.k === 'dunk' ? '<button class="btn" data-act="mini" data-k="dunk">Selbst werfen</button>' : '') + (b.model.povSeat || b.model.seats.length ? '<button class="btn" data-act="ridePov">' + (b.k === 'ghost' ? 'Mit dem Gespenst fliegen' : d.grp === 'show' ? 'Zuschauen' : d.calm ? 'Platz nehmen' : 'Mitfahren') + '</button>' : '');
       h += '<span class="pill" id="p-status"></span>' + (ride ? ' <span class="pill warn" id="p-lvl"></span>' : '') + '<p class="note">' + d.info + '</p>' +
         '<div class="stepper"><span class="lbl">' + (ride ? 'Preis pro Fahrt' : 'Preis') + '</span><button class="sq" data-act="price" data-d="-1" aria-label="Preis senken">' + IC.minus + '</button><output id="p-price"></output><button class="sq" data-act="price" data-d="1" aria-label="Preis erhöhen">' + IC.plus + '</button></div>' +
         '<p class="note">Gäste finden das <b id="p-op"></b>.</p>' +
         '<div class="kv"><span>In der Schlange</span><b id="p-q"></b><span>' + (ride ? 'Fahrgäste bisher' : 'Kunden bisher') + '</span><b id="p-n"></b><span>' + (ride ? 'Einnahmen' : 'Gewinn') + '</span><b id="p-inc"></b><span>Unterhalt pro Tag</span><b>' + eur(d.upkeep) + '</b>' +
         (ride ? '<span>Plätze · Nervenkitzel</span><b id="p-exc"></b><span>Nächste Stufe</span><b id="p-next"></b>' : '') + '</div>' +
-        (extra ? '<div class="row">' + extra + '</div>' : ride ? '<p class="note">Ab Stufe 2 kannst du selbst hinein.</p>' : '') +
+        (extra ? '<div class="row">' + extra + '</div>' : ride && !d.calm ? '<p class="note">Ab Stufe 2 kannst du selbst hinein.</p>' : '') +
         '<div class="row"><button class="btn line" data-act="toggle" id="p-toggle"></button><button class="btn mint" data-act="repair" id="p-repair" hidden>Reparieren · ' + eur(Math.round(d.cost * 0.06)) + '</button><button class="btn red" data-act="demolish">Abriss · +' + eur(refundOf(b)) + '</button></div>';
     }
   } else if (sel.staff) {
@@ -4432,7 +5497,7 @@ function refreshPanel() {
     setTxt('g-th', g.tk && THOUGHT[g.tk] ? '„' + THOUGHT[g.tk] + '“' : 'Schaut sich um.');
     setW('g-happy', g.happy); setW('g-hunger', g.hunger); setW('g-thirst', g.thirst); setW('g-wc', g.wc);
     setTxt('g-cash', eur(g.cash)); setTxt('g-rides', g.nRides);
-    setTxt('g-state', { arrive: 'Kommt an', decide: 'Überlegt', walk: g.target ? 'Geht zu: ' + g.target.def.name : 'Unterwegs', wander: 'Bummelt', queue: 'Steht an', buy: 'Kauft ein', ride: 'Fährt', leave: 'Geht heim', exit: 'Geht heim' }[g.state]);
+    setTxt('g-state', { arrive: 'Kommt an', decide: 'Überlegt', walk: g.target ? 'Geht zu: ' + g.target.def.name : 'Unterwegs', wander: 'Bummelt', queue: 'Steht an', buy: 'Kauft ein', ride: !g.target ? 'Fährt' : g.target.def.dine ? 'Isst im Restaurant' : g.target.def.grp === 'show' ? 'Schaut die Vorstellung' : g.target.def.calm ? 'Ruht sich aus' : 'Fährt', leave: 'Geht heim', exit: 'Geht heim' }[g.state]);
   }
 }
 function showTeam() {
@@ -4510,7 +5575,7 @@ function renderCoach() {
     '<div class="fold-b"><p>Dein kleiner Park hat schon geöffnet. Bau ihn aus und erfülle die Ziele.</p><ul>' +
     (touch ? '<li>Ein Finger: Karte verschieben</li><li>Zwei Finger: zoomen und drehen</li><li>Antippen: Attraktion oder Gast ansehen</li>'
       : '<li>Linke Maustaste ziehen: Karte verschieben</li><li>Rechte Maustaste ziehen: drehen und neigen</li><li>Mausrad: zoomen · R dreht ein Gebäude</li>') +
-    '<li>Gebaut wird über die Leiste unten. Jede Attraktion braucht einen Weg direkt daneben.</li><li>Neue Attraktionen bauen deine Bauarbeiter. Tippe eine Baustelle an, um mehr Arbeiter zuzuweisen.</li><li>Stehen Pflanzen im Weg, rodet sie dein Gärtner. Wird es eng, kaufst du über «Land» neue Flächen dazu.</li></ul><button class="btn" data-act="coachOk">Los geht es</button></div>';
+    '<li>Gebaut wird über die Leiste unten. Attraktionen und Buden sind dort nach Gruppen sortiert; alles braucht einen Weg direkt daneben.</li><li>Neue Attraktionen bauen deine Bauarbeiter. Tippe eine Baustelle an, um mehr Arbeiter zuzuweisen.</li><li>Stehen Pflanzen im Weg, rodet sie dein Gärtner. Wird es eng, kaufst du über «Land» neue Flächen dazu.</li></ul><button class="btn" data-act="coachOk">Los geht es</button></div>';
   c.hidden = false;
 }
 
@@ -4543,6 +5608,7 @@ const ACT = {
   hello: () => { if (sel && sel.guest) sayHello(sel.guest); },
   gift: () => { if (sel && sel.guest) giveVoucher(sel.guest); },
   ridePov: () => { if (sel && sel.obj) enterPOV(sel.obj); },
+  grp: (el) => { if (!GROUPS[ui.tab]) return; ui.grp[ui.tab] = el.dataset.k; sfx('click'); renderTray(); },
   mini: (el) => { const b = sel && sel.obj; if (b) openMini(el.dataset.k, b); },
   miniAgain: () => { if (!mini) return; const k = mini.kind, b = mini.b; closeModal(); openMini(k, b); },
   walk: () => { if (fp) exitMode(); else enterFP(); },
@@ -4610,7 +5676,8 @@ document.addEventListener('click', (e) => { const el = e.target.closest && e.tar
 // The park pauses while one is open. Prize money is paid once per day and attraction.
 let mini = null;
 const MINI = {
-  cans: { title: 'Dosenwerfen', help: 'Tippe auf die Dosen, bevor sie weiterwandern.', unit: 'Treffer', pay: 2, max: 60 },
+  cans: { title: 'Büchsenwerfen', help: 'Tippe auf die Büchsen, bevor sie weiterwandern. Ab 10 Treffern gewinnst du ein Plüschtier.', unit: 'Treffer', pay: 2, max: 60, plush: 10 },
+  lukas: { title: 'Hau den Lukas', help: 'Tippe, wenn der Zeiger im grünen Feld steht. Je genauer, desto höher steigt der Puck. Ab 3 Glockenschlägen gewinnst du ein Plüschtier.', unit: 'Glockenschläge', pay: 6, max: 90, plush: 3 },
   ghosts: { title: 'Geisterjagd', help: 'Tippe die Geister an. Fledermäuse kosten einen Punkt.', unit: 'Geister', pay: 3, max: 80 },
   kart: { title: 'Kart-Rennen', help: 'Tippe links oder rechts, um die Spur zu wechseln. Sammle Münzen, weiche den Hütchen aus.', unit: 'Münzen', pay: 3, max: 90 },
   dunk: { title: 'Tauchbecken', help: 'Tippe auf die wandernde Zielscheibe. Bei einem Treffer plumpst der Sitzende ins Wasser.', unit: 'Treffer', pay: 4, max: 80 },
@@ -4625,12 +5692,17 @@ function openMini(kind, b) {
   mini = { kind, b, m, cv, c: cv.getContext('2d'), t: 30, score: 0, last: performance.now(), over: false, coin, clock: 0, flash: 0,
     shelves: [0, 1, 2].map((i) => ({ y: 95 + i * 82, off: rnd(60), v: (40 + i * 22) * (i % 2 ? -1 : 1), cans: [0, 1, 2, 3].map(() => ({ down: 0 })) })), balls: [],
     win: Array.from({ length: 9 }, () => ({ k: 0, t: 0, hit: 0 })), spawn: 0.4,
-    lane: 1, kx: 160, things: [], next: 0.5, road: 0, tgt: { x: 160, v: 105 }, dunkT: 0 };
+    lane: 1, kx: 160, things: [], next: 0.5, road: 0, tgt: { x: 160, v: 105 }, dunkT: 0,
+    mk: 0.1, mv: 0.9, md: 1, puck: 0, pv: 0, cool: 0, swing: 0, rung: 0, pow: 0 };
   cv.addEventListener('pointerdown', (e) => { const r = cv.getBoundingClientRect(); miniTap((e.clientX - r.left) * 320 / r.width, (e.clientY - r.top) * 380 / r.height); e.preventDefault(); });
   requestAnimationFrame(miniFrame);
 }
 function miniTap(x, y) {
   const g = mini; if (!g || g.over) return;
+  if (g.kind === 'lukas') {   // the nearer the pointer is to the middle, the harder the blow
+    if (g.cool > 0) return;
+    g.pow = clamp(1 - Math.abs(g.mk - 0.5) * 1.6, 0.12, 1); g.pv = Math.sqrt(2 * 3.2 * Math.min(1.06, g.pow * 1.1)); g.cool = 1.15; g.swing = 0.22; sfx('hammer'); return;
+  }
   if (g.kind === 'cans' || g.kind === 'dunk') { g.balls.push({ x, y, t: 0 }); sfx('path'); }
   else if (g.kind === 'ghosts') {
     for (let i = 0; i < 9; i++) { const w = g.win[i], wx_ = 60 + (i % 3) * 100, wy = 85 + ((i / 3) | 0) * 100; if (w.k && !w.hit && Math.abs(x - wx_) < 42 && Math.abs(y - wy) < 46) { if (w.k === 1) { g.score++; sfx('build'); } else { g.score = Math.max(0, g.score - 1); g.flash = 0.3; sfx('error'); } w.hit = 0.25; return; } }
@@ -4639,10 +5711,11 @@ function miniTap(x, y) {
 function miniLane(d) { const g = mini; if (!g || g.over || g.kind !== 'kart') return; g.lane = clamp(g.lane + d, 0, 2); sfx('click'); }
 function miniOver() {
   const g = mini; g.over = true;
-  const first = g.b && g.b.miniDay !== curDay, prize = first ? Math.min(g.m.max, g.score * g.m.pay) : 0;
+  const first = g.b && g.b.miniDay !== curDay, prize = first ? Math.min(g.m.max, g.score * g.m.pay) : 0, toy = !!g.m.plush && g.score >= g.m.plush;
   if (first) { g.b.miniDay = curDay; if (prize) earn(prize, 'bonus'); uiDirty = true; }
+  if (toy) { S.plush = (S.plush || 0) + 1; g.toy = true; }
   const end = $('#mini-end'); end.hidden = false;
-  end.innerHTML = '<p class="note" style="flex:1 1 100%;margin:0">' + g.score + ' ' + g.m.unit + (first ? ' · Preisgeld ' + eur(prize) : ' · Preisgeld gibt es einmal pro Tag') + '</p><button class="btn" data-act="miniAgain">Nochmal</button><button class="btn line" data-act="closeModal">Zurück in den Park</button>';
+  end.innerHTML = '<p class="note" style="flex:1 1 100%;margin:0">' + g.score + ' ' + g.m.unit + (first ? ' · Preisgeld ' + eur(prize) : ' · Preisgeld gibt es einmal pro Tag') + (toy ? '<br><b>Gewonnen: ein Plüschtier!</b> In deiner Sammlung: ' + S.plush : g.m.plush ? '<br>Ein Plüschtier gibt es ab ' + g.m.plush + ' ' + g.m.unit + '.' : '') + '</p><button class="btn" data-act="miniAgain">Nochmal</button><button class="btn line" data-act="closeModal">Zurück in den Park</button>';
   sfx(prize ? 'goal' : 'click');
 }
 function miniFrame(now) {
@@ -4654,6 +5727,16 @@ function miniFrame(now) {
   requestAnimationFrame(miniFrame);
 }
 function miniStep(g, dt) {
+  if (g.kind === 'lukas') {
+    g.mk += g.mv * g.md * dt; if (g.mk > 1 || g.mk < 0) { g.md = -g.md; g.mk = clamp(g.mk, 0, 1); }
+    if (g.cool > 0) g.cool -= dt; if (g.swing > 0) g.swing -= dt; if (g.rung > 0) g.rung -= dt;
+    if (g.pv || g.puck > 0) {
+      g.puck += g.pv * dt; g.pv -= 3.2 * dt;
+      if (g.puck >= 1) { g.puck = 1; if (g.pv > 0) { g.pv = -0.4; g.score++; g.rung = 0.7; g.mv *= 1.13; sfx('bell'); } }
+      if (g.puck <= 0) { g.puck = 0; g.pv = 0; }
+    }
+    return;
+  }
   if (g.kind === 'cans') {
     for (const s of g.shelves) { s.off += s.v * dt; if (s.off > 70 || s.off < 0) { s.v = -s.v; s.off = clamp(s.off, 0, 70); } for (const cn of s.cans) if (cn.down > 0) cn.down -= dt; }
     for (const bl of g.balls) {
@@ -4681,8 +5764,42 @@ function miniStep(g, dt) {
     g.things = g.things.filter((th) => th.y < 420 && !th.gone);
   }
 }
+// a soft toy for the canvas games: drawn where a prize is shown
+function drawTeddy(c, x, y, s, col) {
+  c.fillStyle = col; c.beginPath(); c.ellipse(x, y + 16 * s, 15 * s, 18 * s, 0, 0, TAU); c.fill(); c.beginPath(); c.arc(x, y - 8 * s, 13 * s, 0, TAU); c.fill();
+  for (const d of [-1, 1]) { c.beginPath(); c.arc(x + d * 10 * s, y - 19 * s, 5 * s, 0, TAU); c.fill(); c.beginPath(); c.arc(x + d * 15 * s, y + 8 * s, 6 * s, 0, TAU); c.fill(); c.beginPath(); c.arc(x + d * 9 * s, y + 31 * s, 7 * s, 0, TAU); c.fill(); }
+  c.fillStyle = '#fff6dc'; c.beginPath(); c.ellipse(x, y - 4 * s, 6 * s, 5 * s, 0, 0, TAU); c.fill(); c.beginPath(); c.ellipse(x, y + 18 * s, 8 * s, 10 * s, 0, 0, TAU); c.fill();
+  c.fillStyle = '#232861'; for (const d of [-1, 1]) { c.beginPath(); c.arc(x + d * 5 * s, y - 11 * s, 1.8 * s, 0, TAU); c.fill(); } c.beginPath(); c.arc(x, y - 5 * s, 2 * s, 0, TAU); c.fill();
+}
+function drawLukas(g, c) {
+  c.fillStyle = '#8fd3ff'; c.fillRect(0, 0, 320, 380); c.fillStyle = '#7cc65a'; c.fillRect(0, 300, 320, 80);
+  for (let i = 0; i < 8; i++) { c.fillStyle = i % 2 ? '#ff4f64' : '#fff6dc'; c.beginPath(); c.moveTo(i * 40, 0); c.lineTo(i * 40 + 40, 0); c.lineTo(i * 40 + 20, 26); c.closePath(); c.fill(); }
+  // the tower with its scale, the bell on top
+  const X = 214, Y0 = 296, Y1 = 62;
+  c.fillStyle = '#b9243a'; c.fillRect(X - 26, Y1 - 8, 52, Y0 - Y1 + 16); c.fillStyle = '#ff4f64'; c.fillRect(X - 22, Y1 - 4, 44, Y0 - Y1 + 8);
+  for (let i = 0; i < 9; i++) { c.fillStyle = i % 2 ? '#fff6dc' : '#ffd447'; c.fillRect(X - 18, Y0 - 12 - i * 26, 36, 5); }
+  c.fillStyle = '#232861'; c.fillRect(X - 3, Y1, 6, Y0 - Y1);
+  const sh = g.rung > 0 ? Math.sin(g.clock * 60) * 4 * g.rung : 0;
+  c.fillStyle = '#ffd447'; c.beginPath(); c.arc(X + sh, Y1 - 22, 17, Math.PI, 0); c.lineTo(X + 21 + sh, Y1 - 8); c.lineTo(X - 21 + sh, Y1 - 8); c.closePath(); c.fill(); c.fillStyle = '#c9940a'; c.fillRect(X - 21 + sh, Y1 - 10, 42, 4);
+  if (g.rung > 0) { c.strokeStyle = '#fff6dc'; c.lineWidth = 3; for (const d of [-1, 1]) { c.beginPath(); c.arc(X + d * 30, Y1 - 22, 8 + (0.7 - g.rung) * 26, d < 0 ? Math.PI * 0.75 : -Math.PI * 0.25, d < 0 ? Math.PI * 1.25 : Math.PI * 0.25); c.stroke(); } }
+  const py = lerp(Y0 - 6, Y1 + 4, g.puck); c.fillStyle = '#3ddbb4'; c.fillRect(X - 14, py - 7, 28, 14); c.fillStyle = '#14957a'; c.fillRect(X - 14, py + 3, 28, 4);
+  // the pad and the mallet
+  c.fillStyle = '#232861'; c.fillRect(X - 34, Y0 + 8, 68, 16); c.fillStyle = '#ff4f64'; c.beginPath(); c.ellipse(X, Y0 + 8, 22, 7, 0, 0, TAU); c.fill();
+  c.save(); c.translate(X - 78, Y0 + 14); c.rotate(g.swing > 0 ? 0.25 : -0.95 + Math.sin(g.clock * 3) * 0.05); c.fillStyle = '#8a623c'; c.fillRect(0, -4, 72, 8); c.fillStyle = '#b98a5a'; c.fillRect(58, -17, 24, 34); c.restore();
+  // prizes on a shelf
+  c.fillStyle = '#8a623c'; c.fillRect(20, 250, 110, 8); c.fillRect(20, 150, 110, 8);
+  drawTeddy(c, 50, 212, 0.9, '#b5651d'); drawTeddy(c, 100, 214, 0.8, '#ff8fc7'); drawTeddy(c, 75, 112, 0.9, '#fff6dc');
+  // the pointer runs to and fro along the strength bar
+  const bx = 30, bw = 260, by = 338;
+  c.fillStyle = '#232861'; c.fillRect(bx - 6, by - 6, bw + 12, 34);
+  const zone = (w, col) => { c.fillStyle = col; c.fillRect(bx + bw * (0.5 - w / 2), by, bw * w, 22); };
+  zone(1, '#ff4f64'); zone(0.56, '#f08a24'); zone(0.3, '#ffd447'); zone(0.115, '#3ddbb4');
+  const mx = bx + bw * g.mk; c.fillStyle = '#fff6dc'; c.beginPath(); c.moveTo(mx, by + 12); c.lineTo(mx - 9, by - 10); c.lineTo(mx + 9, by - 10); c.closePath(); c.fill(); c.fillRect(mx - 2, by, 4, 22);
+  if (g.cool > 0.2) { c.fillStyle = '#232861'; c.font = '900 15px Nunito, sans-serif'; c.textAlign = 'center'; c.fillText(g.pow > 0.9 ? 'Volltreffer!' : g.pow > 0.7 ? 'Fast!' : g.pow > 0.45 ? 'Mehr Kraft!' : 'Daneben …', 80, 290); }
+}
 function miniDraw(g) {
   const c = g.c; c.clearRect(0, 0, 320, 380);
+  if (g.kind === 'lukas') { drawLukas(g, c); if (g.toy) { c.fillStyle = 'rgba(255,246,220,.9)'; c.beginPath(); c.arc(88, 180, 82, 0, TAU); c.fill(); drawTeddy(c, 88, 172, 1.9, '#b5651d'); } return; }
   if (g.kind === 'cans') {
     c.fillStyle = '#232861'; c.fillRect(0, 0, 320, 380);
     for (let i = 0; i < 8; i++) { c.fillStyle = i % 2 ? '#ff4f64' : '#fff6dc'; c.beginPath(); c.moveTo(i * 40, 0); c.lineTo(i * 40 + 40, 0); c.lineTo(i * 40 + 20, 34); c.closePath(); c.fill(); }
@@ -4738,6 +5855,7 @@ function miniDraw(g) {
     c.fillStyle = '#ff4f64'; c.fillRect(x - 14, y - 24, 28, 48); c.fillStyle = '#b9243a'; c.fillRect(x - 9, y - 30, 18, 10); c.fillStyle = '#ffdcb3'; c.beginPath(); c.arc(x, y + 2, 8, 0, TAU); c.fill(); c.fillStyle = '#232861'; c.beginPath(); c.arc(x, y + 1, 8, Math.PI, 0); c.fill();
   }
   if (g.flash > 0) { c.fillStyle = 'rgba(255,79,100,' + g.flash + ')'; c.fillRect(0, 0, 320, 380); }
+  if (g.toy) { c.fillStyle = 'rgba(255,246,220,.9)'; c.beginPath(); c.arc(160, 178, 90, 0, TAU); c.fill(); drawTeddy(c, 160, 170, 2.1, '#b5651d'); }
 }
 /* ================= developer mode ================= */
 // Open dev.html, or add #dev to the address. It keeps its own save game, starts with everything unlocked and endless money,
@@ -4958,7 +6076,7 @@ function serialize() {
 }
 function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(serialize())); } catch (e) { /* storage is optional */ } }
 function clearWorld() {
-  for (const o of builds.concat(decos)) { o.removed = true; scene.remove(o.group); o.group.traverse((m) => { if (m.geometry) m.geometry.dispose(); }); }
+  for (const o of builds.concat(decos)) { o.removed = true; scene.remove(o.group); o.group.traverse((m) => { if (m.geometry && !m.userData.shared) m.geometry.dispose(); }); }
   if (pov || fp) exitMode();
   builds = []; decos = []; animDecos = []; guests = []; thieves = []; thiefSeen = false; splashes = []; cuts = []; plotDirty.fill(1);
   for (const s of staff) { scene.remove(s.mesh); s.mesh.traverse((m) => { if (m.geometry) m.geometry.dispose(); }); }
@@ -5017,7 +6135,7 @@ function newGame() {
   for (let p = 0; p < PN * PN; p++) growWild(p, plotOwned[p] ? 5 : rint(9, 12));
   for (const [x, y] of [[HALF - 3, N - 3], [HALF + 5, N - 3], [HALF - 5, N - 8], [HALF + 6, N - 8], [HALF - 2, N - 8]]) if (tType[idx(x, y)] === 0) placeObj('tree', x, y, 0, { nat: true });
   for (let i = 0; i < 9; i++) spawnGuest(true);
-  hire('build', true); S.b1 = true;
+  hire('build', true); S.b1 = true; S.n2 = true;
   sun.castShadow = S.shadows;
 }
 
@@ -5034,7 +6152,7 @@ function frame(now) {
   if (pathDirty) rebuildPaths();
   if (litterDirty) rebuildLitter();
   if (!modeCamera(rdt)) updateCamera(rdt);
-  weatherFrame(rdt); updateSky(); updateWorldExtras(rdt); landFrame(); sitesFrame(); renderPeople(rdt); renderIcons(); audioFrame(rdt); devFrame();
+  weatherFrame(rdt); updateSky(); updateWorldExtras(rdt); thumbTick(); landFrame(); sitesFrame(); renderPeople(rdt); renderIcons(); audioFrame(rdt); devFrame();
   for (const c of clouds) { c.position.x += c.userData.v * rdt; if (c.position.x > 150) c.position.x = -150; }
   uiT += rdt; if (uiT > 0.25 || uiDirty) { uiT = 0; uiDirty = false; refreshUI(); }
   saveT += rdt; if (saveT > 15) { saveT = 0; save(); }
@@ -5049,9 +6167,11 @@ function start(hot) {
   if (!loaded) newGame();
   buildTabs(); renderTray(); renderCoach(); applyCurrency(); refreshUI();
   devInit(); if (DEV) renderTray();
+  // a park that was saved before the big extension learns about it once
+  if (!S.n2) { S.n2 = true; if (loaded) toast('Neu im Park: 39 weitere Attraktionen, Shows, Buden, Restaurants und Läden. Unter «Attraktionen» und «Buden» sind sie nach Gruppen sortiert.', 'gold'); }
   if (!S.cur) { if (DEV) { S.cur = { name: 'Testtaler', sym: 'T', shape: 0, col: 0, img: '' }; applyCurrency(); } else openCurrency(true); }
   document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
-  window.__park = { S, DEFS, STAFF, cam, audioTest: () => { if (!audioReady()) return 'audio not running'; const bad = []; for (const k in SFX) { try { SFX[k](0.01); } catch (e) { bad.push(k + ': ' + e.message); } } for (const w of ['laugh', 'woo', 'scream', 'bleh', 'hey', 'nom', 'stop', 'aww']) { try { speak(w, 1, 0.001); } catch (e) { bad.push(w + ': ' + e.message); } } try { musicFrame(); } catch (e) { bad.push('music: ' + e.message); } return bad.length ? bad.join(' | ') : 'all ' + Object.keys(SFX).length + ' effects, 8 voices and the music scheduler ran'; }, info: () => ({ tris: renderer.info.render.triangles, calls: renderer.info.render.calls, pr: renderer.getPixelRatio(), lines: LINE.on, hi: HI.nFig, lo: LO.nFig, reach: +figReach.toFixed(2) }), figTris: () => { const o = {}; for (const k in FGL) { const c = (g) => (Array.isArray(g) ? g.map(c) : g.index ? g.index.count / 3 : g.attributes.position.count / 3); o[k] = [c(FGL[k]), c(FGH[k])]; } return o; }, startSite, setCrew, builderPlaces, land: { N, PN, plotsOwned, landPrice, plotForSale, buyPlot, markCut, unmarkCut, landSet, plotOwned, cuts: () => cuts, ownedAt }, canPlace, get decos() { return decos; }, spawnThief, grabThief, throwThief, pokeGuard, wakeGuard, markThief, secXp, wxSet, WX, DEV, devAct, enterFP, enterPOV, exitMode, openMini, openCurrency, lvlOf, socialTick, quit, get thieves() { return thieves; }, get fp() { return fp; }, get pov() { return pov; }, get mini() { return mini; }, analyseTrack, tool: () => tool, removeObj, fire, load, demolish, tType, toScreen: (x, z) => { _v.set(x, 0, z).project(camera); const r = canvas.getBoundingClientRect(); return [(_v.x * 0.5 + 0.5) * r.width + r.left, (-_v.y * 0.5 + 0.5) * r.height + r.top]; }, simStep, placeObj, setPath, hire, idx, newGame, save, serialize, setTool, select, get guests() { return guests; }, get builds() { return builds; }, get staff() { return staff; }, get fin() { return fin; } };
+  window.__park = { S, DEFS, STAFF, cam, audioTest: () => { if (!audioReady()) return 'audio not running'; const bad = []; for (const k in SFX) { try { SFX[k](0.01); } catch (e) { bad.push(k + ': ' + e.message); } } for (const w of ['laugh', 'woo', 'scream', 'bleh', 'hey', 'nom', 'stop', 'aww']) { try { speak(w, 1, 0.001); } catch (e) { bad.push(w + ': ' + e.message); } } try { musicFrame(); } catch (e) { bad.push('music: ' + e.message); } return bad.length ? bad.join(' | ') : 'all ' + Object.keys(SFX).length + ' effects, 8 voices and the music scheduler ran'; }, info: () => ({ tris: renderer.info.render.triangles, calls: renderer.info.render.calls, pr: renderer.getPixelRatio(), lines: LINE.on, hi: HI.nFig, lo: LO.nFig, reach: +figReach.toFixed(2) }), figTris: () => { const o = {}; for (const k in FGL) { const c = (g) => (Array.isArray(g) ? g.map(c) : g.index ? g.index.count / 3 : g.attributes.position.count / 3); o[k] = [c(FGL[k]), c(FGH[k])]; } return o; }, startSite, setCrew, builderPlaces, land: { N, PN, plotsOwned, landPrice, plotForSale, buyPlot, markCut, unmarkCut, landSet, plotOwned, cuts: () => cuts, ownedAt }, canPlace, get decos() { return decos; }, spawnThief, grabThief, throwThief, pokeGuard, wakeGuard, markThief, secXp, wxSet, WX, DEV, devAct, enterFP, enterPOV, exitMode, openMini, openCurrency, lvlOf, socialTick, quit, get thieves() { return thieves; }, get fp() { return fp; }, get pov() { return pov; }, get mini() { return mini; }, GROUPS, thumbNow, analyseTrack, tool: () => tool, removeObj, fire, load, demolish, tType, toScreen: (x, z) => { _v.set(x, 0, z).project(camera); const r = canvas.getBoundingClientRect(); return [(_v.x * 0.5 + 0.5) * r.width + r.left, (-_v.y * 0.5 + 0.5) * r.height + r.top]; }, simStep, placeObj, setPath, hire, idx, newGame, save, serialize, setTool, select, get guests() { return guests; }, get builds() { return builds; }, get staff() { return staff; }, get fin() { return fin; } };
   requestAnimationFrame(frame);
 }
 const HOT = window.claude && window.claude.hot;

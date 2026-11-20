@@ -111,7 +111,9 @@ function personVoice(g, kind) {
   voiceAt = now;
   try { speak(e[0], (g.kid ? 1.5 : 1) * (0.85 + (g.ph % 1) * 0.4), v * 0.085); } catch (err) { /* audio is optional */ }
 }
-const RIDE_SFX = { carousel: 'organ', cups: 'organ', bouncy: 'boing', swing: 'bell', ship: 'bell', bumper: 'honk', wheel: 'bell', tower: 'climb', tower2: 'climb', flume: 'bell', coaster: 'climb', custom: 'climb', mini: 'climb', ghost: 'spook', kart: 'vroom', dunk: 'bell' };
+const RIDE_SFX = { carousel: 'organ', cups: 'organ', bouncy: 'boing', swing: 'bell', ship: 'bell', bumper: 'honk', wheel: 'bell', tower: 'climb', tower2: 'climb', flume: 'bell', coaster: 'climb', custom: 'climb', mini: 'climb', ghost: 'spook', kart: 'vroom', dunk: 'bell',
+  train: 'honk', tramp: 'boing', ponyc: 'climb', cable: 'climb', castle: 'organ', splash: 'splash', slide: 'splash', pool: 'splash', wcoaster: 'climb', octo: 'organ', ufo: 'spook', bungee: 'climb', magic: 'organ', animals: 'clap', freak: 'spook',
+  dolphin: 'splash', circus: 'organ', orca: 'splash' };
 function rideSound(b) { const p = b.group.position; sfxAt(RIDE_SFX[b.k] || 'bell', p.x, p.z, 0.8); if (actx && actx.currentTime - cashAt > 1.5 && hearing(p.x, p.z) > 0.3) { cashAt = actx.currentTime; sfx('coin', 0.5); } }
 
 /* ----- a waltz for the fairground organ: 32 bars in C, three beats each ----- */
