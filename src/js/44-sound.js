@@ -1,7 +1,7 @@
 /* ================= sound and music ================= */
 // Everything is synthesised with Web Audio: effects, voices for guests and staff, ambience, weather and a fairground waltz.
 let actx = null, master = null, musicBus = null, crowdGain = null, seaGain = null, rainGain = null, noiseBuf = null;
-let voiceAt = 0, gullAt = 8, ambAt = 0, snoreAt = 0, stepAt = 0, cashAt = 0, cricketAt = 0, thunderAt = 0;
+let voiceAt = 0, gullAt = 8, ambAt = 0, snoreAt = 0, stepAt = 0, cashAt = 0, cricketAt = 0, thunderAt = 0, alarmAt = 0;
 const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
 function audioReady() {
   if (S.muted) return false;
@@ -74,6 +74,13 @@ const SFX = {
   climb: (v) => { for (let i = 0; i < 8; i++) tone(240 + i * 14, i * 0.09, 0.03, 'square', 0.03 * v); },
   thunder: (v) => { hiss(0, 1.8, 0.3 * v, 'lowpass', 220, 50, 0.5); hiss(0.05, 0.25, 0.12 * v, 'lowpass', 1200, 200); },
   drop: (v) => { tone(700, 0, 0.5, 'sine', 0.05 * v, 180); hiss(0, 0.5, 0.06 * v, 'bandpass', 2000, 500, 1); },
+  mark: (v) => { tone(520, 0, 0.06, 'square', 0.04 * v); tone(390, 0.07, 0.09, 'square', 0.04 * v); },
+  chop: (v) => { for (let i = 0; i < 3; i++) { hiss(i * 0.62, 0.08, 0.11 * v, 'bandpass', 1500, 600, 1.2); tone(190, i * 0.62, 0.07, 'triangle', 0.08 * v, 90); } },
+  timber: (v) => { hiss(0, 0.5, 0.1 * v, 'bandpass', 2400, 500, 0.9); tone(120, 0.28, 0.25, 'sine', 0.12 * v, 55); },
+  water: (v) => hiss(0, 1.2, 0.035 * v, 'highpass', 3600, 2600, 0.7),
+  knock: (v) => { for (let i = 0; i < 2; i++) { tone(210, i * 0.13, 0.07, 'triangle', 0.17 * v, 110); hiss(i * 0.13, 0.04, 0.09 * v, 'lowpass', 900, 300); } },
+  caught: (v) => { [784, 988, 1175, 1568].forEach((f, i) => tone(f, i * 0.1, 0.22, 'square', 0.06 * v)); for (let i = 0; i < 6; i++) tone(i % 2 ? 2500 : 2300, 0.45 + i * 0.07, 0.07, 'sine', 0.08 * v); },
+  alarm: (v) => { tone(880, 0, 0.16, 'square', 0.05 * v); tone(660, 0.2, 0.16, 'square', 0.05 * v); },
 };
 function sfx(k, vol) { if (!audioReady()) return; try { (SFX[k] || SFX.click)(vol === undefined ? 1 : vol); } catch (e) { /* audio is optional */ } }
 // how loud something at (x, z) is for the current view, 0..1
@@ -143,6 +150,7 @@ function audioFrame(rdt) {
   if (night > 0.7 && now > cricketAt && WX.wet < 0.3) { cricketAt = now + rnd(0.9, 2.2); for (let i = 0; i < 3; i++) tone(4300, i * 0.07, 0.04, 'sine', 0.012); }
   if (loud.length && Math.random() < Math.min(0.3, loud.length * 0.03)) personVoice(pick(loud), 'happy');
   for (const b of builds) if (b.state === 'run' && b.riders.length && b.def.exc >= 54 && b.spin > 0.5 && Math.random() < 0.3) { const g = b.riders[0], p = b.group.position, v = hearing(p.x, p.z); if (v > 0.1 && now - voiceAt > 0.25) { voiceAt = now; speak(Math.random() < 0.6 ? 'scream' : 'woo', rnd(0.9, 1.6) * (g.kid ? 1.3 : 1), v * 0.07); } }
+  if (now > alarmAt && thieves.some((f) => f.state === 'held')) { alarmAt = now + 2.4; sfx('alarm', 0.75); }
   if (now > snoreAt) { snoreAt = now + 2.3; for (const s of staff) if (s.asleep) { sfxAt('snore', s.x, s.z, 1.3); break; } }
   if (WX.k === 'storm' && now > thunderAt) { thunderAt = now + rnd(6, 16); WX.flash = 1; setTimeout(() => sfx('thunder', 0.9), rnd(250, 1100)); }
   if (fp && (fp.jx || fp.jy || keys.w || keys.a || keys.s || keys.d || keys.arrowup || keys.arrowdown || keys.arrowleft || keys.arrowright)) sfx('step', 0.9);

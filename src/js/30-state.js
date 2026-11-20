@@ -1,5 +1,5 @@
 /* ================= game state ================= */
-const S = { money: 4000, loan: 0, time: DAY * 0.1, ticket: 5, rating: 55, goal: 0, speed: 1, exitAvg: 62, visitors: 0, muted: false, coach: true, shadows: true, rep: 70, wage: 1, cur: null, secLvl: 1, secXp: 0, music: true, wx: null, devInit: false };
+const S = { money: 4000, loan: 0, time: DAY * 0.1, ticket: 5, rating: 55, goal: 0, speed: 1, exitAvg: 62, visitors: 0, muted: false, coach: true, shadows: true, outline: false, rep: 70, wage: 1, cur: null, secLvl: 1, secXp: 0, music: true, wx: null, devInit: false };
 const newFin = () => ({ tick: 0, ride: 0, shop: 0, bonus: 0, goods: 0, upkeep: 0, wage: 0, build: 0, loan: 0 });
 let fin = { today: newFin(), yest: newFin() }, curDay = 0;
 const tType = new Uint8Array(N * N), tObj = new Array(N * N).fill(null), litter = new Uint8Array(N * N), beauty = new Float32Array(N * N), binNear = new Uint8Array(N * N);
@@ -22,21 +22,25 @@ function setPath(i, on) {
   pathVersion++; pathDirty = true; return true;
 }
 const dims = (d, rot) => (rot % 2 ? [d.h, d.w] : [d.w, d.h]);
-function canPlace(d, x, y, rot) {
+// any: also on land the park does not own (wild plants grow there)
+function canPlace(d, x, y, rot, any) {
   const [w, h] = dims(d, rot);
-  for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) if (!inB(x + i, y + j) || tType[idx(x + i, y + j)] !== 0) return false;
+  for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) if (!inB(x + i, y + j) || tType[idx(x + i, y + j)] !== 0 || (!any && !owned[idx(x + i, y + j)])) return false;
   return true;
 }
+// The plants that stand on a footprint, or null when something else is in the way or the land is not owned.
 function natIn(d, x, y, rot) {
   const [w, h] = dims(d, rot), list = [];
   for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
     if (!inB(x + i, y + j)) return null;
     const t = idx(x + i, y + j), ob = tObj[t];
+    if (!owned[t]) return null;
     if (tType[t] === 0) continue;
-    if (tType[t] === 3 && ob && ob.nat) { if (list.indexOf(ob) < 0) list.push(ob); } else return null;
+    if (tType[t] === 3 && ob && ob.def.plant) { if (list.indexOf(ob) < 0) list.push(ob); } else return null;
   }
   return list;
 }
+function ownedFoot(d, x, y, rot) { const [w, h] = dims(d, rot); for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) if (!ownedAt(x + i, y + j)) return false; return true; }
 function applyBeauty(ob, sgn) {
   const d = ob.def; if (!d.beauty) return;
   const r = d.rad || 2;
@@ -47,13 +51,18 @@ function rebuildBins() {
   for (const o of decos) if (o.def.bin) for (let y = o.y - 3; y <= o.y + 3; y++) for (let x = o.x - 3; x <= o.x + 3; x++) if (inB(x, y)) binNear[idx(x, y)] = 1;
 }
 function placeObj(k, x, y, rot, opt) {
-  const custom = k === 'custom', m = custom ? mCustomCoaster(x, y, rot, opt.nodes) : DEFS[k].model(), d = custom ? m.def : DEFS[k], [w, h] = dims(d, rot);
-  const ob = { id: uid++, k, def: d, x, y, w, h, rot, model: m, group: m.group, removed: false, nat: !!(opt && opt.nat) };
+  // wild plants have no model of their own: they are drawn as part of their plot (see rebuildPlots)
+  const custom = k === 'custom', wild = !!(opt && opt.nat) && !!DEFS[k].plant;
+  const m = custom ? mCustomCoaster(x, y, rot, opt.nodes) : wild ? { group: new T.Group() } : DEFS[k].model(), d = custom ? m.def : DEFS[k], [w, h] = dims(d, rot);
+  const ob = { id: uid++, k, def: d, x, y, w, h, rot, model: m, group: m.group, removed: false, nat: wild };
   m.group.position.set(x + w / 2 - HALF, 0, y + h / 2 - HALF); m.group.rotation.y = custom ? 0 : -rot * Math.PI / 2;
-  m.group.userData.obj = ob; scene.add(m.group);
+  m.group.userData.obj = ob; if (!wild) scene.add(m.group);
   const isDeco = d.cat === 'deco';
   for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) { const t = idx(x + i, y + j); tType[t] = isDeco ? 3 : 2; tObj[t] = ob; }
-  if (isDeco) { decos.push(ob); if (m.update) animDecos.push(ob); applyBeauty(ob, 1); if (d.bin) rebuildBins(); }
+  if (isDeco) {
+    decos.push(ob); if (m.update) animDecos.push(ob); applyBeauty(ob, 1); if (d.bin) rebuildBins();
+    if (wild) { ob.plot = plotOf(x, y); ob.seed = (Math.random() * 4294967296) >>> 0; plotDirty[ob.plot] = 1; }
+  }
   else {
     Object.assign(ob, { queue: [], riders: [], state: 'idle', runT: 0, animT: 0, spin: 0, loadT: 0, price: d.price, open: true, broken: false, wear: 0, count: 0, income: 0, svcT: 0, distV: 0, dist: null, access: [], fixer: null, resting: [], res: 0, miniDay: -1 });
     m.group.updateMatrixWorld(true);
@@ -91,6 +100,8 @@ function removeObj(ob) {
   scene.remove(ob.group); ob.group.traverse((o) => { if (o.geometry) o.geometry.dispose(); });
   if (ob.def.cat === 'deco') {
     decos = decos.filter((o) => o !== ob); animDecos = animDecos.filter((o) => o !== ob); applyBeauty(ob, -1); if (ob.def.bin) rebuildBins();
+    if (ob.nat) plotDirty[ob.plot] = 1;
+    if (ob.cut) { ob.cut = false; const i = cuts.indexOf(ob); if (i >= 0) cuts.splice(i, 1); if (ob.cutter && ob.cutter.cutT === ob) ob.cutter.cutT = null; }
   } else {
     for (const s of ob.resting.slice()) endBreak(s);
     if (pov && pov.b === ob) exitMode();
@@ -142,6 +153,23 @@ function downhill(d, t) {
   return res;
 }
 const _par = new Int32Array(N * N), _bq = new Int32Array(N * N);
+// Like bfsRoute, but across open ground: lawn, paths and between plants. Gardeners use it to reach what they must cut.
+function fieldRoute(start, goalFn) {
+  if (goalFn(start)) return [];
+  _par.fill(-2); _par[start] = -1; let h = 0, t = 0; _bq[t++] = start;
+  while (h < t) {
+    const c = _bq[h++], cx = c % N, cy = (c / N) | 0;
+    for (let k = 0; k < 4; k++) {
+      const nx = cx + DIRS[k][0], ny = cy + DIRS[k][1]; if (!inB(nx, ny)) continue;
+      const n = idx(nx, ny); if (_par[n] !== -2 || !walkable(n)) continue;
+      _par[n] = c;
+      if (goalFn(n)) { const r = []; let p = n; while (p !== start) { r.push(p); p = _par[p]; } return r.reverse(); }
+      _bq[t++] = n;
+    }
+  }
+  return null;
+}
+const walkable = (t) => tType[t] < 2 || (tType[t] === 3 && tObj[t] && tObj[t].def.plant);
 function bfsRoute(start, goalFn) {
   if (goalFn(start)) return [];
   _par.fill(-2); _par[start] = -1; let h = 0, t = 0; _bq[t++] = start;

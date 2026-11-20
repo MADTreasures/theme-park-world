@@ -7,8 +7,16 @@ function tileAt(cx, cy) {
 }
 function objAt(cx, cy) {
   setRay(cx, cy);
-  const hits = ray.intersectObjects(builds.concat(decos).map((o) => o.group), true);
-  for (const h of hits) { if (h.object.material === MAT_LAMP) continue; let o = h.object; while (o && !o.userData.obj) o = o.parent; if (o) return o.userData.obj; }
+  const list = []; for (const o of builds) list.push(o.group); for (const o of decos) if (!o.nat) list.push(o.group); for (const m of plotMesh) if (m) list.push(m);
+  const hits = ray.intersectObjects(list, true);
+  for (const h of hits) {
+    if (h.object.material === MAT_LAMP) continue;
+    let o = h.object; while (o && !o.userData.obj) o = o.parent;
+    if (o) return o.userData.obj;
+    // a wild plant: they share one mesh per plot, so the tile under the hit tells which one it is
+    const x = Math.floor(h.point.x + HALF), y = Math.floor(h.point.z + HALF), ob = inB(x, y) ? tObj[idx(x, y)] : null;
+    if (ob && ob.nat) return ob;
+  }
   return null;
 }
 function groundPt(cx, cy) { setRay(cx, cy); return ray.ray.intersectPlane(GROUND, gHit) ? [gHit.x, gHit.z] : null; }
@@ -19,7 +27,7 @@ function figAt(list, cx, cy) {
     if (g.state === 'ride' || g.state === 'rest') continue;
     _v.set(g.x, 0.04, g.z).project(camera); if (_v.z > 1) continue;
     const x0 = (_v.x * 0.5 + 0.5) * r.width + r.left, y0 = (-_v.y * 0.5 + 0.5) * r.height + r.top, depth = _v.z;
-    _v.set(g.x, 0.58, g.z).project(camera);
+    _v.set(g.x, 0.64, g.z).project(camera);
     const x1 = (_v.x * 0.5 + 0.5) * r.width + r.left, y1 = (-_v.y * 0.5 + 0.5) * r.height + r.top, len2 = (x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0);
     const t = clamp(((cx - x0) * (x1 - x0) + (cy - y0) * (y1 - y0)) / (len2 || 1), 0, 1), d = Math.hypot(cx - (x0 + (x1 - x0) * t), cy - (y0 + (y1 - y0) * t));
     if (d < Math.max(16, Math.sqrt(len2) * 0.4) && depth < bd) { bd = depth; best = g; }
@@ -31,15 +39,17 @@ function hover(cx, cy) {
   const t = tileAt(cx, cy);
   if (tool.type === 'track') { tool.mouse = true; const key = t ? t[0] + ',' + t[1] : ''; if (key !== tool.hk) { tool.hk = key; trackHover = t; drawTrackPrev(); } return; }
   if (tool.type === 'build') { if (t && !pending) showGhost(t[0], t[1]); return; }
+  if (tool.type === 'land') { landHover(t); return; }
   if (!t) { hl.visible = false; return; }
   const i = idx(t[0], t[1]);
-  if (tool.type === 'path') setHl(t[0], t[1], 1, 1, (tType[i] === 0 || (tType[i] === 3 && tObj[i].nat)) && S.money >= 5);
+  if (tool.type === 'path') setHl(t[0], t[1], 1, 1, tType[i] === 0 && owned[i] === 1 && S.money >= 5, tType[i] === 3 && tObj[i].def.plant && owned[i] === 1);
   else { const ob = tObj[i]; if (ob) setHl(ob.x, ob.y, ob.w, ob.h, false); else if (tType[i] === 1 && i !== ENT) setHl(t[0], t[1], 1, 1, false); else hl.visible = false; }
 }
 function click(cx, cy, ptype) {
   const t = tileAt(cx, cy);
   if (tool) {
     if (tool.type === 'track') trackClick(t, ptype, groundPt(cx, cy));
+    else if (tool.type === 'land') landClick(t);
     else if (tool.type === 'path') { if (t) buildPath(t[0], t[1]); }
     else if (tool.type === 'doze') { const ob = objAt(cx, cy); if (ob) dozeTile(ob.x, ob.y, false); else if (t) dozeTile(t[0], t[1], false); }
     else if (t) {
@@ -51,12 +61,27 @@ function click(cx, cy, ptype) {
   }
   if (pov) return;
   const ht = handTarget(cx, cy);
-  if (ht) { handPress(cx, cy, ptype !== 'mouse'); if (ht.thief) throwThief(ht.thief, true); else pokeGuard(ht.guard); return; }
+  if (ht) { handPress(cx, cy, ptype !== 'mouse', ht.guard ? 'knock' : 'grab'); if (ht.thief) throwThief(ht.thief, true); else pokeGuard(ht.guard); return; }
   const th = figAt(thieves.filter(thiefActive), cx, cy); if (th) { markThief(th); return; }
   const g = figAt(guests, cx, cy); if (g) { select({ guest: g }); sfx('click'); return; }
   const sf = figAt(staff, cx, cy); if (sf) { select({ staff: sf }); sfx('click'); return; }
   const ob = objAt(cx, cy) || (t && tObj[idx(t[0], t[1])]);
-  if (ob) { select({ obj: ob }); sfx('click'); } else select(null);
+  if (ob) { select({ obj: ob }); sfx('click'); }
+  else if (t && !owned[idx(t[0], t[1])] && plotForSale(plotOf(t[0], t[1]))) { select(null); ui.tab = null; openTab('land'); landClick(t); }   // a tap on land for sale opens the land office
+  else select(null);
+}
+function landHover(t) {
+  if (tool.plot >= 0) return;
+  const p = t ? plotOf(t[0], t[1]) : -1;
+  if (p >= 0 && !plotOwned[p]) setHl((p % PN) * PLOT, ((p / PN) | 0) * PLOT, PLOT, PLOT, plotForSale(p)); else hl.visible = false;
+}
+function landClick(t) {
+  if (!tool || tool.type !== 'land' || !t) return;
+  const p = plotOf(t[0], t[1]);
+  if (plotOwned[p]) { tool.plot = -1; hl.visible = false; toast('Dieses Land gehört dir schon.'); }
+  else if (!plotForSale(p)) { tool.plot = -1; hl.visible = false; sfx('error'); toast('Kaufe zuerst ein Stück, das an dein Land grenzt.', 'bad'); }
+  else { tool.plot = p; setHl((p % PN) * PLOT, ((p / PN) | 0) * PLOT, PLOT, PLOT, S.money >= landPrice()); sfx('click'); }
+  renderToolbar();
 }
 const ptr = new Map(); let pmode = 'none', down = null, lastTile = null, pinch = null;
 function paintAt(cx, cy) {

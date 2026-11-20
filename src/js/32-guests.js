@@ -12,20 +12,26 @@ function gripe(g, kind) {
 function willing() {
   let w = 3; const seen = new Set();
   for (const b of builds) if (b.def.cat === 'ride') { w += 0.25; if (!seen.has(b.k)) { seen.add(b.k); w += b.def.exc * 0.11; } }
-  return Math.min(60, w);
+  // a bigger park is worth more to its guests: every plot bought raises what they will pay, and the ceiling with it
+  const extra = plotsOwned() - START_PLOTS.length;
+  return Math.min(60 + extra * 0.8, w + extra * 0.4);
 }
 function guestCap() {
   let c = 8; for (const b of builds) c += b.def.cat === 'ride' ? b.def.cap * 2 + b.def.exc * 0.1 : b.def.cat === 'shop' ? 1.5 : 0;
   return Math.min(MAXG - 10, c * (0.6 + S.rating / 250));
 }
-const HAIR = [0x2b1b12, 0x3d2616, 0x5a3a1e, 0x7b4f28, 0xb8893f, 0xe0c57a, 0xa5441f, 0x9a9a9a, 0x1c1c1c];
+const HAIR = [0x2b1b12, 0x3d2616, 0x5a3a1e, 0x7b4f28, 0xb8893f, 0xe0c57a, 0xa5441f, 0x9a9a9a, 0x1c1c1c], HAIR_FUN = [0xff7ac0, 0x4aa8ff, 0x55d6c2, 0xb07cff, 0xff8a3d, 0xf2f2f7];
+const EYES = [0x3f8fe0, 0x35a86a, 0x7a5230, 0x5b3a1e, 0x4fb3c4, 0x8a6fd1, 0x555a66, 0xd06aa8], SHOES = [0xffffff, 0xff4f64, 0x3d8bfd, 0xffd23f, 0x2b2b33, 0x3ddbb4, 0xff8fc7, 0xf08a24];
+const HAIR_PICK = [0, 0, 0, 1, 1, 1, 2, 2, 3, 3, 4, 5, 6, 6, 7, 7, 8, 8, 8];   // short, long, ponytail, cap, curls, sun hat, bob, bun, quiff
+// What a person looks like: size, hair, face and a sporty outfit (jacket with trim, trousers, shorts or a skirt, sneakers).
 function dress(f, kid) {
-  f.kid = kid; f.sc = kid ? rnd(0.62, 0.8) : rnd(0.95, 1.1); f.hk = kid ? 1.22 : 1;
-  const h = rint(0, 13); f.hair = h < 3 ? 0 : h < 6 ? 1 : h < 8 ? 2 : h < 10 ? 3 : h < 11 ? 4 : h < 12 ? 5 : h < 13 ? 6 : kid ? 0 : -1;
-  f.hairCol = f.hair === 3 ? pick(SHIRT) : f.hair === 5 ? pick([0xe8cf8a, 0xfff6dc, 0xd9b46a, 0xff8fc7]) : pick(HAIR);
-  f.pack = Math.random() < 0.22 ? pick(SHIRT) : 0; f.shades = !kid && Math.random() < 0.14 ? 1 : 0;
+  f.kid = kid; f.sc = kid ? rnd(0.62, 0.8) : rnd(0.95, 1.1); f.hk = kid ? 1.16 : 1;
+  f.hair = !kid && Math.random() < 0.04 ? -1 : pick(HAIR_PICK);
+  f.browCol = Math.random() < 0.1 ? pick(HAIR_FUN) : pick(HAIR); f.hairCol = f.hair === 3 ? pick(SHIRT) : f.hair === 5 ? pick([0xe8cf8a, 0xfff6dc, 0xd9b46a, 0xff8fc7]) : f.browCol;
+  f.pack = Math.random() < 0.22 ? pick(SHIRT) : 0; f.shades = !kid && Math.random() < 0.1 ? 1 : 0;
   f.bottom = pick([0, 0, 0, 1, 1, 2]); f.top = pick([0, 0, 0, 0, 1, 2]);
   f.shirt = pick(SHIRT); f.skin = pick(SKIN); f.pants = pick(PANTS);
+  f.trim = pick([0xffffff, 0xffffff, 0xfff6dc, f.pants, pick(SHIRT)]); f.shoe = pick(SHOES); f.eye = pick(EYES);
 }
 function spawnGuest(inside) {
   const W = willing();

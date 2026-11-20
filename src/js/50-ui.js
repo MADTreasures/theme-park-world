@@ -20,14 +20,23 @@ const IC = {
   deco: svg('<path d="M12 2a6.5 6.5 0 0 0-5.3 10.3A4.7 4.7 0 0 0 9 17.5h1.7V22h2.6v-4.5H15a4.7 4.7 0 0 0 2.3-5.2A6.5 6.5 0 0 0 12 2z"/>'),
   staff: svg('<circle cx="12" cy="9" r="3.8"/><path d="M7.3 7.2h9.4l-.7-2.7a4.1 4.1 0 0 0-8 0z"/><path d="M4.5 21.5c0-4.7 3.2-7.3 7.5-7.3s7.5 2.6 7.5 7.3z"/>'),
   doze: svg('<path d="M2.5 16.5v-4h3.3V7.5h6l2.2 5h3v4z"/><path d="M18.7 9.5l3.3 9h-4.2z"/><circle cx="6" cy="19" r="2.3"/><circle cx="13" cy="19" r="2.3"/>'),
+  land: svg('<path d="M5 22V2.5h2.2v1.3c3.4-1.9 5.6 1.9 9.8.2v9c-4.2 1.7-6.4-2.1-9.8-.2V22z"/><path d="M10.5 17.5l10 1.2-2.2 3.3H9z" opacity=".55"/>'),
   rotl: svg(stroke('M6.3 7.3A7.5 7.5 0 1 1 4.5 12') + '<path d="M2.3 3.3l1.2 6 5.5-2.5z"/>'),
   rotr: svg('<g transform="matrix(-1 0 0 1 24 0)">' + stroke('M6.3 7.3A7.5 7.5 0 1 1 4.5 12') + '<path d="M2.3 3.3l1.2 6 5.5-2.5z"/></g>'),
   turn: svg(stroke('M6.3 7.3A7.5 7.5 0 1 1 4.5 12') + '<path d="M2.3 3.3l1.2 6 5.5-2.5z"/>'),
   walk: svg('<circle cx="13" cy="4.3" r="2.4"/><path d="M10.6 7.6l3.2.5 2.4 3.3 3 .9-.5 1.9-3.9-1-1-1.3-.8 3.6 2.6 2.7.9 5.3h-2.2l-.8-4.3-2.6-2.3-1.5 6.6H7.2l2.1-9.3.3-2.8-2 1.2-.7 2.9-2-.4.9-4z"/>'),
+  chev: svg(stroke('M6 9l6 6 6-6', 2.8)),
   plus: svg(stroke('M12 5v14M5 12h14', 2.8)), minus: svg(stroke('M5 12h14', 2.8)), x: svg(stroke('M6 6l12 12M18 6L6 18', 2.8)), check: svg(stroke('M5 12.5l4.5 4.5L19 7.5', 3)),
 };
 document.querySelectorAll('[data-ic]').forEach((e) => { e.innerHTML = IC[e.dataset.ic]; });
-const ui = { tab: null, modal: false, ask: null, lastSpeed: 1, nightIcon: false, onClose: null, mini: false };
+const ui = { tab: null, modal: false, ask: null, lastSpeed: 1, nightIcon: false, onClose: null, mini: false, panelMin: false };
+// which boxes are folded away is remembered on this device
+const UI_KEY = 'rummelinsel.ui.v1';
+function uiPref(k, v) {
+  let o = {}; try { o = JSON.parse(localStorage.getItem(UI_KEY) || '{}') || {}; } catch (e) { o = {}; }
+  if (v === undefined) return o[k];
+  o[k] = v; try { localStorage.setItem(UI_KEY, JSON.stringify(o)); } catch (e) { /* storage is optional */ }
+}
 let sel = null, tool = null, pending = null, ghost = null, ghostTile = null;
 
 const toastQ = [];
@@ -61,7 +70,7 @@ $('#modal').addEventListener('click', (e) => { if (e.target.id === 'modal') clos
 
 const SHY = { Schiffschaukel: 'Schiff\u00ADschaukel', Wildwasserbahn: 'Wild\u00ADwasser\u00ADbahn', Kettenflieger: 'Ketten\u00ADflieger', Wirbeltassen: 'Wirbel\u00ADtassen', Freifallturm: 'Freifall\u00ADturm', Autoscooter: 'Auto\u00ADscooter', Reinigungskraft: 'Reinigungs\u00ADkraft', Springbrunnen: 'Spring\u00ADbrunnen', Abfalleimer: 'Abfall\u00ADeimer', Pommesbude: 'Pommes\u00ADbude', Ballonstand: 'Ballon\u00ADstand', Burgerbude: 'Burger\u00ADbude', Maskottchen: 'Maskott\u00ADchen', Blumenbeet: 'Blumen\u00ADbeet', Geisterhaus: 'Geister\u00ADhaus', Personalhaus: 'Personal\u00ADhaus', Pausenraum: 'Pausen\u00ADraum', Sicherheit: 'Sicher\u00ADheit', Wachposten: 'Wach\u00ADposten', Tauchbecken: 'Tauch\u00ADbecken', Himmelsturm: 'Himmels\u00ADturm' };
 const nm = (n) => SHY[n] || n;
-const TABS = [['path', 'Wege', 'Wege'], ['ride', 'Attraktionen', 'Fahrten'], ['shop', 'Buden', 'Buden'], ['deco', 'Deko', 'Deko'], ['staff', 'Personal', 'Personal'], ['doze', 'Abriss', 'Abriss']];
+const TABS = [['path', 'Wege', 'Wege'], ['ride', 'Attraktionen', 'Fahrten'], ['shop', 'Buden', 'Buden'], ['deco', 'Deko', 'Deko'], ['staff', 'Personal', 'Team'], ['land', 'Land', 'Land'], ['doze', 'Abriss', 'Abriss']];
 function buildTabs() {
   $('#tabs').innerHTML = TABS.map((t) => '<button data-act="tab" data-k="' + t[0] + '" aria-pressed="false">' + IC[t[0]] + '<span class="l">' + t[1] + '</span><span class="s">' + t[2] + '</span></button>').join('');
 }
@@ -69,13 +78,14 @@ function openTab(k) {
   sfx('click');
   if (ui.tab === k) { ui.tab = null; setTool(null); renderTray(); return; }
   ui.tab = k;
-  setTool(k === 'path' ? { type: 'path' } : k === 'doze' ? { type: 'doze' } : null);
+  setTool(k === 'path' ? { type: 'path' } : k === 'doze' ? { type: 'doze' } : k === 'land' ? { type: 'land', plot: -1 } : null);
+  if (k === 'land' && cam.dist < 46) cam.dist = 46;
   renderTray();
 }
 function renderTray() {
   const tray = $('#tray');
   document.querySelectorAll('#tabs button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.k === ui.tab));
-  if (!ui.tab || ui.tab === 'doze') { tray.hidden = true; tray.innerHTML = ''; return; }
+  if (!ui.tab || ui.tab === 'doze' || ui.tab === 'land') { tray.hidden = true; tray.innerHTML = ''; return; }
   let h = '';
   const card = (k) => { const d = DEFS[k], ok = unlocked(d);
     return '<button class="card' + (ok ? '' : ' locked') + '" data-act="card" data-k="' + k + '" aria-pressed="false" title="' + (d.info || d.name) + '"><img src="' + d.thumb + '" alt=""><span class="nm">' + nm(d.name) + '</span><span class="pr">' + (ok ? (d.from ? 'ab ' : '') + eur(d.cost) : 'nach Ziel ' + d.need) + '</span></button>'; };
@@ -123,7 +133,12 @@ function renderToolbar() {
   let h;
   if (tool.type === 'path') h = '<div class="t"><b>Weg</b><span>' + eur(5) + ' pro Feld · ziehen zum Verlegen</span></div>';
   else if (tool.type === 'track') h = trackToolbar();
-  else if (tool.type === 'doze') h = '<div class="t"><b>Abriss</b><span>Objekt antippen · über Wege und Deko wischen</span></div>';
+  else if (tool.type === 'doze') h = '<div class="t"><b>Abriss und Roden</b><span>Objekt antippen · über Wege wischen · Pflanzen werden für den Gärtner markiert' + (cuts.length ? ' (' + cuts.length + ' offen)' : '') + '</span></div>';
+  else if (tool.type === 'land') {
+    const p = tool.plot, c = landPrice(), left = PN * PN - plotsOwned();
+    h = '<div class="t"><b>Land kaufen</b><span>' + (!left ? 'Die ganze Insel gehört dir.' : p >= 0 ? '10 × 10 Felder · ' + eur(c) : 'Tippe ein leuchtendes Stück an · das nächste kostet ' + eur(c)) + '</span></div>' +
+      (p >= 0 ? '<button class="btn mint" data-act="buyLand"' + (S.money < c ? ' disabled' : '') + '>' + IC.check + 'Kaufen</button>' : '');
+  }
   else {
     const d = DEFS[tool.k];
     h = '<div class="t"><b>' + d.name + '</b><span>' + eur(d.cost) + ' · ' + d.w + '×' + d.h + ' Felder' + (d.cat === 'ride' ? ' · ' + d.cap + ' Plätze' : '') + '</span></div>';
@@ -134,16 +149,15 @@ function renderToolbar() {
   tb.hidden = false;
 }
 const anchor = (d, rot, x, y) => { const [w, h] = dims(d, rot); return [x - ((w - 1) >> 1), y - ((h - 1) >> 1), w, h]; };
-function setHl(x, y, w, h, ok) { hl.visible = true; hl.position.set(x + w / 2 - HALF, 0.05, y + h / 2 - HALF); hl.scale.set(w, 1, h); hl.material.color.setHex(ok ? 0x3ddbb4 : 0xff4f64); }
+function setHl(x, y, w, h, ok, warn) { hl.visible = true; hl.position.set(x + w / 2 - HALF, 0.05, y + h / 2 - HALF); hl.scale.set(w, 1, h); hl.material.color.setHex(ok ? 0x3ddbb4 : warn ? 0xffa23f : 0xff4f64); }
 function showGhost(gx, gy) {
   if (!tool || tool.type !== 'build' || !ghost) return;
   const d = DEFS[tool.k]; ghostTile = [gx, gy];
   if ((d.cat === 'shop' || d.rest) && !tool.userRot) for (let k = 0; k < 4; k++) { const nx = gx + DIRS[k][0], ny = gy + DIRS[k][1]; if (inB(nx, ny) && tType[idx(nx, ny)] === 1) { tool.rot = k; break; } }
   const [x, y, w, h] = anchor(d, tool.rot, gx, gy);
   ghost.visible = true; ghost.position.set(x + w / 2 - HALF, 0.02, y + h / 2 - HALF); ghost.rotation.y = -tool.rot * Math.PI / 2;
-  const nat = natIn(d, x, y, tool.rot);
-  const ok = !!nat && S.money >= d.cost + nat.length * 5;
-  setHl(x, y, w, h, ok); MAT_GHOST.color.setHex(ok ? 0xffffff : 0xff5a6c);
+  const nat = natIn(d, x, y, tool.rot), plants = !!nat && nat.length > 0, ok = !!nat && !plants && S.money >= d.cost;   // orange: only plants are in the way
+  setHl(x, y, w, h, ok, plants); MAT_GHOST.color.setHex(ok ? 0xffffff : plants ? 0xffc35a : 0xff5a6c);
 }
 function rotateTool() {
   if (tool && tool.type === 'track') { if (!tool.station) { tool.rot = (tool.rot + 1) % 4; sfx('click'); drawTrackPrev(); } return; }
@@ -155,21 +169,29 @@ function tryBuild() {
   if (!tool || tool.type !== 'build' || !ghostTile) return;
   const d = DEFS[tool.k], gt = ghostTile, [x, y] = anchor(d, tool.rot, gt[0], gt[1]);
   const nat = natIn(d, x, y, tool.rot);
-  if (!nat) { sfx('error'); toast('Hier ist kein Platz frei.', 'bad'); return; }
-  if (S.money < d.cost + nat.length * 5) { sfx('error'); toast('Dafür reicht das Geld nicht.', 'bad'); return; }
-  for (const o of nat) removeObj(o);
-  spend(d.cost + nat.length * 5, 'build'); const ob = placeObj(d.k, x, y, tool.rot); sfx('build'); pending = null; uiDirty = true;
+  if (!nat) { if (!ownedFoot(d, x, y, tool.rot)) landHint(); else { sfx('error'); toast('Hier ist kein Platz frei.', 'bad'); } return; }
+  if (nat.length) { plantsInWay(nat); pending = null; renderToolbar(); return; }
+  if (S.money < d.cost) { sfx('error'); toast('Dafür reicht das Geld nicht.', 'bad'); return; }
+  spend(d.cost, 'build'); const ob = placeObj(d.k, x, y, tool.rot); sfx('build'); pending = null; uiDirty = true;
   if (d.cat !== 'deco' && !d.noPath && !accessOf(ob).length) toast(d.name + ' braucht noch einen Weg direkt daneben.', '', ob);
   if (d.cat === 'ride') setTool(null); else { showGhost(gt[0], gt[1]); renderToolbar(); }
 }
-function buildPath(x, y) {
-  const i = idx(x, y), ob = tObj[i], clear = tType[i] === 3 && ob && ob.nat && ob.w === 1 && ob.h === 1, cost = clear ? 10 : 5;
-  if (tType[i] !== 0 && !clear) return;
-  if (S.money < cost) { if (!buildPath.warned) { buildPath.warned = true; sfx('error'); toast('Dafür reicht das Geld nicht.', 'bad'); setTimeout(() => { buildPath.warned = false; }, 3000); } return; }
-  if (clear) removeObj(ob);
-  if (setPath(i, true)) { spend(cost, 'build'); sfx('path'); uiDirty = true; }
+// Building on a spot where plants still stand marks them for the gardener instead.
+function plantsInWay(list) {
+  const [n, fee] = markAll(list);
+  if (!n) return;
+  sfx(fee ? 'mark' : 'error');
+  toast(fee ? (n === 1 ? 'Hier steht noch eine Pflanze. Sie ist jetzt zum Roden markiert (' : 'Hier stehen noch ' + n + ' Pflanzen. Sie sind jetzt zum Roden markiert (') + eur(fee) + '). Baue, sobald der Gärtner fertig ist.' : 'Der Gärtner ist hier noch nicht fertig. Baue, sobald die Pflanzen weg sind.', fee ? '' : 'bad');
 }
-const refundOf = (ob) => (ob.nat ? -5 : Math.round(ob.def.cost * (ob.def.cat === 'deco' ? 0.3 : 0.4)));
+function buildPath(x, y) {
+  const i = idx(x, y), ob = tObj[i];
+  if (!owned[i]) { landHint(); return; }
+  if (tType[i] === 3 && ob && ob.def.plant) { if (ob.cut) ob.then = 'path'; else if (markCut(ob, 'path')) { sfx('mark'); if (S.time - (buildPath.told || -99) > 30) { buildPath.told = S.time; toast('Pflanzen auf dem Weg sind zum Roden markiert. Der Weg wird dort gelegt, sobald der Gärtner fertig ist.'); } } return; }
+  if (tType[i] !== 0) return;
+  if (S.money < 5) { if (!buildPath.warned) { buildPath.warned = true; sfx('error'); toast('Dafür reicht das Geld nicht.', 'bad'); setTimeout(() => { buildPath.warned = false; }, 3000); } return; }
+  if (setPath(i, true)) { spend(5, 'build'); sfx('path'); uiDirty = true; }
+}
+const refundOf = (ob) => Math.round(ob.def.cost * (ob.def.cat === 'deco' ? 0.3 : 0.4));
 function demolish(ob) {
   const r = refundOf(ob);
   if (r < 0 && S.money < -r) { sfx('error'); toast('Dafür reicht das Geld nicht.', 'bad'); return; }
@@ -183,8 +205,10 @@ function askDemolish(ob) {
 }
 function dozeTile(x, y, drag) {
   const i = idx(x, y);
+  if (!owned[i]) { if (!drag) landHint(); return; }
   if (tType[i] === 1) { if (setPath(i, false)) { sfx('doze'); uiDirty = true; } return; }
   const ob = tObj[i]; if (!ob) return;
+  if (ob.def.plant) { if (!ob.cut) { if (markCut(ob)) { sfx('mark'); renderToolbar(); } } else if (!drag) { unmarkCut(ob); sfx('click'); renderToolbar(); } return; }   // a second tap takes the mark back
   if (ob.def.cat === 'deco') demolish(ob);
   else if (!drag) { if (ob.def.cost >= 300) askDemolish(ob); else demolish(ob); }
 }
@@ -230,7 +254,9 @@ function trackClick(tile, ptype, pt) {
   if (!tile || !pt) return;
   if (!t.station) {
     const an = anchor(DEFS.custom, t.rot, tile[0], tile[1]);
-    if (!natIn(DEFS.custom, an[0], an[1], t.rot)) { sfx('error'); toast('Hier ist kein Platz für die Station.', 'bad'); return; }
+    const nat = natIn(DEFS.custom, an[0], an[1], t.rot);
+    if (!nat) { if (!ownedFoot(DEFS.custom, an[0], an[1], t.rot)) landHint(); else { sfx('error'); toast('Hier ist kein Platz für die Station.', 'bad'); } return; }
+    if (nat.length) { plantsInWay(nat); return; }
     t.station = { x: an[0], y: an[1] }; sfx('path'); trackChanged(); return;
   }
   const fx = pt[0] + HALF - 0.5, fy = pt[1] + HALF - 0.5;
@@ -248,11 +274,9 @@ function finishTrack() {
   const t = tool; if (!t || t.type !== 'track' || !t.station) return;
   if (t.nodes.length < 3) { toast('Setze mindestens 3 Punkte.', 'bad'); return; }
   const a = analyseTrack(t.station.x, t.station.y, t.rot, t.nodes), nat = natIn(DEFS.custom, t.station.x, t.station.y, t.rot);
-  if (a.err || !nat) { sfx('error'); toast(a.err || 'Die Station ist blockiert.', 'bad'); return; }
-  for (const i of a.low) { const o = tObj[i]; if (o && nat.indexOf(o) < 0) nat.push(o); }
-  const cost = a.cost + nat.length * 5;
+  if (a.err || !nat || nat.length) { sfx('error'); toast(a.err || 'Die Station ist blockiert.', 'bad'); return; }
+  const cost = a.cost;
   if (S.money < cost) { sfx('error'); toast('Dafür reicht das Geld nicht. Die Strecke kostet ' + eur(cost) + '.', 'bad'); return; }
-  for (const o of nat) removeObj(o);
   spend(cost, 'build');
   const ob = placeObj('custom', t.station.x, t.station.y, t.rot, { nodes: t.nodes.map((n) => n.slice()) });
   sfx('goal'); toast('Achterbahn eröffnet · Nervenkitzel ' + a.exc, 'gold', ob);
@@ -271,18 +295,20 @@ function trackToolbar() {
 
 /* ----- selection panel ----- */
 const opinion = (r) => (r < 0.5 ? 'geschenkt' : r < 0.85 ? 'günstig' : r <= 1.0 ? 'fair' : r <= 1.35 ? 'teuer' : 'viel zu teuer');
-function select(s) { sel = s; renderPanel(); }
+function select(s) { sel = s; ui.panelMin = false; renderPanel(); }
 function renderPanel() {
   const p = $('#panel'), mid = $('#mid');
   $('#hud').classList.toggle('sheet', !!sel);
   selHl.visible = false;
   if (!sel) { p.hidden = true; mid.classList.remove('sheet'); return; }
-  let h = '<button class="ibtn x" data-act="unselect" aria-label="Zuklappen">' + IC.x + '</button>';
+  let h = '<button class="ibtn x" data-act="unselect" aria-label="Schliessen" title="Schliessen">' + IC.x + '</button><button class="ibtn x fx" data-act="panelFold" aria-label="Ein- oder ausklappen" title="Ein- oder ausklappen">' + IC.chev + '</button>';
+  p.classList.toggle('min', ui.panelMin);
   if (sel.obj) {
     const b = sel.obj, d = b.def;
     selHl.visible = true; selHl.position.set(b.x + b.w / 2 - HALF, 0.045, b.y + b.h / 2 - HALF); selHl.scale.set(b.w + 0.3, 1, b.h + 0.3);
     h += '<h2>' + d.name + '</h2>';
-    if (d.cat === 'deco') h += '<p class="note">' + (d.info || 'Verschönert die Umgebung. Gäste, die vorbeigehen, bekommen bessere Laune.') + '</p><div class="row"><button class="btn red" data-act="demolish">' + (b.nat ? 'Entfernen · ' + eur(5) : 'Abriss · +' + eur(refundOf(b))) + '</button></div>';
+    if (d.plant) h += '<p class="note">' + (b.cut ? 'Zum Roden markiert. Ein Gärtner entfernt die Pflanze, sobald er Zeit hat.' : 'Verschönert die Umgebung. Wer hier bauen will, lässt die Pflanze vom Gärtner roden.') + '</p><div class="row"><button class="btn red" data-act="demolish">' + (b.cut ? 'Markierung aufheben · +' + eur(b.fee) : 'Roden lassen · ' + eur(d.cut)) + '</button></div>';
+    else if (d.cat === 'deco') h += '<p class="note">' + (d.info || 'Verschönert die Umgebung. Gäste, die vorbeigehen, bekommen bessere Laune.') + '</p><div class="row"><button class="btn red" data-act="demolish">Abriss · +' + eur(refundOf(b)) + '</button></div>';
     else if (d.cat === 'fac') h += '<p class="note">' + d.info + '</p><div class="kv">' + (d.rest ? '<span>Gerade in der Pause</span><b id="f-rest"></b>' : '<span>Belegte Wohnplätze im Park</span><b id="f-house"></b>') + '<span>Unterhalt pro Tag</span><b>' + eur(d.upkeep) + '</b></div>' +
       '<div class="row"><button class="btn line" data-act="team">Team-Übersicht</button><button class="btn red" data-act="demolish">Abriss · +' + eur(refundOf(b)) + '</button></div>';
     else {
@@ -371,8 +397,14 @@ function refreshUI() {
   const g = GOALS[S.goal];
   if (g) { setTxt('goal-tag', 'Ziel ' + (S.goal + 1) + '/' + GOALS.length); setTxt('goal-txt', g.t); setTxt('goal-rew', '+' + eur(g.r)); $('#goal-bar').style.width = clamp(g.p() * 100, 0, 100) + '%'; }
   else { setTxt('goal-tag', 'Geschafft'); setTxt('goal-txt', 'Alle Ziele erreicht. Bau einfach weiter.'); setTxt('goal-rew', ''); $('#goal-bar').style.width = '100%'; }
-  refreshTray(); refreshPanel();
+  refreshTray(); refreshPanel(); refreshAlert();
   if (ui.modal && document.getElementById('m-ticket')) fillMenu();
+}
+// the banner for a caught thief: who is held shortest decides the countdown
+function refreshAlert() {
+  let f = null, n = 0; for (const t of thieves) if (t.state === 'held') { n++; if (!f || t.heldT < f.heldT) f = t; }
+  const el = $('#alert'); $('#mid').classList.toggle('alerting', !!f); el.hidden = !f;
+  if (f) { setTxt('alert-t', n > 1 ? n + ' Diebe gefasst!' : 'Dieb gefasst!'); setTxt('alert-n', Math.max(0, Math.ceil(f.heldT)) + ' s'); }
 }
 const signed = (n) => (n < -0.5 ? '−' : n > 0.5 ? '+' : '') + eur(Math.abs(n));
 function showFinance() {
@@ -389,25 +421,26 @@ function showGoals() {
 }
 function showMenu() {
   modal('<h2>Parkbüro</h2><div class="kv"><span>Parkwertung</span><b id="m-rate"></b><span>Gäste im Park</span><b id="m-now"></b><span>Gäste insgesamt</span><b id="m-all"></b><span>Wetter</span><b id="m-wx"></b></div>' +
-    '<h3>Eintritt</h3><div class="stepper"><span class="lbl">Ticketpreis</span><button class="sq" data-act="ticket" data-d="-1" aria-label="Eintritt senken">' + IC.minus + '</button><output id="m-ticket"></output><button class="sq" data-act="ticket" data-d="1" aria-label="Eintritt erhöhen">' + IC.plus + '</button></div><p class="note">Gäste finden den Eintritt <b id="m-op"></b>. Mehr und aufregendere Attraktionen erlauben höhere Preise.</p>' +
+    '<h3>Eintritt</h3><div class="stepper"><span class="lbl">Ticketpreis</span><button class="sq" data-act="ticket" data-d="-1" aria-label="Eintritt senken">' + IC.minus + '</button><output id="m-ticket"></output><button class="sq" data-act="ticket" data-d="1" aria-label="Eintritt erhöhen">' + IC.plus + '</button></div><p class="note">Gäste finden den Eintritt <b id="m-op"></b>. Mehr und aufregendere Attraktionen und mehr Land erlauben höhere Preise.</p>' +
     '<h3>Kredit</h3><div class="stepper"><span class="lbl">Schulden · 1,2 % Zinsen pro Tag</span><button class="sq" data-act="loan" data-d="-1" aria-label="Kredit tilgen">' + IC.minus + '</button><output id="m-loan"></output><button class="sq" data-act="loan" data-d="1" aria-label="Kredit aufnehmen">' + IC.plus + '</button></div>' +
-    '<h3>Einstellungen</h3><div class="row"><button class="btn line" data-act="mute" id="m-mute"></button><button class="btn line" data-act="music" id="m-music"></button><button class="btn line" data-act="shadows" id="m-shadow"></button><button class="btn line" data-act="currency">Währung gestalten</button><button class="btn line" data-act="help">Steuerung zeigen</button><button class="btn red" data-act="askNew">Neues Spiel</button></div>');
+    '<h3>Einstellungen</h3><div class="row"><button class="btn line" data-act="mute" id="m-mute"></button><button class="btn line" data-act="music" id="m-music"></button><button class="btn line" data-act="shadows" id="m-shadow"></button><button class="btn line" data-act="outline" id="m-outline"></button><button class="btn line" data-act="currency">Währung gestalten</button><button class="btn line" data-act="help">Steuerung zeigen</button><button class="btn red" data-act="askNew">Neues Spiel</button></div>');
   fillMenu();
 }
 function fillMenu() {
   setTxt('m-rate', Math.round(S.rating) + ' von 100'); setTxt('m-now', guests.length); setTxt('m-all', S.visitors);
   setTxt('m-ticket', eur(S.ticket)); setTxt('m-op', opinion(S.ticket / willing() / 0.8)); setTxt('m-loan', eur(S.loan));
   setTxt('m-music', S.music ? 'Musik ausschalten' : 'Musik einschalten'); setTxt('m-wx', WX_NAME[WX.k] + (WX.bonus > 0 && WX.k !== 'rain' && WX.k !== 'storm' ? ' mit Regenbogen' : ''));
-  setTxt('m-mute', S.muted ? 'Ton einschalten' : 'Ton ausschalten'); setTxt('m-shadow', S.shadows ? 'Schatten ausschalten' : 'Schatten einschalten');
+  setTxt('m-mute', S.muted ? 'Ton einschalten' : 'Ton ausschalten'); setTxt('m-shadow', S.shadows ? 'Schatten ausschalten' : 'Schatten einschalten'); setTxt('m-outline', S.outline === true ? 'Comic-Linien ausschalten' : 'Comic-Linien einschalten');
 }
 function renderCoach() {
-  const c = $('#coach');
-  if (!S.coach) { c.hidden = true; c.innerHTML = ''; return; }
-  const touch = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
-  c.innerHTML = '<h1>Willkommen auf der Rummelinsel</h1><p>Dein kleiner Park hat schon geöffnet. Bau ihn aus und erfülle die Ziele.</p><ul>' +
+  // open it is the welcome box, folded it is a small "Hilfe" tab that brings it back
+  const c = $('#coach'), touch = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+  c.classList.toggle('min', !S.coach);
+  c.innerHTML = '<button class="fold-h" data-act="coachFold" aria-expanded="' + !!S.coach + '" title="' + (S.coach ? 'Einklappen' : 'Hilfe aufklappen') + '"><h1>' + (S.coach ? 'Willkommen auf der Rummelinsel' : 'Hilfe') + '</h1>' + IC.chev + '</button>' +
+    '<div class="fold-b"><p>Dein kleiner Park hat schon geöffnet. Bau ihn aus und erfülle die Ziele.</p><ul>' +
     (touch ? '<li>Ein Finger: Karte verschieben</li><li>Zwei Finger: zoomen und drehen</li><li>Antippen: Attraktion oder Gast ansehen</li>'
       : '<li>Linke Maustaste ziehen: Karte verschieben</li><li>Rechte Maustaste ziehen: drehen und neigen</li><li>Mausrad: zoomen · R dreht ein Gebäude</li>') +
-    '<li>Gebaut wird über die Leiste unten. Jede Attraktion braucht einen Weg direkt daneben.</li></ul><button class="btn" data-act="coachOk">Los geht es</button>';
+    '<li>Gebaut wird über die Leiste unten. Jede Attraktion braucht einen Weg direkt daneben.</li><li>Stehen Pflanzen im Weg, rodet sie dein Gärtner. Wird es eng, kaufst du über «Land» neue Flächen dazu.</li></ul><button class="btn" data-act="coachOk">Los geht es</button></div>';
   c.hidden = false;
 }
 
@@ -455,7 +488,7 @@ const ACT = {
   rot: rotateTool, place: tryBuild, tdone: finishTrack,
   th: (el) => { const t = tool; if (!t || t.type !== 'track') return; if (t.sel != null && t.nodes[t.sel]) { t.nodes[t.sel][2] = clamp(t.nodes[t.sel][2] + el.dataset.d * 0.5, 0.5, 6.5); sfx('click'); trackChanged(); } else { t.h = clamp(t.h + el.dataset.d * 0.5, 0.5, 6.5); sfx('click'); drawTrackPrev(); renderToolbar(); } },
   tundo: () => { const t = tool; if (!t || t.type !== 'track') return; if (t.sel != null && t.nodes[t.sel]) t.nodes.splice(t.sel, 1); else if (t.nodes.length) t.nodes.pop(); else t.station = null; t.sel = null; sfx('click'); trackChanged(); },
-  cancel: () => { setTool(null); if (ui.tab === 'path' || ui.tab === 'doze') { ui.tab = null; renderTray(); } },
+  cancel: () => { setTool(null); if (ui.tab === 'path' || ui.tab === 'doze' || ui.tab === 'land') { ui.tab = null; renderTray(); } },
   unselect: () => select(null),
   price: (el) => { const b = sel && sel.obj; if (!b) return; b.price = clamp(Math.round((b.price + el.dataset.d * 0.5) * 2) / 2, 0, 25); uiDirty = true; sfx('click'); },
   toggle: () => {
@@ -470,9 +503,10 @@ const ACT = {
     if (S.money < c) { sfx('error'); toast('Dafür reicht das Geld nicht.', 'bad'); return; }
     spend(c, 'upkeep'); repair(b); sfx('build');
   },
-  demolish: () => { const b = sel && sel.obj; if (!b) return; if (b.def.cost >= 300) askDemolish(b); else demolish(b); },
+  demolish: () => { const b = sel && sel.obj; if (!b) return; if (b.def.plant) { if (b.cut) { unmarkCut(b); sfx('click'); } else if (markCut(b)) sfx('mark'); renderPanel(); } else if (b.def.cost >= 300) askDemolish(b); else demolish(b); },
+  buyLand: () => { const t = tool; if (!t || t.type !== 'land' || t.plot < 0) return; if (buyPlot(t.plot)) { t.plot = -1; hl.visible = false; } renderToolbar(); },
   yesDemolish: () => { const b = ui.ask; closeModal(); if (b && !b.removed) demolish(b); },
-  ticket: (el) => { S.ticket = clamp(S.ticket + +el.dataset.d, 0, 60); fillMenu(); sfx('click'); },
+  ticket: (el) => { S.ticket = clamp(S.ticket + +el.dataset.d, 0, 90); fillMenu(); sfx('click'); },
   loan: (el) => {
     if (+el.dataset.d > 0) { if (S.loan >= 10000) { toast('Mehr als ' + eur(10000) + ' leiht dir die Bank nicht.', 'bad'); return; } S.loan += 1000; S.money += 1000; }
     else { const pay = Math.min(1000, S.loan); if (!pay) return; if (S.money < pay) { toast('Dafür reicht das Geld nicht.', 'bad'); return; } S.loan -= pay; S.money -= pay; }
@@ -482,10 +516,18 @@ const ACT = {
   music: () => { S.music = !S.music; fillMenu(); sfx('click'); },
   dev: (el) => devAct(el.dataset.k),
   shadows: () => { S.shadows = !S.shadows; sun.castShadow = S.shadows; fillMenu(); },
+  outline: () => { S.outline = S.outline !== true; LINE.auto = true; fillMenu(); },
   help: () => { closeModal(); S.coach = true; renderCoach(); },
   askNew: () => modal('<h2>Neues Spiel beginnen?</h2><p>Dein jetziger Park wird dabei gelöscht.</p><div class="row"><button class="btn red" data-act="yesNew">Neu anfangen</button><button class="btn line" data-act="closeModal">Weiterspielen</button></div>'),
   yesNew: () => { closeModal(); setTool(null); select(null); ui.tab = null; newGame(); renderTray(); toast('Neuer Park eröffnet.', 'good'); uiDirty = true; save(); },
   coachOk: () => { S.coach = false; renderCoach(); sfx('click'); },
+  coachFold: () => { S.coach = !S.coach; renderCoach(); sfx('click'); },
+  panelFold: () => { ui.panelMin = !ui.panelMin; $('#panel').classList.toggle('min', ui.panelMin); sfx('click'); },
+  alertGo: () => {
+    let f = null; for (const t of thieves) if (t.state === 'held' && (!f || t.heldT < f.heldT)) f = t;
+    if (!f) return; if (fp || pov) exitMode(); setTool(null); if (ui.tab) { ui.tab = null; renderTray(); }
+    cam.tx = f.x; cam.tz = f.z; cam.dist = Math.min(cam.dist, 13); sfx('click');
+  },
   camL: () => { cam.az += Math.PI / 4; }, camR: () => { cam.az -= Math.PI / 4; },
   zin: () => { cam.dist = clamp(cam.dist * 0.78, 7, 80); }, zout: () => { cam.dist = clamp(cam.dist * 1.28, 7, 80); },
 };

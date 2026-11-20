@@ -10,7 +10,7 @@ function buildWeather() {
   for (let i = 0; i < n; i++) { const x = rnd(-24, 24), y = rnd(0, 20), z = rnd(-24, 24); rainPos.set([x, y, z, x + 0.06, y - 0.6, z], i * 6); }
   const rg = new T.BufferGeometry(); rg.setAttribute('position', new T.BufferAttribute(rainPos, 3));
   rainLines = new T.LineSegments(rg, new T.LineBasicMaterial({ color: 0xd6ebff, transparent: true, opacity: 0, depthWrite: false })); rainLines.frustumCulled = false; rainLines.visible = false; scene.add(rainLines);
-  cloudMat = new T.MeshLambertMaterial({ color: 0x9aa3b5, transparent: true, opacity: 0, depthWrite: false });
+  cloudMat = softMat({ color: 0x9aa3b5, transparent: true, opacity: 0, depthWrite: false });
   for (let i = 0; i < 18; i++) {
     const cb = new Builder(); for (let k = 0; k < rint(4, 6); k++) cb.sph(rnd(4, 7), 0xffffff, k * 4.5 + rnd(-1, 1), rnd(-0.6, 0.8), rnd(-2.5, 2.5), { sy: 0.45 });
     const m = new T.Mesh(cb.geo(), cloudMat); m.position.set(rnd(-110, 110), rnd(24, 32), rnd(-110, 90)); m.userData.v = rnd(0.8, 1.6); m.renderOrder = 1; scene.add(m); clouds.push(m);

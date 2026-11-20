@@ -218,3 +218,48 @@ table.fin.team .meter{min-width:64px}
 #dev .devbody button[aria-pressed="true"]{background:var(--bulb);color:var(--ink);border-color:var(--bulb-deep)}
 #hud.immersive #dev,#mid.sheet #dev{display:none}
 @media (max-width:760px){ #dev{top:auto;bottom:52px;max-height:none;overflow:visible;width:auto;left:var(--gl)} #dev .devbody button{padding:4px 7px} }
+
+/* seven tabs */
+#tabs{grid-template-columns:repeat(7,minmax(0,1fr));max-width:860px}
+@media (max-width:420px){ #tabs{gap:1px} #tabs button{font-size:10.5px;padding-inline:0} #tabs button svg{width:22px;height:22px} }
+
+/* the hand: a fist that knocks on sleeping guards, an open hand that closes around a thief */
+#hand[data-mode="knock"] .open{display:none}
+#hand[data-mode="knock"] .fist{display:inline}
+#hand[data-mode="knock"] svg{transform:rotate(-10deg)}
+#hand[data-mode="knock"].press svg{animation:knock .36s ease-out}
+@keyframes knock{0%,48%,100%{transform:translateY(0) rotate(-10deg)}22%{transform:translateY(12px) rotate(-10deg) scale(.9)}72%{transform:translateY(10px) rotate(-10deg) scale(.92)}}
+
+/* a guard holds a thief: this banner stays until the thief is thrown out */
+#alert{position:absolute;left:50%;top:6px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;width:max-content;max-width:calc(100% - var(--gl) - var(--gr));padding:6px 14px 6px 8px;border:3px solid var(--bulb);border-radius:999px;background:var(--candy);color:var(--paper);font:800 13px/1.2 var(--font-ui);text-align:left;cursor:pointer;box-shadow:0 4px 0 var(--drop);z-index:4;animation:alarm .7s ease-in-out infinite alternate}
+#alert[hidden]{display:none}
+#alert svg{width:30px;height:30px;flex:none}
+#alert b{display:block;font:400 14px/1.15 var(--font-display);color:var(--bulb);letter-spacing:.02em}
+#alert .n{flex:none;min-width:40px;text-align:right;font:400 17px/1 var(--font-display);font-variant-numeric:tabular-nums}
+@keyframes alarm{from{box-shadow:0 4px 0 var(--drop),0 0 0 0 rgba(255,210,63,.8)}to{box-shadow:0 4px 0 var(--drop),0 0 0 10px rgba(255,210,63,0)}}
+#mid.alerting #toasts{top:62px}
+#hud.immersive #alert{top:60px}
+#hud.immersive #mid.alerting #toasts{top:116px}
+
+/* info boxes fold down to a small tab, so they do not cover the park */
+.fold-h{display:flex;align-items:center;gap:8px;width:100%;border:0;background:none;padding:0;margin:0;cursor:pointer;color:inherit;font:inherit;text-align:left}
+.fold-h svg{width:18px;height:18px;flex:none;margin-left:auto;transition:transform .15s}
+.min>.fold-h svg{transform:rotate(-90deg)}
+.min>.fold-b{display:none}
+#coach .fold-h h1{margin:0}
+#coach .fold-b{margin-top:8px}
+#coach.min{width:auto;padding:6px 10px 6px 12px;border-radius:999px;box-shadow:0 3px 0 var(--drop)}
+#coach.min h1{font-size:12.5px}
+#dev{padding:6px 10px 8px}
+#dev .devhead{display:flex;align-items:center;gap:8px;width:100%;padding:2px 0}
+#dev .devhead svg{width:16px;height:16px;margin-left:auto;transition:transform .15s}
+#dev.min{width:auto;padding:5px 10px;border-radius:999px;overflow:visible}
+#dev.min .devhead svg{transform:rotate(-90deg)}
+#panel .fx{right:50px}
+#panel h2{margin-right:78px}
+#panel.min>:not(h2):not(.x){display:none}
+#panel.min h2{margin-bottom:0}
+#panel.min .fx svg{transform:rotate(-90deg)}
+@media (prefers-reduced-motion:reduce){ #alert{animation:none} #hand[data-mode="knock"].press svg{animation:none} .fold-h svg,#dev .devhead svg{transition:none} }
+@media (max-width:760px){ #dev.min{left:auto} }
+#dev:not(.min){z-index:3}

@@ -8,14 +8,14 @@ const LAMP_FIXED = [[wX(HALF) - 1.05, HALF + 0.08], [wX(HALF) + 1.05, HALF + 0.0
 // Only a handful of real lights exist. Every few frames they move to the lanterns nearest to the view.
 function updateLampLights() {
   if (night < 0.05) { for (const l of lampLights) l.intensity = 0; return; }
-  if (--lampTick > 0) { for (const l of lampLights) if (l.userData.on) l.intensity = night * 1.1; return; }
+  if (--lampTick > 0) { for (const l of lampLights) if (l.userData.on) l.intensity = night * 0.5; return; }
   lampTick = 12;
   const c = LAMP_FIXED.map((p) => [p[0], p[1], 0]);
   for (const d of decos) if (d.k === 'lamp') c.push([d.group.position.x, d.group.position.z, 0]);
   for (const b of builds) if (b.def.guards || b.def.housing) c.push([b.group.position.x, b.group.position.z, 0]);
   for (const p of c) p[2] = (p[0] - cam.tx) * (p[0] - cam.tx) + (p[1] - cam.tz) * (p[1] - cam.tz);
   c.sort((a, b) => a[2] - b[2]);
-  lampLights.forEach((l, i) => { const p = c[i]; l.userData.on = !!p; if (p) { l.position.set(p[0], 1.6, p[1]); l.intensity = night * 1.1; } else l.intensity = 0; });
+  lampLights.forEach((l, i) => { const p = c[i]; l.userData.on = !!p; if (p) { l.position.set(p[0], 1.6, p[1]); l.intensity = night * 0.5; } else l.intensity = 0; });
 }
 function buildWorldExtras() {
   waterTex = canvasTex(256, 256, (c, w) => {
@@ -68,7 +68,7 @@ function buildWorldExtras() {
     const sb = new Builder(), c = pick([K.red, K.blue, K.yel, K.mint]);
     sb.box(0.7, 0.3, 2.0, K.paper, 0, 0.05, 0); sb.box(0.5, 0.3, 0.5, K.paper, 0, 0.05, 1.1, { ry: Math.PI / 4 }); sb.box(0.74, 0.08, 2.04, c, 0, 0.2, 0);
     sb.cyl(0.03, 0.03, 2.6, K.woodD, 0, 1.5, 0.1, { seg: 5 }); sb.cone(0.9, 2.2, 0xffffff, 0, 1.6, -0.35, { seg: 3, sx: 0.08 }); sb.cone(0.6, 1.5, c, 0, 1.3, 0.6, { seg: 3, sx: 0.08 });
-    const m = sb.mesh(false); m.userData = { r: rnd(48, 85), a: rnd(TAU), sp: rnd(0.012, 0.03) * (i % 2 ? 1 : -1), ph: rnd(TAU) };
+    const m = sb.mesh(false); m.userData = { r: rnd(HALF * 1.45 + 22, HALF * 1.45 + 60), a: rnd(TAU), sp: rnd(0.012, 0.03) * (i % 2 ? 1 : -1), ph: rnd(TAU) };
     scene.add(m); sails.push(m);
   }
   // hot-air balloon
@@ -86,10 +86,10 @@ function buildWorldExtras() {
   starMat = new T.PointsMaterial({ color: 0xffffff, size: 2.2, sizeAttenuation: false, transparent: true, opacity: 0, fog: false, depthWrite: false });
   const stars = new T.Points(sg, starMat); stars.frustumCulled = false; scene.add(stars);
   // grass tufts and wild flowers, one instance per decorated tile
-  const tb = new Builder(); for (const [x, z, h] of [[0, 0, 0.16], [0.07, 0.04, 0.12], [-0.06, 0.05, 0.11], [0.02, -0.07, 0.13]]) tb.cone(0.035, h, 0xffffff, x, h / 2, z, { seg: 4 });
-  iTuft = inst(tb.geo(), new T.MeshLambertMaterial({ vertexColors: true }), 800, false);
-  const fb = new Builder(); fb.cyl(0.008, 0.008, 0.14, 0x4f9a3a, 0, 0.07, 0, { seg: 3 }); fb.sph(0.04, 0xffffff, 0, 0.16, 0, { seg: 6, seg2: 4 }); fb.sph(0.018, 0xffe066, 0, 0.185, 0, { seg: 4, seg2: 3 });
-  iBloom = inst(fb.geo(), new T.MeshLambertMaterial({ vertexColors: true }), 400, false);
+  const tb = new Builder(); for (const [x, z, h] of [[0, 0, 0.16], [0.07, 0.04, 0.12], [-0.06, 0.05, 0.11], [0.02, -0.07, 0.13]]) tb.cone(0.035, h, 0xffffff, x, h / 2, z, { seg: 3 });
+  iTuft = inst(tb.geo(), softMat({ vertexColors: true }, 0), 1500, false);
+  const fb = new Builder(); fb.cyl(0.008, 0.008, 0.14, 0x4f9a3a, 0, 0.07, 0, { seg: 3 }); fb.sph(0.04, 0xffffff, 0, 0.16, 0, { seg: 5, seg2: 3 }); fb.sph(0.018, 0xffe066, 0, 0.185, 0, { seg: 4, seg2: 2 });
+  iBloom = inst(fb.geo(), softMat({ vertexColors: true }, 0), 700, false);
 }
 const TUFT_COL = [0x58ad46, 0x4c9f3f, 0x6cbf52, 0x7ac85a], BLOOM_COL = [0xffffff, 0xff8fc7, 0xffd23f, 0xb79cff, 0xff6b6b, 0x9fd8ff];
 function rebuildTufts() {
@@ -97,8 +97,8 @@ function rebuildTufts() {
   for (let i = 0; i < N * N; i++) {
     if (tType[i] !== 0) continue;
     const h = ((i * 7919) % 1013) / 1013, h2 = ((i * 104729) % 997) / 997, x = wX(tX(i)) + (h2 - 0.5) * 0.7, z = wZ(tY(i)) + (h - 0.5) * 0.7;
-    if (h < 0.3 && n < 800) { _gq.setFromAxisAngle(UP, h * 40); _gs.setScalar(0.8 + h2 * 0.7); iTuft.setMatrixAt(n, _gm.compose(_gp.set(x, 0, z), _gq, _gs)); iTuft.setColorAt(n, _gc.set(TUFT_COL[i % 4])); n++; }
-    else if (h > 0.9 && m < 400) { _gq.setFromAxisAngle(UP, h2 * 6); _gs.setScalar(0.8 + h2 * 0.6); iBloom.setMatrixAt(m, _gm.compose(_gp.set(x, 0, z), _gq, _gs)); iBloom.setColorAt(m, _gc.set(BLOOM_COL[i % 6])); m++; }
+    if (h < 0.26 && n < 1500) { _gq.setFromAxisAngle(UP, h * 40); _gs.setScalar(0.8 + h2 * 0.7); iTuft.setMatrixAt(n, _gm.compose(_gp.set(x, 0, z), _gq, _gs)); iTuft.setColorAt(n, _gc.set(TUFT_COL[i % 4])); n++; }
+    else if (h > 0.9 && m < 700) { _gq.setFromAxisAngle(UP, h2 * 6); _gs.setScalar(0.8 + h2 * 0.6); iBloom.setMatrixAt(m, _gm.compose(_gp.set(x, 0, z), _gq, _gs)); iBloom.setColorAt(m, _gc.set(BLOOM_COL[i % 6])); m++; }
   }
   iTuft.count = n; iBloom.count = m;
   iTuft.instanceMatrix.needsUpdate = iBloom.instanceMatrix.needsUpdate = iTuft.instanceColor.needsUpdate = iBloom.instanceColor.needsUpdate = true;
@@ -116,7 +116,7 @@ function updateWorldExtras(rdt) {
     const f = Math.sin(t * 7 + u.ph) * 0.55; u.wl.rotation.z = f; u.wr.rotation.z = -f;
   }
   for (const m of sails) { const u = m.userData; u.a += u.sp * rdt; m.position.set(Math.cos(u.a) * u.r, -0.42 + Math.sin(t * 1.2 + u.ph) * 0.05, Math.sin(u.a) * u.r); m.rotation.y = -u.a + (u.sp > 0 ? 0 : Math.PI); m.rotation.z = Math.sin(t * 0.9 + u.ph) * 0.05; }
-  const h = hotAir.userData; h.a += rdt * 0.02; hotAir.position.set(Math.cos(h.a) * 38, 19 + Math.sin(t * 0.3) * 1.5, Math.sin(h.a * 1.3) * 34);
+  const h = hotAir.userData; h.a += rdt * 0.02; hotAir.position.set(Math.cos(h.a) * (HALF + 16), 21 + Math.sin(t * 0.3) * 1.5, Math.sin(h.a * 1.3) * (HALF + 12));
   beam.rotation.y = t * 0.7; beamMat.opacity = night * 0.22;
   starMat.opacity = night * 0.9;
   sunDisc.position.copy(camera.position).addScaledVector(sunDir, 400); sunDisc.lookAt(camera.position); sunDisc.material.opacity = 1 - night;

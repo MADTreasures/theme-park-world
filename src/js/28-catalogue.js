@@ -26,10 +26,12 @@ def('ice', { cat: 'shop', sells: 'treat', name: 'Eisdiele', cost: 260, price: 2.
 def('balloon', { cat: 'shop', sells: 'balloon', name: 'Ballonstand', cost: 240, price: 3.5, fair: 3.8, goods: 0.7, upkeep: 16, svc: 1.0, need: 3, model: () => mShop('balloon'), info: 'Ballons heben die Laune sichtbar.' });
 def('throw', { cat: 'shop', sells: 'game', name: 'Wurfbude', cost: 280, price: 2.5, fair: 2.8, goods: 0.4, upkeep: 16, svc: 1.6, need: 1, model: () => mShop('throw'), info: 'Dosenwerfen macht Laune. Du kannst hier selbst mitspielen.' });
 def('burger', { cat: 'shop', sells: 'food', name: 'Burgerbude', cost: 340, price: 4.5, fair: 4.8, goods: 1.6, upkeep: 24, svc: 1.5, need: 4, model: () => mShop('burger'), info: 'Macht richtig satt und bringt mehr ein.' });
-def('tree', { cat: 'deco', name: 'Laubbaum', cost: 15, beauty: 1, rad: 2, model: deco1(addTree) });
-def('pine', { cat: 'deco', name: 'Tanne', cost: 15, beauty: 1, rad: 2, model: deco1(addPine) });
-def('palm', { cat: 'deco', name: 'Palme', cost: 25, beauty: 1.2, rad: 2, model: deco1(addPalm) });
-def('flowers', { cat: 'deco', name: 'Blumenbeet', cost: 20, beauty: 1.6, rad: 2, model: deco1(addFlowers) });
+// plants: "cut" is what a gardener charges to remove one
+def('tree', { cat: 'deco', name: 'Laubbaum', cost: 15, beauty: 1, rad: 2, plant: true, cut: 20, model: deco1(addTree) });
+def('pine', { cat: 'deco', name: 'Tanne', cost: 15, beauty: 1, rad: 2, plant: true, cut: 20, model: deco1(addPine) });
+def('palm', { cat: 'deco', name: 'Palme', cost: 25, beauty: 1.2, rad: 2, plant: true, cut: 25, model: deco1(addPalm) });
+def('bush', { cat: 'deco', name: 'Busch', cost: 12, beauty: 0.8, rad: 1, plant: true, cut: 10, model: deco1(addBush) });
+def('flowers', { cat: 'deco', name: 'Blumenbeet', cost: 20, beauty: 1.6, rad: 2, plant: true, cut: 8, model: deco1(addFlowers) });
 def('bench', { cat: 'deco', name: 'Parkbank', cost: 25, beauty: 0.6, rad: 1, model: deco1(addBench) });
 def('bin', { cat: 'deco', name: 'Abfalleimer', cost: 15, beauty: 0, rad: 0, bin: true, model: deco1(addBin), info: 'Gäste im Umkreis von 3 Feldern werfen nichts mehr auf den Weg.' });
 def('lamp', { cat: 'deco', name: 'Laterne', cost: 30, beauty: 0.8, rad: 2, model: mLamp });
@@ -40,6 +42,7 @@ def('post', { cat: 'fac', name: 'Wachposten', w: 1, h: 1, cost: 250, upkeep: 12,
 const STAFF = {
   jan: { name: 'Reinigungskraft', wage: 60, hire: 50, info: 'Sammelt Abfall von den Wegen.' },
   mech: { name: 'Mechaniker', wage: 100, hire: 80, info: 'Repariert defekte Attraktionen und beugt Pannen vor.' },
+  gard: { name: 'Gärtner', wage: 65, hire: 60, info: 'Entfernt Bäume, Büsche und Blumen, die du mit «Abriss» markierst. Jede Pflanze kostet eine Gebühr. Sonst pflegt er das Grün.' },
   ent: { name: 'Maskottchen', wage: 80, hire: 60, info: 'Hebt die Laune aller Gäste in der Nähe.' },
   clown: { name: 'Clown', wage: 70, hire: 60, need: 2, info: 'Geht zur längsten Schlange und unterhält die Wartenden. Sie bleiben länger geduldig.' },
   jug: { name: 'Jongleur', wage: 75, hire: 70, need: 3, info: 'Zeigt Kunststücke. Zuschauer freuen sich und geben Trinkgeld.' },

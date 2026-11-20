@@ -177,7 +177,7 @@ function mDunk() {
   plank.add(pb.mesh());
   const seats = [seatAt(plank, 0, 0.03, 0.02)];
   for (const x of [-0.5, 0, 0.5]) { const s = seatAt(g, x, 0.06, 1.05, Math.PI); s.userData.pose = 'throw'; seats.push(s); }
-  const ballGeo = new T.SphereGeometry(0.05, 7, 5), ballMat = new T.MeshLambertMaterial({ color: K.yel }), balls = [];
+  const ballGeo = new T.SphereGeometry(0.05, 7, 5), ballMat = softMat({ color: K.yel }), balls = [];
   for (let i = 0; i < 3; i++) { const m = new T.Mesh(ballGeo, ballMat); m.visible = false; g.add(m); balls.push(m); }
   const dropMat = new T.MeshBasicMaterial({ color: 0xe9f8ff }), dropGeo = new T.SphereGeometry(0.07, 6, 4), drops = [];
   for (let i = 0; i < 8; i++) { const m = new T.Mesh(dropGeo, dropMat); m.userData.a = i / 8 * TAU; m.scale.setScalar(0.001); m.position.set(0, 0.8, TZ); g.add(m); drops.push(m); }

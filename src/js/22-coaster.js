@@ -26,11 +26,11 @@ function analyseTrack(x, y, rot, nodes) {
   if (len > 150) err = 'Die Strecke ist zu lang.';
   for (let i = 0; i < Kn && !err; i++) {
     const p = P[i], px = Math.floor(p.x + HALF), py = Math.floor(p.z + HALF);
-    if (!inB(px, py)) { err = 'Die Strecke verlässt das Parkgelände.'; break; }
+    if (!ownedAt(px, py)) { err = 'Die Strecke verlässt dein Land.'; break; }
     if (p.y < 0.3) { err = 'Die Strecke taucht in den Boden ein. Setze die Punkte dort höher.'; break; }
     if (px >= x && px < x + w && py >= y && py < y + h) continue;
     const t = idx(px, py), tt = tType[t];
-    if (p.y < 1.25) { if (tt === 0 || (tt === 3 && tObj[t].nat)) low.add(t); else err = tt === 1 ? 'Über Wegen muss die Strecke höher liegen (ab 7,5 m).' : 'Hier steht etwas im Weg.'; }
+    if (p.y < 1.25) { if (tt === 0) low.add(t); else err = tt === 1 ? 'Über Wegen muss die Strecke höher liegen (ab 7,5 m).' : tt === 3 && tObj[t].def.plant ? 'Unter der Strecke stehen noch Pflanzen. Lass sie roden oder führe die Strecke höher.' : 'Hier steht etwas im Weg.'; }
     else if (tt === 2) err = 'Die Strecke führt über ein Gebäude.';
   }
   for (let i = 0; i < Kn && !err; i++) for (let j = i + 10; j < Kn; j++) {

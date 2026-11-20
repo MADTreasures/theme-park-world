@@ -5,7 +5,7 @@ if (!window.THREE) { $('#nogl').hidden = false; return; }
 const T = window.THREE;
 
 /* ================= helpers ================= */
-const N = 40, HALF = N / 2, STEP = 1 / 30, DAY = 240, MAXG = 340;
+const N = 60, HALF = N / 2, STEP = 1 / 30, DAY = 240, MAXG = 340;
 const rnd = (a = 1, b) => (b === undefined ? Math.random() * a : a + Math.random() * (b - a));
 const rint = (a, b) => Math.floor(rnd(a, b + 1));
 const pick = (a) => a[(Math.random() * a.length) | 0];
@@ -31,12 +31,12 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = T.PCFSoftShadowMap;
 const maxAniso = renderer.capabilities.getMaxAnisotropy();
-const scene = new T.Scene();
+const scene = new T.Scene(), overlay = new T.Scene();   // overlay: bubbles and markers, drawn on top of the inked picture
 scene.background = new T.Color(0x8fd3ff);
 scene.fog = new T.Fog(0x8fd3ff, 70, 210);
 const camera = new T.PerspectiveCamera(36, 1, 0.5, 600);
-const hemi = new T.HemisphereLight(0xe6f6ff, 0x70905c, 0.62);
-const sun = new T.DirectionalLight(0xfff0d2, 0.74);
+const hemi = new T.HemisphereLight(0xeaf6ff, 0x8fae78, 0.6);
+const sun = new T.DirectionalLight(0xfff2dc, 0.45);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
 sun.shadow.bias = -0.0004;
@@ -45,10 +45,36 @@ sun.shadow.camera.near = 1; sun.shadow.camera.far = 170;
 scene.add(hemi, sun, sun.target);
 const sunDir = new T.Vector3(0.4, 0.8, 0.4);
 
-const MAT = new T.MeshLambertMaterial({ vertexColors: true });
+// Soft toy shading. Light wraps gently around every shape instead of stopping at a hard edge, the shaded side stays
+// bright and leans towards violet, silhouettes catch a rim of sky light and glossy things get a soft highlight.
+const RAMP = (() => {
+  const n = 64, d = new Uint8Array(n * 4);
+  for (let i = 0; i < n; i++) { const k = smooth(0.3, 0.84, i / (n - 1)); d.set([lerp(132, 255, k), lerp(126, 255, k), lerp(170, 255, k), 255], i * 4); }   // i / (n - 1) = (N·L + 1) / 2
+  const t = new T.DataTexture(d, n, 1, T.RGBAFormat); t.minFilter = t.magFilter = T.LinearFilter; t.generateMipmaps = false; t.needsUpdate = true; return t;
+})();
+const SKYLIGHT = { value: new T.Color(0xffffff) };   // colour of the rim light, follows the sky
+function softHook(shader) {
+  shader.uniforms.rimCol = SKYLIGHT; shader.uniforms.rimK = { value: this.userData.rim }; shader.uniforms.glossK = { value: this.userData.gloss };
+  shader.fragmentShader = shader.fragmentShader.replace('void main() {', 'uniform vec3 rimCol;\nuniform float rimK;\nuniform float glossK;\nvoid main() {')
+    .replace('vec3 outgoingLight = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse + totalEmissiveRadiance;', [
+      'vec3 outgoingLight = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse + totalEmissiveRadiance;',
+      'vec3 softV = normalize( vViewPosition );',
+      'float softR = 1.0 - saturate( dot( softV, normal ) );',
+      'outgoingLight += ( diffuseColor.rgb * 0.65 + 0.35 ) * rimCol * ( softR * softR * softR * rimK );',
+      '#if NUM_DIR_LIGHTS > 0',
+      'outgoingLight += directionalLights[ 0 ].color * ( pow( saturate( dot( normal, normalize( directionalLights[ 0 ].direction + softV ) ) ), 34.0 ) * glossK );',
+      '#endif'].join('\n'));
+}
+function softMat(o, rim, gloss) {
+  const m = new T.MeshToonMaterial(Object.assign({ gradientMap: RAMP }, o));
+  m.userData.rim = rim === undefined ? 0.3 : rim; m.userData.gloss = gloss || 0; m.onBeforeCompile = softHook; return m;
+}
+// Ground, water and paths fill most of the screen and are flat, so they get the cheap per-corner lighting, a touch brighter.
+const flatMat = (o) => { const m = new T.MeshLambertMaterial(o); m.color.setRGB(1.12, 1.12, 1.12); return m; };
+const MAT = softMat({ vertexColors: true }, 0.3, 0.07);
 const MAT_GLOW = new T.MeshBasicMaterial({ vertexColors: true });
-const MAT_GHOST = new T.MeshLambertMaterial({ vertexColors: true, transparent: true, opacity: 0.7 });
-const MAT_INST = () => new T.MeshLambertMaterial({ vertexColors: true });
+const MAT_GHOST = softMat({ vertexColors: true, transparent: true, opacity: 0.7 });
+const MAT_INST = (rim, gloss) => softMat({ vertexColors: true }, rim, gloss);
 
 function canvasTex(w, h, draw) {
   const c = document.createElement('canvas'); c.width = w; c.height = h;
@@ -63,6 +89,32 @@ function geoFrom(p, n, c) {
   g.setAttribute('position', new T.Float32BufferAttribute(p, 3));
   g.setAttribute('normal', new T.Float32BufferAttribute(n, 3));
   g.setAttribute('color', new T.Float32BufferAttribute(c, 3));
+  return g;
+}
+// A box with bevelled edges and corners. Every corner of a face keeps the face's normal, so the bevels shade like a
+// rounded edge while the faces stay flat: blocks look like moulded toy parts instead of cut cardboard.
+function softBox(w, h, d, r) {
+  const half = [w / 2, h / 2, d / 2], pos = [], nor = [], ind = [], P = [];
+  const v = (a, sg, s1, s2) => (a * 2 + (sg > 0 ? 1 : 0)) * 4 + (s1 > 0 ? 1 : 0) + (s2 > 0 ? 2 : 0);
+  for (let a = 0; a < 3; a++) for (const sg of [-1, 1]) for (const s2 of [-1, 1]) for (const s1 of [-1, 1]) {
+    const b = (a + 1) % 3, c = (a + 2) % 3, p = [0, 0, 0], n = [0, 0, 0];
+    p[a] = sg * half[a]; p[b] = s1 * (half[b] - r); p[c] = s2 * (half[c] - r); n[a] = sg;
+    pos.push(p[0], p[1], p[2]); nor.push(n[0], n[1], n[2]); P.push(p);
+  }
+  // adds a triangle so that it faces away from the centre, whatever order the corners come in
+  const tri = (i, j, k, out) => {
+    const A = P[i], B = P[j], C = P[k], ux = B[0] - A[0], uy = B[1] - A[1], uz = B[2] - A[2], vx = C[0] - A[0], vy = C[1] - A[1], vz = C[2] - A[2];
+    if ((uy * vz - uz * vy) * out[0] + (uz * vx - ux * vz) * out[1] + (ux * vy - uy * vx) * out[2] >= 0) ind.push(i, j, k); else ind.push(i, k, j);
+  };
+  for (let a = 0; a < 3; a++) for (const sg of [-1, 1]) { const o = [0, 0, 0]; o[a] = sg; tri(v(a, sg, -1, -1), v(a, sg, 1, -1), v(a, sg, 1, 1), o); tri(v(a, sg, -1, -1), v(a, sg, 1, 1), v(a, sg, -1, 1), o); }
+  for (let e = 0; e < 3; e++) for (const sb of [-1, 1]) for (const sc of [-1, 1]) {
+    const b = (e + 1) % 3, c = (e + 2) % 3, o = [0, 0, 0]; o[b] = sb; o[c] = sc;
+    const a0 = v(b, sb, sc, -1), a1 = v(b, sb, sc, 1), b0 = v(c, sc, -1, sb), b1 = v(c, sc, 1, sb);
+    tri(a0, a1, b1, o); tri(a0, b1, b0, o);
+  }
+  for (const sx of [-1, 1]) for (const sy of [-1, 1]) for (const sz of [-1, 1]) tri(v(0, sx, sy, sz), v(1, sy, sz, sx), v(2, sz, sx, sy), [sx, sy, sz]);
+  const g = new T.BufferGeometry();
+  g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new T.Float32BufferAttribute(nor, 3)); g.setIndex(ind);
   return g;
 }
 class Builder {
@@ -86,7 +138,8 @@ class Builder {
     geo.dispose();
     return this;
   }
-  box(w, h, d, c, x, y, z, o) { return this.add(new T.BoxGeometry(w, h, d), c, x, y, z, o); }
+  // boxes that are thick enough get soft edges; thin plates, rails and posts stay crisp
+  box(w, h, d, c, x, y, z, o) { const m = Math.min(w, h, d); return this.add(m >= 0.1 && !(o && o.glow) ? softBox(w, h, d, Math.min(0.045, m * 0.2)) : new T.BoxGeometry(w, h, d), c, x, y, z, o); }
   cyl(rt, rb, h, c, x, y, z, o) { return this.add(new T.CylinderGeometry(rt, rb, h, (o && o.seg) || 10), c, x, y, z, o); }
   cone(r, h, c, x, y, z, o) { return this.add(new T.ConeGeometry(r, h, (o && o.seg) || 10), c, x, y, z, o); }
   sph(r, c, x, y, z, o) { return this.add(new T.SphereGeometry(r, (o && o.seg) || 10, (o && o.seg2) || 7), c, x, y, z, o); }
@@ -109,11 +162,13 @@ const K = { red: 0xff4f64, redD: 0xb9243a, yel: 0xffd23f, blue: 0x3d8bfd, mint: 
 const GREENS = [0x4caf50, 0x62b955, 0x3d9a45, 0x7cc65a];
 
 /* ================= textures ================= */
-const groundTex = canvasTex(1024, 1024, (c, w) => {
-  const s = w / N;
-  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { c.fillStyle = (x + y) % 2 ? '#6cc24d' : '#64b946'; c.fillRect(x * s, y * s, s + 1, s + 1); }
-  for (let i = 0; i < 9000; i++) { c.fillStyle = Math.random() < 0.5 ? 'rgba(240,255,150,.10)' : 'rgba(20,90,30,.10)'; c.fillRect(rnd(w), rnd(w), rnd(2, 5), rnd(2, 5)); }
+// four by four tiles of lawn, repeated over the whole island
+const groundTex = canvasTex(256, 256, (c, w) => {
+  const s = w / 4;
+  for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) { c.fillStyle = (x + y) % 2 ? '#7fcb62' : '#77c45a'; c.fillRect(x * s, y * s, s, s); }
+  for (let i = 0; i < 600; i++) { c.fillStyle = Math.random() < 0.5 ? 'rgba(240,255,150,.10)' : 'rgba(20,90,30,.10)'; c.fillRect(rnd(w - 6), rnd(w - 6), rnd(2, 5), rnd(2, 5)); }
 });
+groundTex.wrapS = groundTex.wrapT = T.RepeatWrapping; groundTex.repeat.set(N / 4, N / 4);
 const pathTex = canvasTex(128, 128, (c, w) => {
   c.fillStyle = '#ead7a6'; c.fillRect(0, 0, w, w);
   for (let i = 0; i < 260; i++) { c.fillStyle = Math.random() < 0.5 ? 'rgba(255,255,255,.14)' : 'rgba(120,90,40,.10)'; c.fillRect(rnd(w), rnd(w), rnd(2, 6), rnd(2, 6)); }
@@ -145,9 +200,9 @@ if (document.fonts && document.fonts.load) {
 function addTree(b, x, z, s = 1) {
   const h = rnd(0.9, 1.25) * s, ry = rnd(TAU);
   b.cyl(0.05 * s, 0.085 * s, 0.55 * h, 0x8a5a3a, x, 0.27 * h, z, { seg: 6 });
-  b.ico(0.38 * s, pick(GREENS), x, 0.55 * h + 0.26 * s, z, { ry });
-  b.ico(0.27 * s, pick(GREENS), x + 0.17 * s, 0.55 * h + 0.5 * s, z + 0.08 * s, { ry: ry + 1 });
-  b.ico(0.25 * s, pick(GREENS), x - 0.16 * s, 0.55 * h + 0.44 * s, z - 0.12 * s, { ry: ry + 2 });
+  b.sph(0.4 * s, pick(GREENS), x, 0.55 * h + 0.26 * s, z, { ry, seg: 10, seg2: 6, sy: 0.9 });
+  b.sph(0.28 * s, pick(GREENS), x + 0.19 * s, 0.55 * h + 0.5 * s, z + 0.08 * s, { ry: ry + 1, seg: 8, seg2: 5 });
+  b.sph(0.26 * s, pick(GREENS), x - 0.18 * s, 0.55 * h + 0.44 * s, z - 0.12 * s, { ry: ry + 2, seg: 8, seg2: 5 });
 }
 function addPine(b, x, z, s = 1) {
   const h = rnd(0.9, 1.2) * s;
@@ -165,15 +220,15 @@ function addPalm(b, x, z, s = 1) {
     const a = i / 7 * TAU + lean, dr = 0.55, L = 0.62 * s;
     b.box(L, 0.02 * s, 0.17 * s, i % 2 ? 0x3fa650 : 0x55b85c, px + Math.cos(a) * L / 2 * Math.cos(dr), top - L / 2 * Math.sin(dr), pz + Math.sin(a) * L / 2 * Math.cos(dr), { ry: -a, rz: -dr });
   }
-  b.sph(0.06 * s, 0x6b4a2a, px + 0.06 * s, top - 0.08 * s, pz); b.sph(0.06 * s, 0x6b4a2a, px - 0.05 * s, top - 0.09 * s, pz + 0.05 * s);
+  b.sph(0.06 * s, 0x6b4a2a, px + 0.06 * s, top - 0.08 * s, pz, { seg: 6, seg2: 4 }); b.sph(0.06 * s, 0x6b4a2a, px - 0.05 * s, top - 0.09 * s, pz + 0.05 * s, { seg: 6, seg2: 4 });
 }
 function addFlowers(b, x, z) {
   b.box(0.84, 0.08, 0.84, 0x7a5236, x, 0.04, z);
   const cols = [K.red, K.yel, K.pink, 0xffffff, K.vio, K.ora];
-  for (let i = 0; i < 16; i++) {
+  for (let i = 0; i < 10; i++) {
     const fx = x + rnd(-0.33, 0.33), fz = z + rnd(-0.33, 0.33);
-    b.ico(0.075, pick(GREENS), fx, 0.11, fz);
-    b.sph(0.055, pick(cols), fx, 0.19, fz, { seg: 6, seg2: 4 });
+    b.sph(0.08, pick(GREENS), fx, 0.11, fz, { seg: 5, seg2: 3 });
+    b.sph(0.06, pick(cols), fx, 0.2, fz, { seg: 5, seg2: 3 });
   }
 }
 function addBench(b, x, z) {
@@ -187,7 +242,7 @@ function addLamp(b, x, z) {
   b.cyl(0.07, 0.09, 0.08, K.inkD, x, 0.04, z, { seg: 8 }); b.cyl(0.025, 0.035, 1.3, K.inkD, x, 0.7, z, { seg: 6 });
   b.cone(0.13, 0.1, K.inkD, x, 1.5, z, { seg: 8 }); b.sph(0.09, K.bulb, x, 1.4, z, { glow: true, seg: 8, seg2: 6 });
 }
-function addRock(b, x, z, s) { b.ico(s, pick([0xa9adbd, 0x979bb0, 0xbcc0cf]), x, s * 0.35, z, { ry: rnd(TAU), sy: 0.65, sx: rnd(0.9, 1.3) }); }
+function addRock(b, x, z, s) { b.sph(s, pick([0xa9adbd, 0x979bb0, 0xbcc0cf]), x, s * 0.3, z, { ry: rnd(TAU), sy: 0.62, sx: rnd(0.9, 1.3), seg: 7, seg2: 5 }); }
 
 /* ================= world ================= */
 let waterMat; const clouds = [];
@@ -195,22 +250,13 @@ function buildWorld() {
   waterMat = new T.MeshLambertMaterial({ color: 0x3aa9dc });
   const water = new T.Mesh(new T.PlaneGeometry(1200, 1200), waterMat);
   water.rotation.x = -Math.PI / 2; water.position.y = -0.45; scene.add(water);
-  const ground = new T.Mesh(new T.PlaneGeometry(N, N), new T.MeshLambertMaterial({ map: groundTex }));
+  const ground = new T.Mesh(new T.PlaneGeometry(N, N), flatMat({ map: groundTex }));
   ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
 
   const b = new Builder(), Q = Math.SQRT2, GX = wX(HALF), GZ = HALF + 0.08;
   b.cyl((HALF + 3.2) * Q, (HALF + 8.5) * Q, 1, K.sand, 0, -0.52, 0, { seg: 4, ry: Math.PI / 4 });
   b.box(N + 0.8, 0.4, N + 0.8, 0x4f9a3a, 0, -0.212, 0);
-  // fence
-  for (let i = 0; i <= N; i++) {
-    const p = -HALF + i;
-    b.box(0.07, 0.42, 0.07, K.paper, p, 0.21, -HALF); b.box(0.07, 0.42, 0.07, K.paper, -HALF, 0.21, p); b.box(0.07, 0.42, 0.07, K.paper, HALF, 0.21, p);
-    if (Math.abs(p - GX) > 1.2) b.box(0.07, 0.42, 0.07, K.paper, p, 0.21, HALF);
-  }
-  b.box(N, 0.05, 0.04, K.paper, 0, 0.33, -HALF); b.box(0.04, 0.05, N, K.paper, -HALF, 0.33, 0); b.box(0.04, 0.05, N, K.paper, HALF, 0.33, 0);
-  b.box(HALF + GX - 1.1, 0.05, 0.04, K.paper, (-HALF + GX - 1.1) / 2, 0.33, HALF);
-  b.box(HALF - GX - 1.1, 0.05, 0.04, K.paper, (HALF + GX + 1.1) / 2, 0.33, HALF);
-  // gate
+  // gate (the fence follows the land the park owns and is built in the land view)
   for (const sx of [-1.05, 1.05]) {
     for (let i = 0; i < 5; i++) b.box(0.36, 0.5, 0.36, i % 2 ? K.paper : K.red, GX + sx, 0.25 + i * 0.5, GZ);
     b.box(0.48, 0.08, 0.48, K.inkD, GX + sx, 2.54, GZ);

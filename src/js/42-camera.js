@@ -1,5 +1,5 @@
 /* ================= camera, sky ================= */
-const cam = { tx: 1.5, tz: 15, dist: 24, az: 0.62, el: 0.72, d: 24, a: 0.62, e: 0.72 };
+const cam = { tx: 1.5, tz: HALF - 5, dist: 24, az: 0.62, el: 0.72, d: 24, a: 0.62, e: 0.72 };
 const keys = {};
 function clampCam() { cam.tx = clamp(cam.tx, -HALF - 4, HALF + 4); cam.tz = clamp(cam.tz, -HALF - 4, HALF + 10); }
 function panPx(dx, dy) {
@@ -15,7 +15,7 @@ function updateCamera(dt) {
   camera.position.set(cam.tx + cam.d * Math.sin(cam.a) * ce, 0.4 + cam.d * Math.sin(cam.e), cam.tz + cam.d * Math.cos(cam.a) * ce);
   camera.lookAt(cam.tx, 0.4, cam.tz);
 }
-const H_DAY = new T.Color(0xe6f6ff), H_NIGHT = new T.Color(0x93a4ff);
+const H_DAY = new T.Color(0xeaf6ff), H_NIGHT = new T.Color(0x93a4ff);
 const C_DAY = new T.Color(0x8fd3ff), C_DUSK = new T.Color(0xffa877), C_NIGHT = new T.Color(0x10173a), cTmp = new T.Color();
 const SUN_DAY = new T.Color(0xfff0d2), SUN_DUSK = new T.Color(0xff9a5a), SUN_NIGHT = new T.Color(0x8fa6ff), W_DAY = new T.Color(0x3aa9dc), W_NIGHT = new T.Color(0x122a55);
 let night = 0, shExt = 0;
@@ -26,14 +26,15 @@ function updateSky() {
   night = nf;
   cTmp.copy(C_DAY).lerp(C_NIGHT, nf).lerp(C_DUSK, df * 0.55);
   scene.background.copy(cTmp); scene.fog.color.copy(cTmp);
-  hemi.intensity = lerp(0.62, 0.52, nf); hemi.color.copy(H_DAY).lerp(H_NIGHT, nf);
-  sun.intensity = lerp(0.74, 0.4, nf) * (1 - df * 0.2);
+  hemi.intensity = lerp(0.6, 0.5, nf); hemi.color.copy(H_DAY).lerp(H_NIGHT, nf);
+  sun.intensity = lerp(0.45, 0.3, nf) * (1 - df * 0.2);
   sun.color.copy(SUN_DAY).lerp(SUN_NIGHT, nf).lerp(SUN_DUSK, df * 0.6);
   const az = -1 + d * TAU, el = lerp(0.6 + 0.4 * Math.sin(Math.PI * clamp(d / 0.7, 0, 1)), 0.95, nf);
   sunDir.set(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el));
   sun.target.position.set(cam.tx, 0, cam.tz); sun.position.copy(sun.target.position).addScaledVector(sunDir, 80);
   waterMat.color.copy(W_DAY).lerp(W_NIGHT, nf);
   weatherSky();
+  SKYLIGHT.value.copy(hemi.color).multiplyScalar(hemi.intensity * 1.1);
   MAT_LAMP.opacity = nf * 0.8;
   const e = clamp(cam.d * 0.85, 14, 38);
   if (Math.abs(e - shExt) > 0.5) { shExt = e; const c = sun.shadow.camera; c.left = c.bottom = -e; c.right = c.top = e; c.updateProjectionMatrix(); }
@@ -41,6 +42,7 @@ function updateSky() {
 function resize() {
   const w = canvas.clientWidth || 1, h = canvas.clientHeight || 1;
   renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+  const pr = renderer.getPixelRatio(); lineSize(Math.floor(w * pr), Math.floor(h * pr), pr);
 }
 window.addEventListener('resize', resize);
 if (window.ResizeObserver) new ResizeObserver(resize).observe(canvas);
@@ -50,7 +52,7 @@ function makeThumbs() {
   ts.add(new T.HemisphereLight(0xffffff, 0x9aa0c0, 0.72));
   const dl = new T.DirectionalLight(0xffffff, 0.6); dl.position.set(3, 6, 4); ts.add(dl);
   const tc = new T.PerspectiveCamera(28, 1, 0.1, 300), box = new T.Box3(), sph = new T.Sphere();
-  renderer.setSize(120, 120, false);
+  const pr0 = renderer.getPixelRatio(); renderer.setPixelRatio(1); renderer.setSize(128, 128, false);
   const shoot = (group) => {
     group.traverse((o) => { if (o.material === MAT_LAMP) o.visible = false; });
     for (const c of group.children.slice()) if (c.material === MAT_LAMP) group.remove(c);
@@ -64,5 +66,6 @@ function makeThumbs() {
   };
   for (const k in DEFS) DEFS[k].thumb = shoot(DEFS[k].model().group);
   for (const k in STAFF) STAFF[k].thumb = shoot(staffStatue(k));
+  renderer.setPixelRatio(pr0);
 }
 

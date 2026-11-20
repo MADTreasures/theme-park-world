@@ -1,5 +1,5 @@
 /* ================= thieves and guards ================= */
-// From park level 5 on, pickpockets slip in with the crowd: dark clothes, cap, shades and a sack.
+// From park level 5 on, pickpockets slip in with the crowd: dark clothes, cap, a mask over the eyes and a sack.
 // Guards share one level. At first they doze at their post and the player wakes them by tapping; later they patrol on
 // their own, see further and run faster. A guard who reaches a thief only has a chance to grab him, and every extra guard
 // raises it. A grabbed thief is held with his hands up until the player throws him out with the hand (or the guard does).
@@ -23,9 +23,9 @@ function spawnThief() {
   const f = { thief: true, x: wX(HALF) + rnd(-0.5, 0.5), z: HALF + 13.6, rot: Math.PI, rr: Math.PI, tile: ENT, prev: -1, wx: 0, wz: 0, ox: rnd(-0.3, 0.3), oz: rnd(-0.3, 0.3),
     sp: 1.25, ph: rnd(TAU), moving: false, state: 'in', loot: 0, steals: 0, t: 0, cd: rnd(5, 9), spotted: false, gone: false, brave: 0, balloon: 0, slipT: 0, holder: null, heldT: 0, fy: 0, tum: 0, ft: 0, fails: 0, runAt: 0, calm: 0 };
   dress(f, false);
-  f.shirt = 0x2b2b33; f.pants = 0x1c1c22; f.hair = 3; f.hairCol = 0x111114; f.top = 2; f.bottom = 0; f.shades = 1; f.pack = 0x6b4a2a;
+  f.shirt = 0x2b2b33; f.pants = 0x1c1c22; f.hair = 3; f.hairCol = f.browCol = 0x111114; f.top = 2; f.bottom = 0; f.shades = 0; f.pack = 0x6b4a2a; f.trim = 0x4a4a55; f.shoe = 0x1c1c22;
   setWP(f, ENT); thieves.push(f); colorsDirty = true; sfx('thief');
-  if (!thiefSeen) { thiefSeen = true; toast('Achtung, Taschendiebe! Dunkle Kleidung, Mütze, Sack. Wecke deine Wachleute und tippe den Dieb an, damit sie wissen, wen sie jagen.', 'bad'); }
+  if (!thiefSeen) { thiefSeen = true; toast('Achtung, Taschendiebe! Dunkle Kleidung, Mütze, Augenmaske und Sack. Wecke deine Wachleute und tippe den Dieb an, damit sie wissen, wen sie jagen.', 'bad'); }
   else toast('Ein Taschendieb schleicht durch den Park.', 'bad');
 }
 function guardNear(f, r2) { for (const s of staff) if (s.type === 'sec' && !s.asleep && s.state === 'work') { const dx = s.x - f.x, dz = s.z - f.z; if (dx * dx + dz * dz < r2) return true; } return false; }
@@ -35,7 +35,7 @@ function wakeGuard(s) {
   sfxAt('yawn', s.x, s.z, 1.4); toast(s.name + ' ist wach und sucht nach Dieben.', 'good'); uiDirty = true;
 }
 function pokeGuard(s) {
-  s.wake++; s.wakeT = 4; s.shake = 0.35; sfx('poke');
+  s.wake++; s.wakeT = 4; s.shake = 0.35; sfx('knock'); sfx('poke', 0.6);
   if (s.wake >= (S.secLvl === 1 ? 5 : 3)) wakeGuard(s);
 }
 // The player points out a thief: awake guards now know whom to chase.
@@ -48,7 +48,7 @@ function markThief(f) {
 function grabThief(s, f) {
   f.state = 'held'; f.holder = s; f.heldT = 22; f.moving = false; f.rot = Math.atan2(s.x - f.x, s.z - f.z);
   s.hold = f; s.chase = null; s.busy = 22; s.job = 'hold'; s.going = false; s.route = []; s.rot = Math.atan2(f.x - s.x, f.z - s.z);
-  sfxAt('whistle', s.x, s.z, 1.5); secXp(12);
+  sfx('caught'); secXp(12); uiDirty = true;   // loud on purpose, wherever the camera is: the player has to step in
   toast(s.name + ' hat einen Dieb gefasst. Tippe den Dieb an und wirf ihn hinaus.', 'gold');
 }
 function throwThief(f, byPlayer) {
@@ -178,8 +178,9 @@ function guardStep(s, dt) {
 
 /* ----- the hand: wakes sleeping guards and throws held thieves out ----- */
 const handEl = $('#hand'); let handTimer = 0, handBusy = false;
-function handAt(cx, cy, press) {
-  const r = $('#app').getBoundingClientRect(); handEl.hidden = false;
+// mode 'knock': a closed fist that raps on a sleeping guard; mode 'grab': an open hand that closes around a thief
+function handAt(cx, cy, press, mode) {
+  const r = $('#app').getBoundingClientRect(); handEl.hidden = false; if (mode) handEl.dataset.mode = mode;
   handEl.style.transform = 'translate(' + (cx - r.left) + 'px,' + (cy - r.top) + 'px)'; handEl.classList.toggle('press', !!press);
 }
 function handHide() { handEl.hidden = true; handEl.classList.remove('press'); canvas.classList.remove('nocursor'); }
@@ -189,9 +190,11 @@ function handTarget(cx, cy) {
 }
 function handHover(cx, cy) {
   if (handBusy) { handAt(cx, cy, true); return; }
-  if (!tool && !pov && handTarget(cx, cy)) { handAt(cx, cy, false); canvas.classList.add('nocursor'); } else if (!handEl.hidden) handHide();
+  const t = !tool && !pov ? handTarget(cx, cy) : null;
+  if (t) { handAt(cx, cy, false, t.guard ? 'knock' : 'grab'); canvas.classList.add('nocursor'); } else if (!handEl.hidden) handHide();
 }
-function handPress(cx, cy, touch) {
-  handAt(cx, cy, true); handBusy = true; clearTimeout(handTimer);
-  handTimer = setTimeout(() => { handBusy = false; handEl.classList.remove('press'); if (touch) handHide(); }, 280);
+function handPress(cx, cy, touch, mode) {
+  handEl.classList.remove('press'); void handEl.offsetWidth;   // lets the knock start over on every tap
+  handAt(cx, cy, true, mode); handBusy = true; clearTimeout(handTimer);
+  handTimer = setTimeout(() => { handBusy = false; handEl.classList.remove('press'); if (touch) handHide(); else handHover(cx, cy); }, mode === 'knock' ? 400 : 280);
 }

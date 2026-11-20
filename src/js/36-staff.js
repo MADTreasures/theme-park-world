@@ -14,41 +14,57 @@ const postPlaces = () => builds.reduce((n, b) => n + (b.def.guards || 0), 0);
 function hireCost(type) { const r = S.rep; return Math.round(STAFF[type].hire * (r >= 85 ? 0.9 : r >= 70 ? 1 : 1 + (70 - r) / 70 * 1.5)); }
 const repWord = () => (S.rep >= 85 ? 'ausgezeichnet' : S.rep >= 70 ? 'gut' : S.rep >= 50 ? 'angekratzt' : S.rep >= 30 ? 'schlecht' : 'miserabel');
 function staffLook(s, type) {
-  dress(s, false); s.sc = 1.04; s.top = 2; s.bottom = 0; s.hair = 3; s.pack = 0; s.shades = 0;
-  if (type === 'jan') { s.shirt = s.pants = 0x3d8bfd; s.hairCol = 0xfff6dc; }
-  else if (type === 'mech') { s.shirt = s.pants = 0xf08a24; s.hairCol = 0xffd23f; }
-  else if (type === 'sec') { s.shirt = 0x20264f; s.pants = 0x161a38; s.hairCol = 0x161a38; s.shades = 1; }
-  else if (type === 'clown') { s.shirt = 0xffd23f; s.pants = 0xff4f64; s.hair = 4; s.hairCol = pick([0xff4f64, 0x3d8bfd, 0x55c26a, 0xff8fc7, 0xf08a24]); s.skin = 0xfff1e6; }
-  else { s.shirt = 0x8c5cff; s.pants = 0x232861; s.top = 1; s.hair = pick([0, 2, 6]); s.hairCol = pick(HAIR); }
+  dress(s, false); s.sc = 1.04; s.top = 2; s.bottom = 0; s.hair = 3; s.pack = 0; s.shades = 0; s.trim = 0xffffff; s.shoe = 0x2b2b33;
+  if (type === 'jan') { s.shirt = s.pants = 0x3d8bfd; s.hairCol = 0xfff6dc; s.trim = 0xfff6dc; }
+  else if (type === 'mech') { s.shirt = s.pants = 0xf08a24; s.hairCol = 0xffd23f; s.trim = 0x232861; }
+  else if (type === 'gard') { s.shirt = 0x55c26a; s.pants = 0x7a5c3a; s.hair = 5; s.hairCol = 0xe8cf8a; s.trim = 0xfff6dc; s.shoe = 0x6b4a2a; s.top = 0; }
+  else if (type === 'sec') { s.shirt = 0x20264f; s.pants = 0x161a38; s.hairCol = 0x161a38; s.trim = 0xffd23f; }
+  else if (type === 'clown') { s.shirt = 0xffd23f; s.pants = 0xff4f64; s.hair = 4; s.hairCol = s.browCol = pick([0xff4f64, 0x3d8bfd, 0x55c26a, 0xff8fc7, 0xf08a24]); s.skin = 0xfff1e6; s.trim = 0x3d8bfd; s.shoe = 0xff4f64; }
+  else { s.shirt = 0x8c5cff; s.pants = 0x232861; s.top = 1; s.hair = pick([0, 2, 6, 7, 8]); s.hairCol = s.browCol; s.trim = 0xffd23f; s.shoe = 0xffffff; }
 }
 // A posed, non-instanced copy of a staff figure, used for the cards in the tray.
 function staffStatue(type) {
   if (type === 'ent') return mStaff(type);
-  const g = new T.Group(), s = {}; staffLook(s, type);
-  const part = (geo, col, x, y, z, rx, rz) => { const m = new T.Mesh(geo, new T.MeshLambertMaterial({ color: col, vertexColors: true })); m.position.set(x || 0, y || 0, z || 0); m.rotation.set(rx || 0, 0, rz || 0); m.userData.shared = true; g.add(m); };
-  part(FG.torso, s.shirt); part(FG.pelvis, s.pants); part(FG.head, s.skin, 0, FIG.NECK, 0); part(FG.hair[s.hair], s.hairCol, 0, FIG.NECK, 0);
-  if (s.shades) part(FG.shades, 0xffffff, 0, FIG.NECK, 0);
+  const g = new T.Group(), s = {}, u = mStaff(type).userData; staffLook(s, type);
+  const part = (parent, geo, col, x, y, z, rx, ry, rz, flat) => {
+    const m = new T.Mesh(geo, flat ? new T.MeshBasicMaterial({ color: col, vertexColors: true }) : softMat({ color: col, vertexColors: true }, 0.5, 0.16));
+    m.position.set(x || 0, y || 0, z || 0); m.rotation.set(rx || 0, ry || 0, rz || 0); m.userData.shared = true; parent.add(m); return m;
+  };
+  part(g, FGH.torso, s.shirt); part(g, FGH.trim, s.trim); part(g, FGH.pelvis, s.pants);
+  const head = part(g, FGH.head, s.skin, 0, FIG.NECK, 0, 0, 0.25);
+  if (s.hair >= 0) part(head, FGH.hair[s.hair], s.hairCol);
   for (const sd of [-1, 1]) {
-    part(FG.thigh, s.pants, sd * FIG.LX, FIG.HIP, 0); part(FG.shin, s.pants, sd * FIG.LX, FIG.HIP - FIG.THIGH, 0);
-    part(FG.sleeve, s.top === 1 ? s.skin : s.shirt, sd * FIG.SX, FIG.SHO, 0, 0, sd * 0.07); part(FG.forearm, s.top === 2 ? s.shirt : s.skin, sd * (FIG.SX + 0.007), FIG.SHO - FIG.UARM, 0, -0.22);
+    part(head, FGH.eye, 0xffffff, sd * FIG.EX, FIG.EY, FIG.EZ, 0, sd * FIG.EYAW, 0, true); part(head, FGH.iris, s.eye, sd * FIG.EX + 0.003, FIG.EY, FIG.EZ, 0, sd * FIG.EYAW, 0, true);
+    part(head, FGH.brow, s.browCol, sd * FIG.EX, FIG.BROW[0] + (type === 'sec' ? 0 : 0.006), FIG.BROW[1], 0, sd * 0.5, type === 'sec' ? sd * 0.3 : 0);
   }
-  g.add(mStaff(type));
+  part(head, FGH.mouth[type === 'clown' || type === 'jug' ? 1 : 0], 0xffffff, 0, FIG.MOUTH[0], FIG.MOUTH[1]);
+  if (u.head) head.add(u.head);
+  if (u.body) g.add(u.body);
+  if (u.balls) u.balls.forEach((bl, i) => bl.position.set(-0.11 + i * 0.11, 0.68 + (i === 1 ? 0.1 : 0), 0.1));
+  for (const sd of [-1, 1]) {
+    const up = type === 'jug' || (type === 'clown' && sd > 0), wave = type === 'clown' && sd > 0, tool = (type === 'jan' || type === 'gard') && sd > 0;
+    const th = part(g, FGH.thigh, s.pants, sd * FIG.LX, FIG.HIP, 0), sh = part(th, FGH.shin, s.pants, 0, -FIG.THIGH, 0); part(sh, FGH.shoe, s.shoe); part(sh, FGH.sole, 0xffffff);
+    const sl = part(g, FGH.sleeve, s.top === 1 ? s.skin : s.shirt, sd * FIG.SX, FIG.SHO, 0, wave ? -2.6 : up ? -0.3 : tool ? -0.35 : 0.06, 0, sd * 0.09);
+    const fo = part(sl, FGH.forearm, s.top === 2 ? s.shirt : s.skin, 0, -FIG.UARM, 0, wave ? -0.3 : up ? -1.3 : tool ? -0.05 : type === 'mech' || type === 'gard' ? 0 : -0.22); part(fo, FGH.hand, s.skin);
+    const hp = sd > 0 ? u.handR : u.handL; if (hp) fo.add(hp);
+  }
   return g;
 }
 function hire(type, free, saved) {
   if (!free) { const c = hireCost(type); if (S.money < c) return null; spend(c, 'wage'); }
   const m = mStaff(type); scene.add(m);
   const s = { type, mesh: m, name: pick(NAMES), x: wX(HALF) + rnd(-0.2, 0.2), z: wZ(N - 1), tile: ENT, prev: -1, wx: 0, wz: 0, ox: rnd(-0.25, 0.25), oz: rnd(-0.25, 0.25),
-    sp0: type === 'ent' ? 0.8 : type === 'sec' ? 1.45 : type === 'jug' ? 1.0 : 1.3, sp: 1.3, rot: Math.PI, route: [], going: false, busy: 0, job: null, fix: null, moving: false, ph: rnd(TAU),
+    sp0: type === 'ent' ? 0.8 : type === 'sec' ? 1.45 : type === 'jug' ? 1.0 : type === 'gard' ? 1.2 : 1.3, sp: 1.3, off: false, cutT: null, rot: Math.PI, route: [], going: false, busy: 0, job: null, fix: null, moving: false, ph: rnd(TAU),
     mood: 66, energy: rnd(70, 100), lowT: 0, warned: false, housed: true, state: 'work', room: null, breakCd: rnd(5, 20), lastBreak: S.time, chase: null, target: null, show: false, g: 'sleep', post: null, wake: 0, wakeT: 0, alertT: 0, tryCd: 0, hold: null, asleep: false, shake: 0, postB: null };
   if (type === 'sec') s.postB = freePost(s);
-  if (type !== 'ent') { staffLook(s, type); s.fig = true; m.scale.setScalar(s.sc); }
+  if (type !== 'ent') { staffLook(s, type); s.fig = true; }
   s.rr = s.rot; s.brave = 0; s.balloon = 0;
   if (saved) { s.name = saved[1] || s.name; s.mood = +saved[2] || 60; s.energy = +saved[3] || 80; }
   staff.push(s); colorsDirty = true; if (!free) sfx('hello'); return s;
 }
 function removeStaff(s) {
   if (s.hold) releaseThief(s.hold);
+  if (s.cutT) { if (s.cutT.cutter === s) s.cutT.cutter = null; s.cutT = null; }
   if (s.fix && s.fix.fixer === s) s.fix.fixer = null;
   if (s.room) { s.room.res = Math.max(0, s.room.res - 1); const i = s.room.resting.indexOf(s); if (i >= 0) s.room.resting.splice(i, 1); }
   scene.remove(s.mesh); s.mesh.traverse((o) => { if (o.geometry) o.geometry.dispose(); });
@@ -78,7 +94,8 @@ function seekBreak(s) {
   if (!goals.size) return false;
   const route = bfsRoute(s.tile, (t) => goals.has(t)); if (!route) return false;
   s.room = goals.get(route.length ? route[route.length - 1] : s.tile); s.room.res++;
-  s.state = 'toBreak'; s.route = route; s.chase = null; s.target = null; s.asleep = false;
+  s.state = 'toBreak'; s.route = route; s.chase = null; s.target = null; s.asleep = false; s.off = false;
+  if (s.cutT) { if (s.cutT.cutter === s) s.cutT.cutter = null; s.cutT = null; }
   if (s.fix) { if (s.fix.fixer === s) s.fix.fixer = null; s.fix = null; }
   staffArrive(s); return true;
 }
@@ -92,7 +109,12 @@ function endBreak(s) {
 }
 function staffArrive(s) {
   if (s.type === 'jan' && s.state === 'work' && litter[s.tile]) { s.busy = 0.7; s.job = 'clean'; sfxAt('sweep', s.x, s.z); return; }
-  while (s.route.length) { const n = s.route.shift(); if (tType[n] === 1) { staffGo(s, n); return; } s.route = []; }
+  while (s.route.length) { const n = s.route.shift(); if (tType[n] === 1 || (s.off && walkable(n))) { staffGo(s, n); return; } s.route = []; }
+  if (s.type === 'gard' && s.cutT && s.state === 'work') {
+    const o = s.cutT, near = !o.removed && o.cut && Math.abs(tX(s.tile) - o.x) + Math.abs(tY(s.tile) - o.y) <= 1;
+    if (near) { s.busy = 2.4; s.job = 'cut'; s.rot = Math.atan2(wX(o.x) - s.x, wZ(o.y) - s.z); sfxAt('chop', s.x, s.z); } else { if (o.cutter === s) o.cutter = null; s.cutT = null; }
+    return;
+  }
   if (s.state === 'quit') { if (s.tile === ENT) removeStaff(s); return; }
   if (s.state === 'toBreak') {
     const r = s.room;
@@ -105,11 +127,14 @@ function staffArrive(s) {
   if (b) { if (b.fixer === s) b.fixer = null; s.fix = null; }
   if (s.type === 'clown' && s.target) { s.busy = 8; s.job = 'show'; s.target = null; sfxAt('honk', s.x, s.z); return; }
   if (s.type === 'jug' && s.show) { s.busy = 9; s.job = 'juggle'; s.show = false; sfxAt('toss', s.x, s.z); return; }
+  if (s.type === 'gard' && s.state === 'work' && beauty[s.tile] > 0.5 && Math.random() < 0.14) { s.busy = 2.8; s.job = 'water'; sfxAt('water', s.x, s.z); }
 }
 function staffDone(s) {
   if (s.job === 'clean' && litter[s.tile]) { litterTotal -= litter[s.tile]; litter[s.tile] = 0; litterDirty = true; }
   else if (s.job === 'fix' && s.fix) { if (!s.fix.removed && s.fix.broken) repair(s.fix); s.fix = null; }
   else if (s.job === 'hold') { if (s.hold) throwThief(s.hold, false); }
+  else if (s.job === 'cut') { const o = s.cutT; s.cutT = null; if (o && !o.removed && o.cut) { sfxAt('timber', s.x, s.z); finishCut(o); } }
+  else if (s.job === 'water') { for (const g of guests) { const dx = g.x - s.x, dz = g.z - s.z; if (dx * dx + dz * dz < 9 && g.state !== 'ride') g.happy = Math.min(100, g.happy + 2); } }
   else if (s.job === 'juggle') {
     sfxAt('clap', s.x, s.z);
     let n = 0;
@@ -130,6 +155,8 @@ function staffPlan(s) {
       route = bfsRoute(s.tile, (t) => goals.has(t));
       if (route) { s.fix = goals.get(route.length ? route[route.length - 1] : s.tile); s.fix.fixer = s; }
     }
+  } else if (s.type === 'gard') {
+    route = gardPlan(s); if (route === false) return;
   } else if (s.type === 'sec') {
     route = guardPlan(s); if (route === false) return;
   } else if (s.type === 'clown') {
@@ -145,6 +172,23 @@ function staffPlan(s) {
   }
   s.route = route; staffArrive(s);
 }
+// A gardener walks straight across the lawn to the nearest marked plant that nobody else is working on.
+// Returns a route, null when there is nothing to cut, or false when he starts cutting on the spot.
+function gardPlan(s) {
+  if (s.cutT && (s.cutT.removed || !s.cutT.cut)) s.cutT = null;
+  if (!cuts.length) return null;
+  const goals = new Map();
+  for (const o of cuts) {
+    const c = o.cutter; if (c && c !== s && c.cutT === o && staff.indexOf(c) >= 0) continue;
+    for (let k = 0; k < 4; k++) { const nx = o.x + DIRS[k][0], ny = o.y + DIRS[k][1]; if (inB(nx, ny)) goals.set(idx(nx, ny), o); }
+  }
+  if (!goals.size) return null;
+  const route = fieldRoute(s.tile, (t) => goals.has(t)); if (!route) return null;
+  const o = goals.get(route.length ? route[route.length - 1] : s.tile);
+  s.cutT = o; o.cutter = s; s.off = true;
+  if (!route.length) { staffArrive(s); return false; }
+  return route;
+}
 function stepStaff(s, dt) {
   s.moving = false;
   if (s.state === 'rest') { s.energy = Math.min(100, s.energy + dt * 3.4); if (s.energy >= 100 || !s.room || s.room.removed) endBreak(s); return; }
@@ -154,8 +198,12 @@ function stepStaff(s, dt) {
   if (s.type === 'sec') guardStep(s, dt);
   if (s.busy > 0) { s.busy -= dt; if (s.busy <= 0) staffDone(s); return; }
   if (s.going) { if (moveTo(s, dt)) { s.going = false; staffArrive(s); } return; }
-  if (tType[s.tile] !== 1) { s.route = []; staffGo(s, nearestPath(s.x, s.z)); return; }
-  staffPlan(s);
+  if (tType[s.tile] !== 1) {
+    // a gardener out on the lawn goes on to the next marked plant; everyone else returns to the path
+    if (s.type === 'gard' && s.state === 'work' && cuts.length) { const r = gardPlan(s); if (r === false) return; if (r) { s.route = r; staffArrive(s); return; } }
+    s.off = false; s.route = []; staffGo(s, nearestPath(s.x, s.z)); return;
+  }
+  staffPlan(s); if (s.off && !s.cutT) s.off = false;
 }
 // once per game second
 let warnAt = -999;

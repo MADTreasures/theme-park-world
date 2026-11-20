@@ -18,6 +18,9 @@ const GOALS = [
   { t: 'Betreibe eine Achterbahn mit Nervenkitzel 100', r: 2000, p: () => rideList().reduce((m, b) => (b.k === 'coaster' || b.k === 'custom' ? Math.max(m, b.def.exc) : m), 0) / 100 },
   { t: '200 Gäste bei Parkwertung 80', r: 3000, p: () => Math.min(guests.length / 200, S.rating / 80) },
   { get t() { return 'Spare ' + eur(30000) + ' an'; }, r: 5000, p: () => S.money / 30000 },
+  { t: 'Kaufe 4 Stücke Land dazu', r: 2500, p: () => (plotsOwned() - START_PLOTS.length) / 4 },
+  { t: 'Besitze die halbe Insel (18 Stücke Land)', r: 8000, p: () => plotsOwned() / 18 },
+  { t: 'Die ganze Insel gehört dir', r: 25000, p: () => plotsOwned() / (PN * PN) },
 ];
 function checkGoal() {
   const g = GOALS[S.goal]; if (!g || g.p() < 1) return;
@@ -37,6 +40,11 @@ function advisor() {
   const sn = staffAll();
   if (sn > housing() && S.time - (adviceAt.house || -999) > 240) { adviceAt.house = S.time; toast('Nicht alle im Team haben ein Zuhause. Ein Personalhaus hebt die Stimmung.', 'bad'); return; }
   if (sn && !builds.some((b) => b.def.rest) && staff.some((s) => s.energy < 15) && S.time - (adviceAt.rest || -999) > 240) { adviceAt.rest = S.time; toast('Dein Personal ist erschöpft. Ein Pausenraum am Weg hilft.', 'bad'); return; }
+  if (cuts.length && !staffN('gard') && S.time - (adviceAt.gard || -999) > 150) { adviceAt.gard = S.time; toast('Markierte Pflanzen warten auf einen Gärtner. Stelle einen ein (Personal).', 'bad'); return; }
+  if (plotsOwned() < PN * PN && S.time - (adviceAt.land || -999) > 420) {
+    let own = 0, free = 0; for (let i = 0; i < N * N; i++) if (owned[i]) { own++; if (tType[i] === 0) free++; }
+    if (free < own * 0.22) { adviceAt.land = S.time; toast('Dein Park wird eng. Über «Land» kaufst du neue Flächen dazu, das nächste Stück kostet ' + eur(landPrice()) + '.'); return; }
+  }
   const lost = builds.find((b) => !b.def.noPath && !connected(b));
   if (lost && S.time - (adviceAt.lost || -999) > 120) { adviceAt.lost = S.time; toast(lost.def.name + ' hat keinen Weg zum Eingang.', 'bad', lost); }
 }
