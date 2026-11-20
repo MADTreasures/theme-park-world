@@ -225,7 +225,8 @@ table.fin.team .meter{min-width:64px}
 #dev .devbody button{border:2px solid var(--ink-3);background:var(--ink);color:var(--paper);border-radius:8px;padding:5px 8px;font:800 12px/1.1 var(--font-ui);cursor:pointer}
 #dev .devbody button[aria-pressed="true"]{background:var(--bulb);color:var(--ink);border-color:var(--bulb-deep)}
 #hud.immersive #dev,#mid.sheet #dev{display:none}
-@media (max-width:760px){ #dev{top:auto;bottom:52px;max-height:none;overflow:visible;width:auto;left:var(--gl)} #dev .devbody button{padding:4px 7px} }
+/* on a phone the dev box stays in the top row beside the help tab, clear of the tool bar and the camera buttons; opened, it spans the width */
+@media (max-width:760px){ #dev{width:auto;left:var(--gl);max-height:calc(100% - 136px)} #dev .devbody button{padding:4px 7px} }
 
 /* seven tabs */
 #tabs{grid-template-columns:repeat(7,minmax(0,1fr));max-width:860px}
