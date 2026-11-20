@@ -1,5 +1,5 @@
 // Builds the game from src/ into one self-contained page.
-//   node build.js            -> index.html (works offline: library and fonts are embedded)
+//   node build.js            -> index.html (works offline: library and fonts are embedded) and dev.html (developer mode)
 //   node build.js --online F -> F, a copy without the document wrapper that loads the library and fonts from CDNs
 const fs = require('fs'), path = require('path');
 const read = (p) => fs.readFileSync(path.join(__dirname, p), 'utf8');
@@ -21,4 +21,6 @@ if (online > -1) {
     '<!-- three.js r128 (MIT licence), embedded so the page needs no network. The game code follows in the next script block. -->\n<script>\n' + read('vendor/three.min.js') + '</script>\n' +
     script + '</body>\n</html>\n';
   fs.writeFileSync(path.join(__dirname, 'index.html'), out);
+  // dev.html: the same game with the developer panel switched on and its own save game
+  fs.writeFileSync(path.join(__dirname, 'dev.html'), out.replace('<title>Rummelinsel 3D</title>', '<title>Rummelinsel 3D Dev</title>').replace(script, () => '<script>window.RUMMEL_DEV = true;</script>\n' + script));
 }

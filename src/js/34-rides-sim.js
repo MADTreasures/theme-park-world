@@ -11,6 +11,7 @@ function serve(b, g) {
   else if (d.sells === 'balloon') { g.balloon = pick(SHIRT); g.happy += 9 * val; }
   else if (d.sells === 'game') g.happy += 8 * val;
   else { g.wc = 0; g.happy += 2; }
+  if (d.sells !== 'wc') personVoice(g, 'nom');
   g.state = 'decide'; g.wait = rnd(0.6, 1.6); g.tile = g.acc;
 }
 function levelUp(b) {
@@ -29,7 +30,7 @@ function startRide(b) {
   b.loadT = 0;
   if (lvlOf(b) > l0) levelUp(b);
   if (!b.riders.length) return;
-  b.state = 'run'; b.runT = 0; colorsDirty = true;
+  b.state = 'run'; b.runT = 0; colorsDirty = true; rideSound(b);
   if (b.model.start) b.model.start();
 }
 function breakDown(b) {
@@ -37,7 +38,7 @@ function breakDown(b) {
   for (const g of b.queue) { g.happy -= 3; think(g, 'angry'); g.state = 'decide'; g.wait = rnd(0.2, 1); g.tile = g.acc; }
   b.queue = [];
   toast(b.def.name + ' ist defekt.' + (staffN('mech') ? ' Ein Mechaniker ist unterwegs.' : ' Kein Mechaniker im Dienst.'), 'bad', b);
-  sfx('error'); uiDirty = true;
+  sfx('error'); sfxAt('clank', b.group.position.x, b.group.position.z, 1.2); uiDirty = true;
 }
 function repair(b) { b.broken = false; b.wear = 0; b.fixer = null; toast(b.def.name + ' läuft wieder.', 'good', b); uiDirty = true; }
 function endRide(b) {

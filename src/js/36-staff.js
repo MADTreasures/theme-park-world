@@ -34,13 +34,14 @@ function hire(type, free, saved) {
   const m = mStaff(type); scene.add(m);
   const s = { type, mesh: m, name: pick(NAMES), x: wX(HALF) + rnd(-0.2, 0.2), z: wZ(N - 1), tile: ENT, prev: -1, wx: 0, wz: 0, ox: rnd(-0.25, 0.25), oz: rnd(-0.25, 0.25),
     sp0: type === 'ent' ? 0.8 : type === 'sec' ? 1.45 : type === 'jug' ? 1.0 : 1.3, sp: 1.3, rot: Math.PI, route: [], going: false, busy: 0, job: null, fix: null, moving: false, ph: rnd(TAU),
-    mood: 66, energy: rnd(70, 100), lowT: 0, warned: false, housed: true, state: 'work', room: null, breakCd: rnd(5, 20), lastBreak: S.time, chase: null, target: null, show: false };
+    mood: 66, energy: rnd(70, 100), lowT: 0, warned: false, housed: true, state: 'work', room: null, breakCd: rnd(5, 20), lastBreak: S.time, chase: null, target: null, show: false, g: 'sleep', post: null, wake: 0, wakeT: 0, alertT: 0, tryCd: 0, hold: null, asleep: false, shake: 0 };
   if (type !== 'ent') { staffLook(s, type); s.fig = true; m.scale.setScalar(s.sc); }
   s.rr = s.rot; s.brave = 0; s.balloon = 0;
   if (saved) { s.name = saved[1] || s.name; s.mood = +saved[2] || 60; s.energy = +saved[3] || 80; }
-  staff.push(s); colorsDirty = true; return s;
+  staff.push(s); colorsDirty = true; if (!free) sfx('hello'); return s;
 }
 function removeStaff(s) {
+  if (s.hold) releaseThief(s.hold);
   if (s.fix && s.fix.fixer === s) s.fix.fixer = null;
   if (s.room) { s.room.res = Math.max(0, s.room.res - 1); const i = s.room.resting.indexOf(s); if (i >= 0) s.room.resting.splice(i, 1); }
   scene.remove(s.mesh); s.mesh.traverse((o) => { if (o.geometry) o.geometry.dispose(); });
@@ -61,7 +62,7 @@ function quit(s) {
   if (s.room) { s.room.res = Math.max(0, s.room.res - 1); s.room = null; }
   s.state = 'quit'; s.route = []; s.busy = 0; s.job = null; s.chase = null;
   S.rep = Math.max(0, S.rep - 12);
-  toast(s.name + ' (' + STAFF[s.type].name + ') hat gekündigt. Das spricht sich herum: Neues Personal wird teurer.', 'bad'); sfx('error'); uiDirty = true;
+  toast(s.name + ' (' + STAFF[s.type].name + ') hat gekündigt. Das spricht sich herum: Neues Personal wird teurer.', 'bad'); sfx('hmpf'); uiDirty = true;
 }
 function staffGo(s, n) { s.prev = s.tile; s.tile = n; setWP(s, n); s.going = true; }
 function seekBreak(s) {
@@ -70,7 +71,7 @@ function seekBreak(s) {
   if (!goals.size) return false;
   const route = bfsRoute(s.tile, (t) => goals.has(t)); if (!route) return false;
   s.room = goals.get(route.length ? route[route.length - 1] : s.tile); s.room.res++;
-  s.state = 'toBreak'; s.route = route; s.chase = null; s.target = null;
+  s.state = 'toBreak'; s.route = route; s.chase = null; s.target = null; s.asleep = false;
   if (s.fix) { if (s.fix.fixer === s) s.fix.fixer = null; s.fix = null; }
   staffArrive(s); return true;
 }
@@ -80,10 +81,10 @@ function endBreak(s) {
   s.room = null; s.state = 'work'; s.mesh.visible = true; s.lastBreak = S.time; s.mood = Math.min(100, s.mood + 5); s.breakCd = 30;
   const acc = r && !r.removed ? accessOf(r) : []; const t = acc.length ? acc[0] : nearestPath(s.x, s.z);
   s.tile = t; s.prev = -1; s.x = wX(tX(t)) + s.ox; s.z = wZ(tY(t)) + s.oz; s.going = false; s.route = [];
-  colorsDirty = true;
+  colorsDirty = true; sfxAt('ahh', s.x, s.z);
 }
 function staffArrive(s) {
-  if (s.type === 'jan' && s.state === 'work' && litter[s.tile]) { s.busy = 0.7; s.job = 'clean'; return; }
+  if (s.type === 'jan' && s.state === 'work' && litter[s.tile]) { s.busy = 0.7; s.job = 'clean'; sfxAt('sweep', s.x, s.z); return; }
   while (s.route.length) { const n = s.route.shift(); if (tType[n] === 1) { staffGo(s, n); return; } s.route = []; }
   if (s.state === 'quit') { if (s.tile === ENT) removeStaff(s); return; }
   if (s.state === 'toBreak') {
@@ -93,15 +94,17 @@ function staffArrive(s) {
     return;
   }
   const b = s.fix;
-  if (s.type === 'mech' && b && !b.removed && b.broken && accessOf(b).indexOf(s.tile) >= 0) { s.busy = 4; s.job = 'fix'; return; }
+  if (s.type === 'mech' && b && !b.removed && b.broken && accessOf(b).indexOf(s.tile) >= 0) { s.busy = 4; s.job = 'fix'; sfxAt('clank', s.x, s.z); return; }
   if (b) { if (b.fixer === s) b.fixer = null; s.fix = null; }
-  if (s.type === 'clown' && s.target) { s.busy = 8; s.job = 'show'; s.target = null; return; }
-  if (s.type === 'jug' && s.show) { s.busy = 9; s.job = 'juggle'; s.show = false; return; }
+  if (s.type === 'clown' && s.target) { s.busy = 8; s.job = 'show'; s.target = null; sfxAt('honk', s.x, s.z); return; }
+  if (s.type === 'jug' && s.show) { s.busy = 9; s.job = 'juggle'; s.show = false; sfxAt('toss', s.x, s.z); return; }
 }
 function staffDone(s) {
   if (s.job === 'clean' && litter[s.tile]) { litterTotal -= litter[s.tile]; litter[s.tile] = 0; litterDirty = true; }
   else if (s.job === 'fix' && s.fix) { if (!s.fix.removed && s.fix.broken) repair(s.fix); s.fix = null; }
+  else if (s.job === 'hold') { if (s.hold) throwThief(s.hold, false); }
   else if (s.job === 'juggle') {
+    sfxAt('clap', s.x, s.z);
     let n = 0;
     for (const g of guests) { const dx = g.x - s.x, dz = g.z - s.z; if (dx * dx + dz * dz < 12 && g.state !== 'ride') { g.happy = Math.min(100, g.happy + 5); n++; if (Math.random() < 0.15) think(g, 'great'); } }
     if (n) earn(n * 0.4, 'bonus');
@@ -111,7 +114,7 @@ function staffDone(s) {
 function staffPlan(s) {
   let route = null;
   if (s.state === 'quit') { route = bfsRoute(s.tile, (t) => t === ENT); if (!route) { removeStaff(s); return; } s.route = route; staffArrive(s); return; }
-  if (s.energy < 25 && s.breakCd <= 0 && !s.chase) { if (seekBreak(s)) return; s.breakCd = 25; }
+  if (s.energy < 25 && s.breakCd <= 0 && !s.chase && !s.hold && !s.asleep) { if (seekBreak(s)) return; s.breakCd = 25; }
   if (s.type === 'jan' && litterTotal > 0) route = bfsRoute(s.tile, (t) => litter[t] > 0);
   else if (s.type === 'mech') {
     const goals = new Map();
@@ -121,9 +124,7 @@ function staffPlan(s) {
       if (route) { s.fix = goals.get(route.length ? route[route.length - 1] : s.tile); s.fix.fixer = s; }
     }
   } else if (s.type === 'sec') {
-    if (s.chase && (s.chase.gone || s.chase.state === 'out')) s.chase = null;
-    if (!s.chase) { let bd = 30; for (const f of thieves) { if (f.state === 'in' || f.state === 'out') continue; const d = (f.x - s.x) * (f.x - s.x) + (f.z - s.z) * (f.z - s.z); if (d < bd) { bd = d; s.chase = f; } } }
-    if (s.chase) { const tt = s.chase.tile; route = bfsRoute(s.tile, (t) => t === tt); if (route) { route = route.slice(0, 2); s.chase.spotted = true; } else s.chase = null; }
+    route = guardPlan(s); if (route === false) return;
   } else if (s.type === 'clown') {
     let best = null, n = 2;
     for (const b of builds) if (b.def.cat === 'ride' && b.queue.length > n) { n = b.queue.length; best = b; }
@@ -140,10 +141,10 @@ function staffPlan(s) {
 function stepStaff(s, dt) {
   s.moving = false;
   if (s.state === 'rest') { s.energy = Math.min(100, s.energy + dt * 3.4); if (s.energy >= 100 || !s.room || s.room.removed) endBreak(s); return; }
-  s.energy = Math.max(0, s.energy - dt * 0.5);
-  s.sp = s.sp0 * (s.mood < 35 ? 0.72 : 1) * (s.energy < 8 ? 0.8 : 1) * (s.chase ? 1.4 : 1);
+  s.energy = s.asleep ? Math.min(100, s.energy + dt) : Math.max(0, s.energy - dt * 0.5);
+  s.sp = s.sp0 * (s.mood < 35 ? 0.72 : 1) * (s.energy < 8 ? 0.8 : 1) * (s.chase ? 1.3 + 0.05 * S.secLvl : 1);
   if (s.breakCd > 0) s.breakCd -= dt;
-  if (s.chase && !s.chase.gone) { const dx = s.chase.x - s.x, dz = s.chase.z - s.z; if (dx * dx + dz * dz < 0.5) { catchThief(s.chase, s); s.chase = null; } }
+  if (s.type === 'sec') guardStep(s, dt);
   if (s.busy > 0) { s.busy -= dt; if (s.busy <= 0) staffDone(s); return; }
   if (s.going) { if (moveTo(s, dt)) { s.going = false; staffArrive(s); } return; }
   if (tType[s.tile] !== 1) { s.route = []; staffGo(s, nearestPath(s.x, s.z)); return; }
@@ -167,6 +168,7 @@ function socialTick() {
       if (s.lowT > 200) quit(s);
     } else { s.lowT = Math.max(0, s.lowT - 2); if (s.mood > 45) s.warned = false; }
     if (s.state === 'rest') continue;
+    if (s.type === 'ent' && Math.random() < 0.06) sfxAt('squeak', s.x, s.z);
     if (s.type === 'ent' || s.type === 'clown') {
       const r2 = s.type === 'ent' ? 6.5 : 9;
       for (const g of guests) { const dx = g.x - s.x, dz = g.z - s.z; if (dx * dx + dz * dz < r2 && g.state !== 'ride') { g.happy = Math.min(100, g.happy + (s.type === 'ent' ? 1.3 : 0.7)); if (s.type === 'clown' && g.state === 'queue') g.qt = Math.max(1, g.qt - 0.6); } }

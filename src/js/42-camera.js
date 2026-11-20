@@ -33,6 +33,7 @@ function updateSky() {
   sunDir.set(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el));
   sun.target.position.set(cam.tx, 0, cam.tz); sun.position.copy(sun.target.position).addScaledVector(sunDir, 80);
   waterMat.color.copy(W_DAY).lerp(W_NIGHT, nf);
+  weatherSky();
   MAT_LAMP.opacity = nf * 0.6;
   const e = clamp(cam.d * 0.85, 14, 38);
   if (Math.abs(e - shExt) > 0.5) { shExt = e; const c = sun.shadow.camera; c.left = c.bottom = -e; c.right = c.top = e; c.updateProjectionMatrix(); }

@@ -43,7 +43,7 @@ function advisor() {
 function secondTick() {
   let up = 0; for (const b of builds) up += b.def.upkeep;
   spend(up / DAY, 'upkeep');
-  socialTick(); thiefTick();
+  socialTick(); thiefTick(); weatherTick();
   if (S.loan > 0) spend(S.loan * 0.012 / DAY, 'loan');
   let sum = 0;
   for (const g of guests) sum += g.happy;

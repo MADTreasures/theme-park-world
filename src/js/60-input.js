@@ -50,7 +50,9 @@ function click(cx, cy, ptype) {
     return;
   }
   if (pov) return;
-  const th = figAt(thieves, cx, cy); if (th) { catchThief(th, null); return; }
+  const ht = handTarget(cx, cy);
+  if (ht) { handPress(cx, cy, ptype !== 'mouse'); if (ht.thief) throwThief(ht.thief, true); else pokeGuard(ht.guard); return; }
+  const th = figAt(thieves.filter(thiefActive), cx, cy); if (th) { markThief(th); return; }
   const g = figAt(guests, cx, cy); if (g) { select({ guest: g }); sfx('click'); return; }
   const sf = figAt(staff, cx, cy); if (sf) { select({ staff: sf }); sfx('click'); return; }
   const ob = objAt(cx, cy) || (t && tObj[idx(t[0], t[1])]);
@@ -80,7 +82,7 @@ canvas.addEventListener('pointerdown', (e) => {
 });
 canvas.addEventListener('pointermove', (e) => {
   const p = ptr.get(e.pointerId);
-  if (!p) { if (e.pointerType === 'mouse') hover(e.clientX, e.clientY); return; }
+  if (!p) { if (e.pointerType === 'mouse') { hover(e.clientX, e.clientY); handHover(e.clientX, e.clientY); } return; }
   const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
   if (pmode === 'pinch') {
     if (ptr.size < 2 || fp || pov) return;
@@ -107,7 +109,7 @@ function pointerEnd(e) {
 }
 canvas.addEventListener('pointerup', pointerEnd);
 canvas.addEventListener('pointercancel', pointerEnd);
-canvas.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse' && tool && tool.type !== 'build') hl.visible = false; });
+canvas.addEventListener('pointerleave', (e) => { if (e.pointerType !== 'mouse') return; handHide(); if (tool && tool.type !== 'build') hl.visible = false; });
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 canvas.addEventListener('wheel', (e) => { e.preventDefault(); if (fp || pov) return; cam.dist = clamp(cam.dist * Math.exp(e.deltaY * (e.deltaMode ? 0.04 : 0.0012)), 7, 80); }, { passive: false });
 window.addEventListener('keydown', (e) => {

@@ -1,5 +1,6 @@
 <div id="app">
   <canvas id="stage" tabindex="0" aria-label="Dein Freizeitpark in 3D"></canvas>
+  <div id="hand" hidden><svg viewBox="0 0 48 48" aria-hidden="true"><g class="open" fill="#fff6dc" stroke="#232861" stroke-width="2.6" stroke-linejoin="round"><rect x="11" y="9" width="6.5" height="20" rx="3.2"/><rect x="17.5" y="4" width="6.5" height="24" rx="3.2"/><rect x="24" y="6" width="6.5" height="22" rx="3.2"/><rect x="30.5" y="11" width="6" height="18" rx="3"/><path d="M11 24h25.5v9a10 10 0 0 1-10 10h-5.5a10 10 0 0 1-10-10z"/><path d="M11.5 31l-6-5a3.2 3.2 0 0 1 4-5l5 4z"/></g><g class="fist" fill="#fff6dc" stroke="#232861" stroke-width="2.6" stroke-linejoin="round"><path d="M10 22a5 5 0 0 1 5-5h18a5 5 0 0 1 5 5v10a11 11 0 0 1-11 11h-6a11 11 0 0 1-11-11z"/><path d="M17 17v8M24 17v8M31 17v8" fill="none"/><rect x="7" y="26" width="19" height="7.5" rx="3.7"/></g></svg></div>
   <div id="hud">
     <header id="topbar">
       <div class="brand">Rummelinsel</div>
@@ -36,6 +37,7 @@
       </div>
       <div id="toolbar" hidden></div>
       <div id="modebar" hidden><b id="mode-txt"></b><button class="btn" data-act="exitMode">Beenden</button></div>
+      <div id="dev" hidden></div>
       <div id="joy" hidden aria-label="Steuerkreuz zum Gehen"><i></i></div>
     </div>
     <footer id="dock">

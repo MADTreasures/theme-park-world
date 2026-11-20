@@ -6,6 +6,7 @@ const MINI = {
   cans: { title: 'Dosenwerfen', help: 'Tippe auf die Dosen, bevor sie weiterwandern.', unit: 'Treffer', pay: 2, max: 60 },
   ghosts: { title: 'Geisterjagd', help: 'Tippe die Geister an. Fledermäuse kosten einen Punkt.', unit: 'Geister', pay: 3, max: 80 },
   kart: { title: 'Kart-Rennen', help: 'Tippe links oder rechts, um die Spur zu wechseln. Sammle Münzen, weiche den Hütchen aus.', unit: 'Münzen', pay: 3, max: 90 },
+  dunk: { title: 'Tauchbecken', help: 'Tippe auf die wandernde Zielscheibe. Bei einem Treffer plumpst der Sitzende ins Wasser.', unit: 'Treffer', pay: 4, max: 80 },
 };
 function openMini(kind, b) {
   const m = MINI[kind];
@@ -17,13 +18,13 @@ function openMini(kind, b) {
   mini = { kind, b, m, cv, c: cv.getContext('2d'), t: 30, score: 0, last: performance.now(), over: false, coin, clock: 0, flash: 0,
     shelves: [0, 1, 2].map((i) => ({ y: 95 + i * 82, off: rnd(60), v: (40 + i * 22) * (i % 2 ? -1 : 1), cans: [0, 1, 2, 3].map(() => ({ down: 0 })) })), balls: [],
     win: Array.from({ length: 9 }, () => ({ k: 0, t: 0, hit: 0 })), spawn: 0.4,
-    lane: 1, kx: 160, things: [], next: 0.5, road: 0 };
+    lane: 1, kx: 160, things: [], next: 0.5, road: 0, tgt: { x: 160, v: 105 }, dunkT: 0 };
   cv.addEventListener('pointerdown', (e) => { const r = cv.getBoundingClientRect(); miniTap((e.clientX - r.left) * 320 / r.width, (e.clientY - r.top) * 380 / r.height); e.preventDefault(); });
   requestAnimationFrame(miniFrame);
 }
 function miniTap(x, y) {
   const g = mini; if (!g || g.over) return;
-  if (g.kind === 'cans') { g.balls.push({ x, y, t: 0 }); sfx('path'); }
+  if (g.kind === 'cans' || g.kind === 'dunk') { g.balls.push({ x, y, t: 0 }); sfx('path'); }
   else if (g.kind === 'ghosts') {
     for (let i = 0; i < 9; i++) { const w = g.win[i], wx_ = 60 + (i % 3) * 100, wy = 85 + ((i / 3) | 0) * 100; if (w.k && !w.hit && Math.abs(x - wx_) < 42 && Math.abs(y - wy) < 46) { if (w.k === 1) { g.score++; sfx('build'); } else { g.score = Math.max(0, g.score - 1); g.flash = 0.3; sfx('error'); } w.hit = 0.25; return; } }
   } else miniLane(x < 160 ? -1 : 1);
@@ -53,6 +54,11 @@ function miniStep(g, dt) {
       if (bl.t >= 1 && !bl.done) { bl.done = true; for (const s of g.shelves) s.cans.forEach((cn, i) => { const cx = 45 + i * 62 + s.off; if (cn.down <= 0 && Math.abs(bl.x - cx) < 20 && Math.abs(bl.y - (s.y - 24)) < 28) { cn.down = 1.6; g.score++; sfx('build'); } }); }
     }
     g.balls = g.balls.filter((bl) => bl.t < 1.4);
+  } else if (g.kind === 'dunk') {
+    const tg = g.tgt; tg.x += tg.v * dt; if (tg.x > 272 || tg.x < 48) { tg.v = -tg.v; tg.x = clamp(tg.x, 48, 272); }
+    if (g.dunkT > 0) g.dunkT -= dt;
+    for (const bl of g.balls) { bl.t += dt * 3.2; if (bl.t >= 1 && !bl.done) { bl.done = true; if (Math.hypot(bl.x - tg.x, bl.y - 262) < 27 && g.dunkT <= 0) { g.score++; g.dunkT = 1.5; tg.v *= 1.12; sfx('splash'); } } }
+    g.balls = g.balls.filter((bl) => bl.t < 1.3);
   } else if (g.kind === 'ghosts') {
     g.spawn -= dt;
     if (g.spawn <= 0) { g.spawn = lerp(0.35, 0.6, g.t / 30); const free = g.win.filter((w) => !w.k); if (free.length) { const w = pick(free); w.k = Math.random() < 0.8 ? 1 : 2; w.t = lerp(0.8, 1.3, g.t / 30); w.hit = 0; } }
@@ -84,6 +90,21 @@ function miniDraw(g) {
     }
     c.fillStyle = '#3ddbb4'; c.fillRect(0, 344, 320, 36); c.fillStyle = '#14957a'; c.fillRect(0, 344, 320, 6);
     for (const bl of g.balls) { const u = Math.min(1, bl.t), x = lerp(160, bl.x, u), y = lerp(360, bl.y, u) - Math.sin(u * Math.PI) * 40, r = lerp(15, 8, u); if (bl.t < 1.15) { c.fillStyle = '#ffd447'; c.beginPath(); c.arc(x, y, r, 0, TAU); c.fill(); c.strokeStyle = '#c9940a'; c.lineWidth = 2; c.stroke(); } }
+  } else if (g.kind === 'dunk') {
+    const down = g.dunkT > 0, py = down ? 196 + Math.sin(g.clock * 12) * 3 : 96, tg = g.tgt;
+    for (let i = 0; i < 8; i++) { c.fillStyle = i % 2 ? '#ff4f64' : '#fff6dc'; c.fillRect(i * 40, 0, 40, 160); }
+    c.fillStyle = '#8fd3ff'; c.fillRect(0, 160, 320, 190); c.fillStyle = '#ffd447'; c.fillRect(0, 154, 320, 8);
+    if (!down) { c.fillStyle = '#8a623c'; c.fillRect(104, 150, 112, 9); }
+    c.fillStyle = '#3d8bfd'; c.fillRect(148, py - 2, 24, 34); c.fillStyle = '#232861'; c.fillRect(148, py + 30, 10, down ? 14 : 30); c.fillRect(162, py + 30, 10, down ? 14 : 30);
+    c.fillStyle = '#f1c39a'; c.beginPath(); c.arc(160, py - 16, 14, 0, TAU); c.fill(); c.fillStyle = '#4a2f1b'; c.beginPath(); c.arc(160, py - 19, 14, Math.PI, 0); c.fill();
+    c.fillStyle = '#232861'; c.beginPath(); c.arc(155, py - 15, 2, 0, TAU); c.arc(165, py - 15, 2, 0, TAU); c.fill(); c.strokeStyle = '#232861'; c.lineWidth = 2; c.beginPath(); if (down) c.arc(160, py - 6, 4, 0, TAU); else c.arc(160, py - 12, 5, 0.2 * Math.PI, 0.8 * Math.PI); c.stroke();
+    c.fillStyle = 'rgba(76,195,240,.82)'; c.fillRect(88, 178, 144, 112); c.fillStyle = 'rgba(255,255,255,.4)'; c.fillRect(88, 178, 144, 10); c.strokeStyle = '#2f63c9'; c.lineWidth = 6; c.strokeRect(88, 178, 144, 112);
+    if (down) { c.fillStyle = '#ffffff'; for (let i = 0; i < 9; i++) { const a = Math.PI + i / 8 * Math.PI, r = 30 + (1.5 - g.dunkT) * 50; c.beginPath(); c.arc(160 + Math.cos(a) * r, 182 + Math.sin(a) * r * 0.8, 5, 0, TAU); c.fill(); } }
+    c.fillStyle = '#232861'; c.fillRect(tg.x - 3, 262, 6, 84);
+    for (const [r, col] of [[27, '#fff6dc'], [18, '#ff4f64'], [8, '#fff6dc']]) { c.fillStyle = col; c.beginPath(); c.arc(tg.x, 262, r, 0, TAU); c.fill(); }
+    c.strokeStyle = '#232861'; c.lineWidth = 3; c.beginPath(); c.arc(tg.x, 262, 27, 0, TAU); c.stroke();
+    c.fillStyle = '#3ddbb4'; c.fillRect(0, 344, 320, 36); c.fillStyle = '#14957a'; c.fillRect(0, 344, 320, 6);
+    for (const bl of g.balls) { const u = Math.min(1, bl.t), x = lerp(160, bl.x, u), y = lerp(362, bl.y, u) - Math.sin(u * Math.PI) * 40, r = lerp(15, 8, u); if (bl.t < 1.12) { c.fillStyle = '#ffd447'; c.beginPath(); c.arc(x, y, r, 0, TAU); c.fill(); c.strokeStyle = '#c9940a'; c.lineWidth = 2; c.stroke(); } }
   } else if (g.kind === 'ghosts') {
     c.fillStyle = '#3a3052'; c.fillRect(0, 0, 320, 380); c.fillStyle = '#2a2350'; c.beginPath(); c.moveTo(0, 30); c.lineTo(160, 0); c.lineTo(320, 30); c.lineTo(320, 0); c.lineTo(0, 0); c.fill();
     for (let i = 0; i < 9; i++) {

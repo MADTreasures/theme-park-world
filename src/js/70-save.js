@@ -1,5 +1,5 @@
 /* ================= save, load, new game ================= */
-const SAVE_KEY = 'rummelinsel.save.v1';
+const SAVE_KEY = DEV ? 'rummelinsel.dev.v1' : 'rummelinsel.save.v1';
 function serialize() {
   const paths = [], lit = [];
   for (let i = 0; i < N * N; i++) { if (tType[i] === 1) paths.push(i); if (litter[i]) lit.push(i, litter[i]); }
@@ -11,7 +11,7 @@ function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(serialize(
 function clearWorld() {
   for (const o of builds.concat(decos)) { o.removed = true; scene.remove(o.group); o.group.traverse((m) => { if (m.geometry) m.geometry.dispose(); }); }
   if (pov || fp) exitMode();
-  builds = []; decos = []; animDecos = []; guests = []; thieves = []; thiefSeen = false;
+  builds = []; decos = []; animDecos = []; guests = []; thieves = []; thiefSeen = false; splashes = [];
   for (const s of staff) { scene.remove(s.mesh); s.mesh.traverse((m) => { if (m.geometry) m.geometry.dispose(); }); }
   staff = [];
   tType.fill(0); tObj.fill(null); litter.fill(0); beauty.fill(0); binNear.fill(0);
@@ -41,10 +41,12 @@ function load(data) {
   scatterStaff();
   for (let i = 0; i < Math.min(data.guests || 0, MAXG - 30); i++) spawnGuest(true);
   sun.castShadow = S.shadows;
+  if (S.wx && WX_NAME[S.wx.k]) { WX.k = S.wx.k; WX.t = S.wx.t; } else wxSet('sun', true);
 }
 function newGame() {
   clearWorld();
-  Object.assign(S, { money: 4000, loan: 0, time: DAY * 0.1, ticket: 5, rating: 55, goal: 0, exitAvg: 62, visitors: 0, rep: 70, wage: 1 });
+  Object.assign(S, { money: 4000, loan: 0, time: DAY * 0.1, ticket: 5, rating: 55, goal: 0, exitAvg: 62, visitors: 0, rep: 70, wage: 1, secLvl: 1, secXp: 0 });
+  wxSet('sun', true); WX.bonus = 0; WX.wasRain = false;
   fin = { today: newFin(), yest: newFin() }; curDay = 0;
   for (let y = N - 1; y >= N - 9; y--) setPath(idx(HALF, y), true);
   for (let x = HALF - 4; x <= HALF + 4; x++) setPath(idx(x, N - 6), true);

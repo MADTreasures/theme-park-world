@@ -156,3 +156,69 @@ function dressRide(ob) {
   const m = b.mesh(); ob.group.add(m);
   for (const s of [1, -1]) { const p = new T.Mesh(new T.PlaneGeometry(0.82, 0.205), new T.MeshBasicMaterial({ map: boardTex(d.name) })); p.position.set(sx, 0.84, hh + s * 0.017); if (s < 0) p.rotation.y = Math.PI; p.userData.keep = true; ob.group.add(p); }
 }
+
+/* ----- dunk tank: three guests throw, the fourth sits on the plank ----- */
+function mDunk() {
+  const g = new T.Group(), b = new Builder(), WAT = 0x4cc3f0, TZ = -0.8;
+  b.box(1.9, 0.06, 2.9, K.stoneD, 0, 0.03, 0);
+  b.box(1.2, 0.72, 1.0, 0x8fd9f7, 0, 0.42, TZ); b.box(1.26, 0.07, 1.06, K.blue, 0, 0.09, TZ); b.box(1.26, 0.07, 1.06, K.blue, 0, 0.78, TZ); b.box(1.1, 0.02, 0.9, WAT, 0, 0.82, TZ);
+  for (const x of [-0.6, 0.6]) for (const z of [-0.5, 0.5]) b.box(0.07, 0.74, 0.07, K.blue, x, 0.43, TZ + z);
+  for (let i = 0; i < 6; i++) b.box(0.21, 1.6, 0.05, i % 2 ? K.red : K.paper, -0.525 + i * 0.21, 1.6, -1.38);
+  b.box(1.34, 0.1, 0.08, K.yel, 0, 2.44, -1.38);
+  for (let i = 0; i < 6; i++) b.sph(0.04, K.bulb, -0.55 + i * 0.22, 2.44, -1.33, { glow: true, seg: 6, seg2: 4 });
+  b.cyl(0.03, 0.03, 1.5, K.inkD, 0.86, 0.8, -0.25, { seg: 5 }); b.box(0.3, 0.04, 0.04, K.inkD, 0.72, 1.3, -0.4, { ry: 0.8 });
+  b.cyl(0.24, 0.24, 0.04, K.paper, 0.86, 1.62, -0.25, { rx: Math.PI / 2, seg: 14 }); b.cyl(0.16, 0.16, 0.05, K.red, 0.86, 1.62, -0.25, { rx: Math.PI / 2, seg: 14 }); b.cyl(0.07, 0.07, 0.06, K.paper, 0.86, 1.62, -0.25, { rx: Math.PI / 2, seg: 10 });
+  b.box(1.9, 0.02, 0.08, K.yel, 0, 0.07, 0.72);
+  b.cyl(0.17, 0.13, 0.2, K.wood, -0.72, 0.16, 1.15, { seg: 8 }); for (const [x, z] of [[-0.76, 1.12], [-0.68, 1.18], [-0.72, 1.1]]) b.sph(0.05, K.yel, x, 0.28, z, { seg: 6, seg2: 4 });
+  for (const x of [-0.93, 0.93]) { b.box(0.03, 0.3, 1.4, K.paper, x, 0.2, 0.75); b.box(0.04, 0.34, 0.04, K.red, x, 0.2, 1.45); }
+  g.add(b.mesh());
+  const plank = new T.Group(); plank.position.set(0, 1.2, TZ); g.add(plank);
+  const pb = new Builder(); pb.box(0.62, 0.05, 0.3, K.wood, 0, 0, 0); pb.box(0.05, 0.05, 0.62, K.inkD, -0.28, -0.03, -0.3); pb.box(0.05, 0.05, 0.62, K.inkD, 0.28, -0.03, -0.3);
+  plank.add(pb.mesh());
+  const seats = [seatAt(plank, 0, 0.03, 0.02)];
+  for (const x of [-0.5, 0, 0.5]) { const s = seatAt(g, x, 0.06, 1.05, Math.PI); s.userData.pose = 'throw'; seats.push(s); }
+  const ballGeo = new T.SphereGeometry(0.05, 7, 5), ballMat = new T.MeshLambertMaterial({ color: K.yel }), balls = [];
+  for (let i = 0; i < 3; i++) { const m = new T.Mesh(ballGeo, ballMat); m.visible = false; g.add(m); balls.push(m); }
+  const dropMat = new T.MeshBasicMaterial({ color: 0xe9f8ff }), dropGeo = new T.SphereGeometry(0.07, 6, 4), drops = [];
+  for (let i = 0; i < 8; i++) { const m = new T.Mesh(dropGeo, dropMat); m.userData.a = i / 8 * TAU; m.scale.setScalar(0.001); m.position.set(0, 0.8, TZ); g.add(m); drops.push(m); }
+  let splash = 0, lastC = 0;
+  return { group: g, seats, update(dt, r) {
+    if (splash > 0) { splash = Math.max(0, splash - dt * 1.4); const ph = 1 - splash; for (const m of drops) { const a = m.userData.a; m.position.set(Math.cos(a) * ph * 0.7, 0.8 + 1.6 * ph - 2.2 * ph * ph, TZ + Math.sin(a) * ph * 0.5); m.scale.setScalar(splash > 0 ? 0.3 + splash : 0.001); } }
+    if (r.state !== 'run') { plank.position.y = 1.2; for (const m of balls) m.visible = false; lastC = 0; return; }
+    const c = r.runT % 4;
+    for (let i = 0; i < 3; i++) { const u = (c - (0.5 + i)) / 0.45, m = balls[i]; m.visible = u > 0 && u < 1; if (m.visible) m.position.set(lerp(-0.5 + i * 0.5, i === 2 ? 0.86 : 0.86 + (i ? 0.4 : -0.5), u), 0.5 + lerp(0, 1.1, u) + Math.sin(u * Math.PI) * 0.5, lerp(1.0, -0.25, u)); }
+    const d = c - 2.95; plank.position.y = d < 0 ? 1.2 : d < 0.12 ? 1.2 - 0.8 * d / 0.12 : d < 0.6 ? 0.4 + Math.sin(d * 9) * 0.03 : lerp(0.4, 1.2, smooth(0.6, 1.0, d));
+    if (lastC < 2.95 && c >= 2.95) { splash = 1; const p = g.position; sfxAt('splash', p.x, p.z, 1.2); }
+    lastC = c;
+  } };
+}
+
+/* ----- the big drop tower: a lattice mast with a turning ring of twelve seats ----- */
+function mSkyTower() {
+  const g = new T.Group(), b = new Builder(), H = 11;
+  b.cyl(1.36, 1.42, 0.16, K.ink, 0, 0.08, 0, { seg: 12 }); b.cyl(0.7, 0.8, 0.3, K.inkD, 0, 0.3, 0, { seg: 8 });
+  for (const [x, z] of [[-0.3, -0.3], [0.3, -0.3], [-0.3, 0.3], [0.3, 0.3]]) { b.cyl(0.05, 0.06, H, K.paper, x, H / 2 + 0.2, z, { seg: 6 }); for (let i = 1; i < H; i += 2) b.sph(0.04, K.bulb, x * 1.2, i + 0.2, z * 1.2, { glow: true, seg: 6, seg2: 4 }); }
+  for (let i = 0; i < H; i++) { const c = i % 2 ? K.yel : K.vio, y = 0.7 + i; b.box(0.66, 0.045, 0.045, c, 0, y, -0.3); b.box(0.66, 0.045, 0.045, c, 0, y, 0.3); b.box(0.045, 0.045, 0.66, c, -0.3, y, 0); b.box(0.045, 0.045, 0.66, c, 0.3, y, 0); b.box(0.9, 0.035, 0.035, c, 0, y + 0.5, 0.3, { rz: 0.82 }); b.box(0.9, 0.035, 0.035, c, 0, y + 0.5, -0.3, { rz: -0.82 }); }
+  b.cyl(0.62, 0.46, 0.3, K.vio, 0, H + 0.4, 0, { seg: 8 }); b.scone(0.6, 1.0, [K.yel, K.vio], 8, 0, H + 1.05, 0); b.sph(0.12, 0xff6070, 0, H + 1.65, 0, { glow: true });
+  bulbRing(b, 10, 0.64, H + 0.4);
+  g.add(b.mesh());
+  const car = new T.Group(); car.position.y = 0.6; g.add(car);
+  const c = new Builder(), seats = [];
+  c.cyl(1.05, 1.05, 0.14, K.inkD, 0, 0, 0, { seg: 12 }); c.cyl(0.62, 0.62, 0.5, K.vio, 0, 0.2, 0, { seg: 12 });
+  for (let k = 0; k < 12; k++) {
+    const a = k / 12 * TAU, dx = Math.sin(a), dz = Math.cos(a);
+    c.box(0.36, 0.06, 0.24, K.yel, dx * 0.98, 0.1, dz * 0.98, { ry: a }); c.box(0.36, 0.42, 0.05, k % 2 ? K.red : K.blue, dx * 0.84, 0.32, dz * 0.84, { ry: a });
+    seats.push(seatAt(car, dx * 0.98, 0.13, dz * 0.98, a));
+  }
+  bulbRing(c, 12, 1.06, 0.02);
+  car.add(c.mesh());
+  const top = H - 0.8;
+  const prof = (t) => t < 6.5 ? lerp(0.6, top, smooth(0, 6.5, t)) : t < 8 ? top : t < 9.05 ? top - (top - 1.3) * Math.pow((t - 8) / 1.05, 2) : t < 10.9 ? 1.3 + 3.2 * Math.sin(Math.PI * (t - 9.05) / 1.85) : t < 12.1 ? 1.3 + 1.2 * Math.sin(Math.PI * (t - 10.9) / 1.2) : lerp(1.3, 0.6, smooth(12.1, 14, t));
+  let last = 0;
+  return { group: g, seats, update(dt, r) {
+    if (r.state !== 'run') { car.position.y = 0.6; last = 0; return; }
+    car.position.y = prof(r.runT); car.rotation.y += dt * (r.runT < 8 ? 0.5 : 0.15);
+    if (last < 8 && r.runT >= 8) { const p = g.position; sfxAt('drop', p.x, p.z, 1.3); }
+    last = r.runT;
+  } };
+}

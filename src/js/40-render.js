@@ -38,16 +38,19 @@ function drawFigure(f, seat, ride, rdt, setCol) {
   if (seat) {
     const sp = seat.userData.pose;
     _rm.copy(seat.matrixWorld);
-    if (sp !== 'jump') _rm.multiply(_lm.makeTranslation(0, -FIG.SEAT * sc, 0));
+    if (sp !== 'jump' && sp !== 'throw') _rm.multiply(_lm.makeTranslation(0, -FIG.SEAT * sc, 0));
     _rm.scale(_gs.set(sc, sc, sc));
-    pose = sp === 'jump' ? 3 : sp === 'straddle' ? 4 : 2;
+    pose = sp === 'jump' ? 3 : sp === 'throw' ? 7 : sp === 'straddle' ? 4 : 2;
   } else {
     let d = f.rot - f.rr; d = Math.atan2(Math.sin(d), Math.cos(d)); f.rr += d * Math.min(1, rdt * 14);
     p = time * 9.5 * f.sp / sc + f.ph; pose = f.moving ? 1 : 0;
-    _gq.setFromAxisAngle(UP, f.rr); _gp.set(f.x, pose ? Math.abs(Math.sin(p)) * 0.014 * sc : 0, f.z); _rm.compose(_gp, _gq, _gs.set(sc, sc, sc));
+    if (f.state === 'thrown') { _gq.setFromEuler(_eu.set(f.tum, f.rr, f.tum * 0.4)); _gp.set(f.x, f.fy, f.z); pose = 6; }
+    else if (f.asleep) { _gq.setFromAxisAngle(UP, f.rr); _gp.set(f.x + (f.shake > 0 ? Math.sin(performance.now() * 0.06) * 0.025 : 0), -(FIG.HIP - 0.06) * sc, f.z); pose = 5; }
+    else { _gq.setFromAxisAngle(UP, f.rr); _gp.set(f.x, pose ? Math.abs(Math.sin(p)) * 0.014 * sc : 0, f.z); }
+    _rm.compose(_gp, _gq, _gs.set(sc, sc, sc));
   }
   // joint angles: thighs, knees, upper arms, elbows, head turn
-  let tl = 0, tr = 0, kl = 0, kr = 0, al = 0.06, ar = 0.06, el = -0.22, er = -0.22, spread = 0, hy = 0;
+  let tl = 0, tr = 0, kl = 0, kr = 0, al = 0.06, ar = 0.06, el = -0.22, er = -0.22, spread = 0, hy = 0, hx = 0;
   if (pose === 1) {
     const sn = Math.sin(p), cs = Math.cos(p);
     tl = -0.55 * sn; tr = 0.55 * sn; kl = 0.95 * Math.max(0, cs); kr = 0.95 * Math.max(0, -cs);
@@ -57,7 +60,12 @@ function drawFigure(f, seat, ride, rdt, setCol) {
     al = ar = -0.5; el = er = -1.0; hy = Math.sin(time * 0.9 + f.ph) * 0.3;
     if (ride && f.brave > 0.45 && ride.def.exc >= 54 && ride.state === 'run' && ride.spin > 0.5) { const w = Math.sin(time * 7 + f.ph) * 0.2; al = -2.7 + w; ar = -2.7 - w; el = er = -0.15; }
   } else if (pose === 3) { const w = Math.sin(time * 6 + f.ph); tl = -0.3 - w * 0.2; tr = -0.3 + w * 0.2; kl = kr = 0.6; al = -2.3 + w * 0.4; ar = -2.3 - w * 0.4; el = er = -0.2; }
+  else if (pose === 5) { tl = tr = -1.5; kl = kr = 0.06; al = ar = -0.35; el = er = -0.95; hx = 0.6 + Math.sin(time * 1.7 + f.ph) * 0.06; hy = 0.3; }
+  else if (pose === 6) { const w = time * 18 + f.ph; tl = Math.sin(w) * 0.9; tr = -tl; kl = kr = 0.6; al = -2 + Math.cos(w); ar = -2 - Math.cos(w); }
+  else if (pose === 7) { const w = (time * 0.9 + f.ph) % 1; ar = w < 0.35 ? lerp(0.4, -2.6, w / 0.35) : lerp(-2.6, 0.2, Math.min(1, (w - 0.35) / 0.15)); er = -0.5; al = -0.2; }
   else hy = Math.sin(time * 0.6 + f.ph * 3) * 0.45;
+  if (f.state === 'held') { al = ar = -2.75; el = er = -0.25; hy = 0; }
+  if (f.job === 'hold') { ar = -1.35; er = -0.15; hy = 0; }
   if (f.balloon && pose < 2) { ar = -0.5; er = -1.25; }
   if (f.chatT > 0) { ar = -2.5 + 0.35 * Math.sin(time * 9); er = -0.3; hy = 0; }
   const ty = f.type;
@@ -67,7 +75,7 @@ function drawFigure(f, seat, ride, rdt, setCol) {
   else if (ty === 'jug' && f.job === 'juggle') { al = ar = -0.3; el = -1.3 + 0.25 * Math.sin(time * 9.5); er = -1.3 - 0.25 * Math.sin(time * 9.5); hy = 0; }
   const i = nFig, j = nLimb, seated = pose === 2 || pose === 4;
   iTorso.setMatrixAt(i, _rm); iPelvis.setMatrixAt(i, _rm);
-  limb(_rm, 0, FIG.NECK, 0, 0, 0, _tm, hy); if (f.hk !== 1) _tm.scale(_gs.set(f.hk, f.hk, f.hk));
+  limb(_rm, 0, FIG.NECK, 0, hx, 0, _tm, hy); if (f.hk !== 1) _tm.scale(_gs.set(f.hk, f.hk, f.hk));
   iHead.setMatrixAt(i, _tm);
   if (f.hair >= 0) { const h = f.hair, k = nHair[h]++; iHair[h].setMatrixAt(k, _tm); if (setCol) iHair[h].setColorAt(k, _gc.set(f.hairCol)); }
   if (f.shades) iShades.setMatrixAt(nShades++, _tm);
@@ -101,7 +109,7 @@ function renderPeople(rdt) {
     if (s.state === 'rest') continue;
     if (s.fig) {
       drawFigure(s, null, null, rdt, setCol);
-      m.position.set(s.x, s.job === 'fix' ? -0.16 : 0, s.z); m.rotation.y = s.rr; m.rotation.x = s.job === 'clean' ? Math.sin(time * 10) * 0.22 : 0;
+      m.position.set(s.x, s.asleep ? -(FIG.HIP - 0.06) * s.sc : s.job === 'fix' ? -0.16 : 0, s.z); m.rotation.y = s.rr; m.rotation.x = s.job === 'clean' ? Math.sin(time * 10) * 0.22 : 0;
       const balls = m.userData.balls;
       if (balls) for (let i = 0; i < 3; i++) {
         if (s.job === 'juggle') { const q = time * 1.5 + i / 3, u = q % 1, dir = Math.floor(q) % 2 ? 1 : -1; balls[i].position.set(dir * lerp(-0.1, 0.1, u), 0.4 + 0.44 * 4 * u * (1 - u), 0.14); }
@@ -148,6 +156,9 @@ const ICON_DRAW = {
   drink: (c) => { c.fillStyle = '#3d8bfd'; c.beginPath(); c.moveTo(-15, -10); c.lineTo(15, -10); c.lineTo(10, 24); c.lineTo(-10, 24); c.closePath(); c.fill(); c.fillStyle = INK; c.fillRect(-18, -15, 36, 6); c.strokeStyle = '#ff4f64'; c.lineWidth = 4; c.beginPath(); c.moveTo(3, -15); c.lineTo(10, -30); c.stroke(); },
   wc: glyph('WC', INK, 34),
   money: glyph('$', '#e0344b', 46),
+  zzz: (c) => { c.fillStyle = '#3d8bfd'; c.font = '900 30px system-ui, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('Z', -10, 8); c.font = '900 22px system-ui, sans-serif'; c.fillText('z', 8, -4); c.font = '900 16px system-ui, sans-serif'; c.fillText('z', 19, -15); },
+  alert: glyph('!', '#e0344b', 52),
+  hand: (c) => { c.fillStyle = '#fff6dc'; c.strokeStyle = INK; c.lineWidth = 4; c.lineJoin = 'round'; for (const [x, y, h] of [[-17, -14, 22], [-8, -22, 30], [1, -20, 28], [10, -13, 21]]) { c.beginPath(); c.rect(x, y, 8, h); c.fill(); c.stroke(); } c.beginPath(); c.moveTo(-17, 4); c.lineTo(18, 4); c.lineTo(18, 14); c.arc(4, 14, 14, 0, Math.PI); c.lineTo(-17, 4); c.fill(); c.stroke(); c.beginPath(); c.rect(-27, 2, 12, 8); c.fill(); c.stroke(); },
   thief: (c) => { c.fillStyle = '#f1c39a'; c.beginPath(); c.arc(0, 2, 24, 0, TAU); c.fill(); c.fillStyle = INK; c.fillRect(-25, -10, 50, 15); c.beginPath(); c.arc(0, -4, 24, Math.PI, 0); c.fill(); c.fillStyle = '#fff'; c.beginPath(); c.arc(-9, -3, 4.5, 0, TAU); c.arc(9, -3, 4.5, 0, TAU); c.fill(); c.strokeStyle = INK; c.lineWidth = 3; c.beginPath(); c.arc(0, 20, 9, 1.15 * Math.PI, 1.85 * Math.PI); c.stroke(); },
   litter: (c) => { c.fillStyle = '#8a8fa8'; c.fillRect(-14, -8, 28, 30); c.fillStyle = INK; c.fillRect(-19, -15, 38, 6); c.fillRect(-6, -21, 12, 6); c.fillStyle = '#fff'; c.fillRect(-7, -2, 3, 18); c.fillRect(4, -2, 3, 18); },
   fix: (c) => { c.fillStyle = '#ffd447'; c.strokeStyle = INK; c.lineWidth = 4; c.beginPath(); c.moveTo(0, -25); c.lineTo(27, 20); c.lineTo(-27, 20); c.closePath(); c.fill(); c.stroke(); c.fillStyle = INK; c.fillRect(-3, -9, 6, 16); c.fillRect(-3, 11, 6, 6); },
@@ -155,6 +166,7 @@ const ICON_DRAW = {
 };
 const ICON = {};
 for (const k in ICON_DRAW) ICON[k] = new T.SpriteMaterial({ map: bubble(ICON_DRAW[k]), depthTest: false });
+const SPLASH = new T.SpriteMaterial({ depthTest: false, transparent: true, map: canvasTex(64, 64, (c) => { c.strokeStyle = '#ffffff'; c.lineWidth = 5; c.beginPath(); c.arc(32, 40, 22, Math.PI, 0); c.stroke(); c.fillStyle = '#e9f8ff'; for (const [x, y, r] of [[14, 22, 4], [32, 12, 5], [50, 22, 4], [22, 30, 3], [42, 30, 3]]) { c.beginPath(); c.arc(x, y, r, 0, TAU); c.fill(); } }) });
 const sprites = [];
 for (let i = 0; i < 44; i++) { const s = new T.Sprite(ICON.happy); s.center.set(0.5, 0); s.visible = false; s.renderOrder = 10; scene.add(s); sprites.push(s); }
 const selMark = new T.Mesh(new T.ConeGeometry(0.13, 0.26, 4), new T.MeshBasicMaterial({ color: 0xffd447 })); selMark.rotation.x = Math.PI; selMark.visible = false; scene.add(selMark);
@@ -166,8 +178,10 @@ function renderIcons() {
     if (b.broken) put(ICON.fix, b.group.position.x, b.top + 0.3 + Math.sin(S.time * 3) * 0.08, b.group.position.z, 1.5);
     else if (!b.def.noPath && !connected(b)) put(ICON.nopath, b.group.position.x, b.top + 0.3, b.group.position.z, 1.5);
   }
-  for (const f of thieves) if (f.spotted && n < 16) put(ICON.fix, f.x, 0.68, f.z, 0.9);
-  for (const s of staff) if (s.mood < 30 && s.state !== 'rest' && n < 20) put(ICON.angry, s.x, 0.7, s.z, 0.8);
+  for (const f of thieves) { if (n >= 18) break; if (f.state === 'held') put(ICON.hand, f.x, 0.74, f.z, 1.25 + Math.sin(performance.now() * 0.01) * 0.18); else if (f.spotted && f.state !== 'thrown') put(ICON.alert, f.x, 0.68, f.z, 0.9); }
+  for (const s of staff) { if (n >= 26) break; if (s.asleep) put(ICON.zzz, s.x + 0.08, 0.42 + Math.sin(performance.now() * 0.003) * 0.04, s.z, 1 + (s.wake || 0) * 0.12); else if (s.type === 'sec' && s.g === 'awake' && s.alertT > 71) put(ICON.alert, s.x, 0.72, s.z, 1); else if (s.mood < 30 && s.state !== 'rest') put(ICON.angry, s.x, 0.7, s.z, 0.8); }
+  for (const sp of splashes) { sp.t += 0.03; if (n < sprites.length) put(SPLASH, sp.x, 0.1, sp.z, (0.9 + sp.t * 3.2) / sz); }
+  if (splashes.length) { SPLASH.opacity = Math.max(0, 1 - splashes[0].t); if (splashes[0].t >= 1) splashes.shift(); }
   const cap = Math.min(sprites.length, n + 18);
   for (const g of guests) { if (n >= cap) break; if (g.think > 0 && g.state !== 'ride') put(ICON[g.tk] || ICON.happy, g.x, 0.6 * g.sc + 0.03, g.z, 0.85 * Math.min(1, g.think * 4, (2.8 - g.think) * 6 + 0.2)); }
   for (let i = n; i < sprites.length; i++) sprites[i].visible = false;

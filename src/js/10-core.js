@@ -1,5 +1,6 @@
 'use strict';
 const $ = (s) => document.querySelector(s);
+const DEV = !!window.RUMMEL_DEV || window.location.hash === '#dev';   // developer mode: own save game, test panel
 if (!window.THREE) { $('#nogl').hidden = false; return; }
 const T = window.THREE;
 

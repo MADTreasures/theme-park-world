@@ -4,7 +4,7 @@ const SHIRT = [0xff4f64, 0x3d8bfd, 0xffd23f, 0x3ddbb4, 0xff8fc7, 0xffffff, 0x8c5
 const PANTS = [0x2a2350, 0x4a3a2a, 0x33405a, 0x6b3a2a, 0x2b2b2b, 0x7a5c3a, 0x1f3f7a, 0xb04a2a, 0xd9b46a];
 const NAMES = ['Mia', 'Noah', 'Lina', 'Leon', 'Emma', 'Luca', 'Lea', 'Elias', 'Nina', 'Jonas', 'Sofia', 'Finn', 'Anna', 'Ben', 'Lara', 'Tim', 'Jana', 'Paul', 'Mara', 'Nico', 'Elif', 'Milan', 'Zoe', 'Samir', 'Ida', 'Matteo', 'Yara', 'Jan', 'Livia', 'Tom'];
 const THOUGHT = { happy: 'Das war schön!', great: 'Nochmal, nochmal!', sick: 'Mir ist ganz flau …', queue: 'Die Schlange ist mir zu lang.', food: 'Ich habe Hunger.', drink: 'Ich habe Durst.', wc: 'Wo ist hier ein WC?', money: 'Das ist mir zu teuer.', litter: 'Hier liegt überall Abfall.', bye: 'Schön war es. Bis bald!', angry: 'Hier komme ich nicht wieder her.', thief: 'Hilfe, mein Geld ist weg!' };
-function think(g, kind) { g.think = 2.8; g.tk = kind; }
+function think(g, kind) { g.think = 2.8; g.tk = kind; personVoice(g, kind); }
 function gripe(g, kind) {
   if (g.t - g.gripeT < 12) return;
   g.gripeT = g.t; g.happy -= 2.5; think(g, kind); complaints[kind]++;
@@ -46,7 +46,7 @@ function spawnGuest(inside) {
 }
 function spawnTick(dt) {
   const cap = guestCap(), pf = clamp(1.6 - S.ticket / willing(), 0, 1.15);
-  spawnAcc += cap * (0.004 + 0.012 * S.rating / 100) * clamp(1 - guests.length / cap, 0, 1) * pf * dt;
+  spawnAcc += cap * (0.004 + 0.012 * S.rating / 100) * clamp(1 - guests.length / cap, 0, 1) * pf * wxFactor() * dt;
   while (spawnAcc >= 1) { spawnAcc -= 1; if (guests.length < MAXG) spawnGuest(false); }
 }
 function dropLitter(t) { if (tType[t] !== 1 || litter[t] >= 3) return; litter[t]++; litterTotal++; litterDirty = true; }
