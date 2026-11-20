@@ -5,6 +5,12 @@ const staffN = (type) => { let n = 0; for (const s of staff) if (s.type === type
 const staffAll = () => { let n = 0; for (const s of staff) if (s.state !== 'quit') n++; return n; };
 const WAGE = [0.8, 1, 1.25], WAGE_NAME = ['knapp', 'üblich', 'grosszügig'];
 function housing() { let n = 2; for (const b of builds) if (b.def.housing) n += b.def.housing; return n; }
+// a guard post with a free place, or null
+function freePost(who) {
+  for (const b of builds) if (b.def.guards && !b.removed) { let n = 0; for (const o of staff) if (o !== who && o.postB === b) n++; if (n < b.def.guards) return b; }
+  return null;
+}
+const postPlaces = () => builds.reduce((n, b) => n + (b.def.guards || 0), 0);
 function hireCost(type) { const r = S.rep; return Math.round(STAFF[type].hire * (r >= 85 ? 0.9 : r >= 70 ? 1 : 1 + (70 - r) / 70 * 1.5)); }
 const repWord = () => (S.rep >= 85 ? 'ausgezeichnet' : S.rep >= 70 ? 'gut' : S.rep >= 50 ? 'angekratzt' : S.rep >= 30 ? 'schlecht' : 'miserabel');
 function staffLook(s, type) {
@@ -34,7 +40,8 @@ function hire(type, free, saved) {
   const m = mStaff(type); scene.add(m);
   const s = { type, mesh: m, name: pick(NAMES), x: wX(HALF) + rnd(-0.2, 0.2), z: wZ(N - 1), tile: ENT, prev: -1, wx: 0, wz: 0, ox: rnd(-0.25, 0.25), oz: rnd(-0.25, 0.25),
     sp0: type === 'ent' ? 0.8 : type === 'sec' ? 1.45 : type === 'jug' ? 1.0 : 1.3, sp: 1.3, rot: Math.PI, route: [], going: false, busy: 0, job: null, fix: null, moving: false, ph: rnd(TAU),
-    mood: 66, energy: rnd(70, 100), lowT: 0, warned: false, housed: true, state: 'work', room: null, breakCd: rnd(5, 20), lastBreak: S.time, chase: null, target: null, show: false, g: 'sleep', post: null, wake: 0, wakeT: 0, alertT: 0, tryCd: 0, hold: null, asleep: false, shake: 0 };
+    mood: 66, energy: rnd(70, 100), lowT: 0, warned: false, housed: true, state: 'work', room: null, breakCd: rnd(5, 20), lastBreak: S.time, chase: null, target: null, show: false, g: 'sleep', post: null, wake: 0, wakeT: 0, alertT: 0, tryCd: 0, hold: null, asleep: false, shake: 0, postB: null };
+  if (type === 'sec') s.postB = freePost(s);
   if (type !== 'ent') { staffLook(s, type); s.fig = true; m.scale.setScalar(s.sc); }
   s.rr = s.rot; s.brave = 0; s.balloon = 0;
   if (saved) { s.name = saved[1] || s.name; s.mood = +saved[2] || 60; s.energy = +saved[3] || 80; }

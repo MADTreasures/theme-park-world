@@ -36,13 +36,14 @@ def('lamp', { cat: 'deco', name: 'Laterne', cost: 30, beauty: 0.8, rad: 2, model
 def('fountain', { cat: 'deco', name: 'Springbrunnen', w: 2, h: 2, cost: 260, beauty: 4, rad: 3, need: 3, model: mFountain });
 def('breakroom', { cat: 'fac', name: 'Pausenraum', w: 2, h: 1, cost: 320, upkeep: 16, rest: 3, model: mBreak, info: 'Müdes Personal ruht sich hier aus. Platz für drei gleichzeitig.' });
 def('house', { cat: 'fac', name: 'Personalhaus', w: 2, h: 2, cost: 600, upkeep: 20, housing: 4, noPath: true, model: mHouse, info: 'Wohnraum für vier Mitarbeitende. Wer ein Zuhause hat, bleibt gern.' });
+def('post', { cat: 'fac', name: 'Wachposten', w: 1, h: 1, cost: 250, upkeep: 12, guards: 2, need: 4, model: mPost, info: 'Platz für zwei Wachleute. Ohne Posten kannst du keine einstellen; hier sitzen und schlafen sie.' });
 const STAFF = {
   jan: { name: 'Reinigungskraft', wage: 60, hire: 50, info: 'Sammelt Abfall von den Wegen.' },
   mech: { name: 'Mechaniker', wage: 100, hire: 80, info: 'Repariert defekte Attraktionen und beugt Pannen vor.' },
   ent: { name: 'Maskottchen', wage: 80, hire: 60, info: 'Hebt die Laune aller Gäste in der Nähe.' },
   clown: { name: 'Clown', wage: 70, hire: 60, need: 2, info: 'Geht zur längsten Schlange und unterhält die Wartenden. Sie bleiben länger geduldig.' },
   jug: { name: 'Jongleur', wage: 75, hire: 70, need: 3, info: 'Zeigt Kunststücke. Zuschauer freuen sich und geben Trinkgeld.' },
-  sec: { name: 'Sicherheit', wage: 90, hire: 80, need: 4, info: 'Fängt Taschendiebe. Wachleute sammeln gemeinsam Erfahrung, und mehrere fangen sicherer.' },
+  sec: { name: 'Sicherheit', wage: 90, hire: 80, need: 4, info: 'Fängt Taschendiebe. Braucht einen freien Platz in einem Wachposten. Wachleute sammeln gemeinsam Erfahrung, mehrere fangen sicherer.' },
 };
 const fairOf = (d) => (d.cat === 'ride' ? d.exc / 12 : d.fair);
 // Attractions gain a level as more guests ride them. Each level adds a little excitement and unlocks extras.

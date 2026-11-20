@@ -2,7 +2,21 @@
 // Things that make the island feel alive: moving water and surf, gulls, sailing boats, a lighthouse, a hot-air balloon,
 // sun, moon and stars, beach life, and tufts of grass and wild flowers on every free tile.
 let waterTex = null, foamMat = null, beamMat = null, starMat = null, sunDisc = null, moonDisc = null, hotAir = null, beam = null, iTuft = null, iBloom = null, tuftV = -1;
-const gulls = [], sails = [];
+const gulls = [], sails = [], lampLights = [];
+let lampTick = 0;
+const LAMP_FIXED = [[wX(HALF) - 1.05, HALF + 0.08], [wX(HALF) + 1.05, HALF + 0.08], [wX(HALF), HALF + 5.5], [wX(HALF), HALF + 11]];
+// Only a handful of real lights exist. Every few frames they move to the lanterns nearest to the view.
+function updateLampLights() {
+  if (night < 0.05) { for (const l of lampLights) l.intensity = 0; return; }
+  if (--lampTick > 0) { for (const l of lampLights) if (l.userData.on) l.intensity = night * 1.1; return; }
+  lampTick = 12;
+  const c = LAMP_FIXED.map((p) => [p[0], p[1], 0]);
+  for (const d of decos) if (d.k === 'lamp') c.push([d.group.position.x, d.group.position.z, 0]);
+  for (const b of builds) if (b.def.guards || b.def.housing) c.push([b.group.position.x, b.group.position.z, 0]);
+  for (const p of c) p[2] = (p[0] - cam.tx) * (p[0] - cam.tx) + (p[1] - cam.tz) * (p[1] - cam.tz);
+  c.sort((a, b) => a[2] - b[2]);
+  lampLights.forEach((l, i) => { const p = c[i]; l.userData.on = !!p; if (p) { l.position.set(p[0], 1.6, p[1]); l.intensity = night * 1.1; } else l.intensity = 0; });
+}
 function buildWorldExtras() {
   waterTex = canvasTex(256, 256, (c, w) => {
     c.fillStyle = '#e9f5ff'; c.fillRect(0, 0, w, w); c.lineCap = 'round';
@@ -38,6 +52,7 @@ function buildWorldExtras() {
   beamMat = new T.MeshBasicMaterial({ color: 0xfff2a8, transparent: true, opacity: 0, depthWrite: false, blending: T.AdditiveBlending, side: T.DoubleSide });
   const bg = new T.CylinderGeometry(0.2, 2.6, 26, 10, 1, true); bg.translate(0, -13, 0); bg.rotateZ(Math.PI / 2);
   beam = new T.Mesh(bg, beamMat); beam.position.set(LX, 5.3, LZ); scene.add(beam);
+  for (let i = 0; i < 4; i++) { const l = new T.PointLight(0xffd9a0, 0, 9, 1.4); scene.add(l); lampLights.push(l); }
   // gulls
   const gb = new Builder(); gb.sph(0.09, 0xffffff, 0, 0, 0, { sz: 2.2, seg: 6, seg2: 4 }); gb.cone(0.03, 0.08, K.ora, 0, 0, 0.22, { rx: Math.PI / 2, seg: 4 });
   const wb = new Builder(); wb.box(0.42, 0.012, 0.13, 0xf4f4f4, 0.21, 0, 0); wb.box(0.14, 0.013, 0.1, 0x555a6a, 0.44, 0, 0);
@@ -91,6 +106,7 @@ function rebuildTufts() {
 function updateWorldExtras(rdt) {
   const t = performance.now() / 1000;
   if (tuftV !== pathVersion) rebuildTufts();
+  updateLampLights();
   waterTex.offset.x += rdt * 0.012; waterTex.offset.y += rdt * 0.007;
   foamMat.opacity = (0.4 + 0.2 * Math.sin(t * 0.9)) * (1 - night * 0.5);
   for (const g of gulls) {

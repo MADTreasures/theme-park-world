@@ -133,15 +133,25 @@ function thiefTick() {
 // what a guard does next: a route to walk, null to wander, or false when he stays put
 function guardPlan(s) {
   const lvl = S.secLvl;
+  if (!s.postB || s.postB.removed) {
+    s.postB = freePost(s); s.post = null;
+    if (!s.postB) { toast(s.name + ' hat keinen Wachposten mehr und verlässt den Park. Die Einstellungskosten bekommst du zurück.', 'bad'); earn(STAFF.sec.hire, 'bonus'); removeStaff(s); return false; }
+  }
   if (lvl >= 3) { s.g = 'patrol'; s.asleep = false; } else if (s.g === 'patrol') s.g = 'sleep';
   if (s.g === 'awake' && s.alertT <= 0 && !thieves.some(thiefActive)) s.g = 'sleep';
   if (s.g === 'sleep') {
-    if (s.post == null || tType[s.post] !== 1) {
+    const pb = s.postB, acc = accessOf(pb), fr = inB(pb.x + DIRS[pb.rot][0], pb.y + DIRS[pb.rot][1]) ? idx(pb.x + DIRS[pb.rot][0], pb.y + DIRS[pb.rot][1]) : -1;
+    if (acc.length) { if (acc.indexOf(s.post) < 0) s.post = acc.indexOf(fr) >= 0 ? fr : acc[0]; }
+    else if (s.post == null || tType[s.post] !== 1) {
       const r = []; let c = s.tile, p = s.prev;
       for (let k = rint(3, 7); k > 0; k--) { const n = randNeighbor(c, p); if (n < 0) break; r.push(n); p = c; c = n; }
       s.post = c; if (r.length) return r;
     }
     if (s.tile !== s.post) { const r = bfsRoute(s.tile, (t) => t === s.post); if (r && r.length) return r; s.post = s.tile; }
+    if (!s.asleep && acc.length) {   // sit down right in front of the sentry box
+      const t = s.post;
+      for (let k = 0; k < 4; k++) { const nx = tX(t) + DIRS[k][0], ny = tY(t) + DIRS[k][1]; if (inB(nx, ny) && tObj[idx(nx, ny)] === s.postB) { s.x = wX(tX(t)) + DIRS[k][0] * 0.4 + DIRS[k][1] * s.ox; s.z = wZ(tY(t)) + DIRS[k][1] * 0.4 + DIRS[k][0] * s.oz; s.rot = Math.atan2(-DIRS[k][0], -DIRS[k][1]); break; } }
+    }
     s.asleep = true; s.busy = 1.2; s.job = 'sleep'; s.chase = null; return false;
   }
   s.asleep = false;

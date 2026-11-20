@@ -26,15 +26,15 @@ function updateSky() {
   night = nf;
   cTmp.copy(C_DAY).lerp(C_NIGHT, nf).lerp(C_DUSK, df * 0.55);
   scene.background.copy(cTmp); scene.fog.color.copy(cTmp);
-  hemi.intensity = lerp(0.62, 0.4, nf); hemi.color.copy(H_DAY).lerp(H_NIGHT, nf);
-  sun.intensity = lerp(0.74, 0.3, nf) * (1 - df * 0.2);
+  hemi.intensity = lerp(0.62, 0.52, nf); hemi.color.copy(H_DAY).lerp(H_NIGHT, nf);
+  sun.intensity = lerp(0.74, 0.4, nf) * (1 - df * 0.2);
   sun.color.copy(SUN_DAY).lerp(SUN_NIGHT, nf).lerp(SUN_DUSK, df * 0.6);
   const az = -1 + d * TAU, el = lerp(0.6 + 0.4 * Math.sin(Math.PI * clamp(d / 0.7, 0, 1)), 0.95, nf);
   sunDir.set(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el));
   sun.target.position.set(cam.tx, 0, cam.tz); sun.position.copy(sun.target.position).addScaledVector(sunDir, 80);
   waterMat.color.copy(W_DAY).lerp(W_NIGHT, nf);
   weatherSky();
-  MAT_LAMP.opacity = nf * 0.6;
+  MAT_LAMP.opacity = nf * 0.8;
   const e = clamp(cam.d * 0.85, 14, 38);
   if (Math.abs(e - shExt) > 0.5) { shExt = e; const c = sun.shadow.camera; c.left = c.bottom = -e; c.right = c.top = e; c.updateProjectionMatrix(); }
 }

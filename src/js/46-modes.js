@@ -7,11 +7,11 @@ function setImmersive(on, label) {
   camera.near = on ? 0.06 : 0.5; camera.fov = on ? 62 : 36; camera.updateProjectionMatrix();
 }
 function enterPOV(b) {
-  if (!b || !b.model.seats.length) return;
+  const seat = b && (b.model.povSeat || b.model.seats[0]); if (!seat) return;
   exitMode(); setTool(null); select(null);
-  pov = { b, seat: b.model.seats[0], yaw: 0, pitch: -0.08, ran: false };
+  pov = { b, seat, yaw: 0, pitch: -0.08, ran: false };
   if (b.state !== 'run' && !b.broken) { b.state = 'run'; b.runT = 0; b.loadT = 0; if (b.model.start) b.model.start(); }
-  setImmersive(true, b.def.name + ' · du fährst mit');
+  setImmersive(true, b.def.name + (b.model.povSeat ? ' · du fliegst mit dem Gespenst' : ' · du fährst mit'));
 }
 function enterFP() {
   exitMode(); setTool(null); select(null);

@@ -59,7 +59,7 @@ function modal(html) {
 function closeModal() { const f = ui.onClose; ui.onClose = null; if (f) f(); const m = $('#modal'); m.hidden = true; m.innerHTML = ''; ui.modal = false; ui.ask = null; }
 $('#modal').addEventListener('click', (e) => { if (e.target.id === 'modal') closeModal(); });
 
-const SHY = { Schiffschaukel: 'Schiff\u00ADschaukel', Wildwasserbahn: 'Wild\u00ADwasser\u00ADbahn', Kettenflieger: 'Ketten\u00ADflieger', Wirbeltassen: 'Wirbel\u00ADtassen', Freifallturm: 'Freifall\u00ADturm', Autoscooter: 'Auto\u00ADscooter', Reinigungskraft: 'Reinigungs\u00ADkraft', Springbrunnen: 'Spring\u00ADbrunnen', Abfalleimer: 'Abfall\u00ADeimer', Pommesbude: 'Pommes\u00ADbude', Ballonstand: 'Ballon\u00ADstand', Burgerbude: 'Burger\u00ADbude', Maskottchen: 'Maskott\u00ADchen', Blumenbeet: 'Blumen\u00ADbeet', Geisterhaus: 'Geister\u00ADhaus', Personalhaus: 'Personal\u00ADhaus', Pausenraum: 'Pausen\u00ADraum', Sicherheit: 'Sicher\u00ADheit' };
+const SHY = { Schiffschaukel: 'Schiff\u00ADschaukel', Wildwasserbahn: 'Wild\u00ADwasser\u00ADbahn', Kettenflieger: 'Ketten\u00ADflieger', Wirbeltassen: 'Wirbel\u00ADtassen', Freifallturm: 'Freifall\u00ADturm', Autoscooter: 'Auto\u00ADscooter', Reinigungskraft: 'Reinigungs\u00ADkraft', Springbrunnen: 'Spring\u00ADbrunnen', Abfalleimer: 'Abfall\u00ADeimer', Pommesbude: 'Pommes\u00ADbude', Ballonstand: 'Ballon\u00ADstand', Burgerbude: 'Burger\u00ADbude', Maskottchen: 'Maskott\u00ADchen', Blumenbeet: 'Blumen\u00ADbeet', Geisterhaus: 'Geister\u00ADhaus', Personalhaus: 'Personal\u00ADhaus', Pausenraum: 'Pausen\u00ADraum', Sicherheit: 'Sicher\u00ADheit', Wachposten: 'Wach\u00ADposten', Tauchbecken: 'Tauch\u00ADbecken', Himmelsturm: 'Himmels\u00ADturm' };
 const nm = (n) => SHY[n] || n;
 const TABS = [['path', 'Wege', 'Wege'], ['ride', 'Attraktionen', 'Fahrten'], ['shop', 'Buden', 'Buden'], ['deco', 'Deko', 'Deko'], ['staff', 'Personal', 'Personal'], ['doze', 'Abriss', 'Abriss']];
 function buildTabs() {
@@ -288,7 +288,7 @@ function renderPanel() {
     else {
       const ride = d.cat === 'ride', lv = ride ? lvlOf(b) : 0; let extra = '';
       if (b.k === 'throw') extra = '<button class="btn" data-act="mini" data-k="cans">Dosenwerfen spielen</button>';
-      else if (ride && lv >= 2) extra = (b.k === 'ghost' ? '<button class="btn" data-act="mini" data-k="ghosts">Hineingehen: Geisterjagd</button>' : '') + (b.k === 'kart' ? '<button class="btn" data-act="mini" data-k="kart">Selbst ans Steuer</button>' : '') + (b.k === 'dunk' ? '<button class="btn" data-act="mini" data-k="dunk">Selbst werfen</button>' : '') + (b.model.seats.length ? '<button class="btn" data-act="ridePov">Mitfahren</button>' : '');
+      else if (ride && (lv >= 2 || DEV)) extra = (b.k === 'ghost' ? '<button class="btn" data-act="mini" data-k="ghosts">Hineingehen: Geisterjagd</button>' : '') + (b.k === 'kart' ? '<button class="btn" data-act="mini" data-k="kart">Selbst ans Steuer</button>' : '') + (b.k === 'dunk' ? '<button class="btn" data-act="mini" data-k="dunk">Selbst werfen</button>' : '') + (b.model.povSeat || b.model.seats.length ? '<button class="btn" data-act="ridePov">' + (b.k === 'ghost' ? 'Mit dem Gespenst fliegen' : 'Mitfahren') + '</button>' : '');
       h += '<span class="pill" id="p-status"></span>' + (ride ? ' <span class="pill warn" id="p-lvl"></span>' : '') + '<p class="note">' + d.info + '</p>' +
         '<div class="stepper"><span class="lbl">' + (ride ? 'Preis pro Fahrt' : 'Preis') + '</span><button class="sq" data-act="price" data-d="-1" aria-label="Preis senken">' + IC.minus + '</button><output id="p-price"></output><button class="sq" data-act="price" data-d="1" aria-label="Preis erhöhen">' + IC.plus + '</button></div>' +
         '<p class="note">Gäste finden das <b id="p-op"></b>.</p>' +
@@ -353,7 +353,7 @@ function showTeam() {
 }
 function fillTeam() {
   setTxt('t-sec', 'Stufe ' + S.secLvl + ' · ' + SEC_NAME[S.secLvl - 1] + (S.secLvl < 5 ? ' · noch ' + Math.max(0, SEC_XP[S.secLvl] - S.secXp) + ' Punkte' : ''));
-  setTxt('t-secinfo', 'Wachleute: ' + SEC_INFO[S.secLvl - 1] + ' Fangchance pro Versuch: ' + Math.round(catchChance() * 100) + ' %. Jeder weitere Wachmann erhöht sie.');
+  setTxt('t-secinfo', 'Wachleute: ' + SEC_INFO[S.secLvl - 1] + ' Fangchance pro Versuch: ' + Math.round(catchChance() * 100) + ' %. Jeder weitere Wachmann erhöht sie. Wachposten: ' + staffN('sec') + ' von ' + postPlaces() + ' Plätzen besetzt.');
   setTxt('t-rep', repWord() + ' (' + Math.round(S.rep) + ' von 100)'); setTxt('t-wage', WAGE_NAME[S.wage]);
   setTxt('t-sum', eur(staff.reduce((n, s) => n + (s.state === 'quit' ? 0 : STAFF[s.type].wage), 0) * WAGE[S.wage]));
 }
@@ -426,6 +426,7 @@ const ACT = {
   },
   hire: (el) => {
     const k = el.dataset.k;
+    if (k === 'sec' && !freePost(null)) { sfx('error'); toast(postPlaces() ? 'Alle Wachposten sind besetzt. Baue einen weiteren (unter Personal), jeder bietet Platz für zwei.' : 'Baue zuerst einen Wachposten (unter Personal). Dort haben zwei Wachleute ihren Platz.', 'bad'); return; }
     if (staffN(k) >= 12) { toast('Mehr als 12 pro Beruf passen nicht in den Park.', 'bad'); return; }
     const s = hire(k);
     if (s) { sfx('build'); toast(s.name + ' fängt als ' + STAFF[k].name + ' an.', 'good'); } else { sfx('error'); toast('Dafür reicht das Geld nicht.', 'bad'); }

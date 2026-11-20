@@ -49,7 +49,7 @@ function mWC() {
 const deco1 = (fn) => () => { const b = new Builder(); fn(b, 0, 0, 1); return { group: b.mesh() }; };
 function mLamp() {
   const b = new Builder(); addLamp(b, 0, 0); const g = b.mesh();
-  const gl = new T.Mesh(new T.PlaneGeometry(3.8, 3.8), MAT_LAMP); gl.rotation.x = -Math.PI / 2; gl.position.y = 0.09; gl.renderOrder = 2; g.add(gl);
+  const gl = new T.Mesh(new T.PlaneGeometry(6.6, 6.6), MAT_LAMP); gl.rotation.x = -Math.PI / 2; gl.position.y = 0.09; gl.renderOrder = 2; g.add(gl);
   return { group: g };
 }
 function mFountain() {

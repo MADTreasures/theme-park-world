@@ -34,7 +34,7 @@ function mGhost() {
   const bb = new Builder(); bb.sph(0.045, 0x15101f, 0, 0, 0, { seg: 5, seg2: 4 }); bb.box(0.16, 0.01, 0.07, 0x15101f, -0.1, 0.01, 0, { rz: 0.3 }); bb.box(0.16, 0.01, 0.07, 0x15101f, 0.1, 0.01, 0, { rz: -0.3 });
   const bat0 = bb.mesh(false), bats = [bat0, bat0.clone()]; bats.forEach((m) => g.add(m));
   let tt = rnd(10);
-  return { group: g, seats: [], update(dt, r) {
+  return { group: g, seats: [], povSeat: seatAt(ghost, 0, 0.3, -0.2), update(dt, r) {
     tt += dt * (0.35 + 1.5 * r.spin);
     const out = 0.4 + 0.6 * r.spin;
     ghost.position.set(-0.4 + Math.cos(tt * 0.9) * 1.5 * out, 2.3 + Math.sin(tt * 2.1) * 0.25 + r.spin * 0.3, -0.4 + Math.sin(tt * 0.9) * 1.1 * out); ghost.rotation.y = -tt * 0.9;
@@ -221,4 +221,18 @@ function mSkyTower() {
     if (last < 8 && r.runT >= 8) { const p = g.position; sfxAt('drop', p.x, p.z, 1.3); }
     last = r.runT;
   } };
+}
+
+/* ----- guard post: a sentry box for two guards ----- */
+function mPost() {
+  const g = new T.Group(), b = new Builder();
+  b.box(0.9, 0.05, 0.9, K.stoneD, 0, 0.025, 0);
+  b.box(0.6, 1.0, 0.6, K.blue, 0, 0.55, -0.12);
+  for (let i = 0; i < 3; i++) { b.box(0.1, 1.0, 0.61, K.paper, -0.2 + i * 0.2, 0.55, -0.12); b.box(0.61, 1.0, 0.1, K.paper, 0, 0.55, -0.32 + i * 0.2); }
+  b.box(0.36, 0.74, 0.02, K.inkD, 0, 0.44, 0.19);
+  b.cone(0.54, 0.42, K.red, 0, 1.26, -0.12, { seg: 4, ry: Math.PI / 4 }); b.sph(0.06, K.bulb, 0, 1.52, -0.12, { glow: true, seg: 6, seg2: 4 });
+  b.cyl(0.1, 0.1, 0.04, K.wood, 0.3, 0.2, 0.3, { seg: 8 }); for (const a of [0.5, 2.6, 4.7]) b.cyl(0.012, 0.012, 0.18, K.inkD, 0.3 + Math.cos(a) * 0.07, 0.1, 0.3 + Math.sin(a) * 0.07, { seg: 4 });
+  g.add(b.mesh());
+  const p = new T.Mesh(new T.PlaneGeometry(0.52, 0.13), new T.MeshBasicMaterial({ map: boardTex('Wache') })); p.position.set(0, 0.93, 0.192); g.add(p);
+  return { group: g, seats: [] };
 }
