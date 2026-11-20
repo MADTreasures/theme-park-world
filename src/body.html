@@ -1,0 +1,48 @@
+<div id="app">
+  <canvas id="stage" tabindex="0" aria-label="Dein Freizeitpark in 3D"></canvas>
+  <div id="hud">
+    <header id="topbar">
+      <div class="brand">Rummelinsel</div>
+      <div class="stats">
+        <button class="stat money" id="st-money" data-act="finance" title="Finanzen"><img id="coin-img" alt="" width="24" height="24"><b id="v-money">0</b></button>
+        <div class="stat" title="Gäste im Park"><span data-ic="people"></span><b id="v-guests">0</b></div>
+        <button class="stat" id="st-rating" data-act="menu" title="Parkwertung"><span data-ic="star"></span><b id="v-rating">0</b></button>
+        <div class="stat" id="st-day" title="Tag und Uhrzeit"><span id="ic-day" data-ic="sun"></span><b id="v-day">Tag 1</b></div>
+      </div>
+      <div class="ctrl">
+        <div class="seg" role="group" aria-label="Spieltempo">
+          <button data-act="speed" data-v="0" aria-label="Pause" title="Pause (Leertaste)"><span data-ic="pause"></span></button>
+          <button data-act="speed" data-v="1" aria-label="Normales Tempo" title="Normal (1)"><span data-ic="play"></span></button>
+          <button data-act="speed" data-v="2" aria-label="Doppeltes Tempo" title="Schnell (2)"><span data-ic="ff"></span></button>
+          <button data-act="speed" data-v="4" aria-label="Vierfaches Tempo" title="Sehr schnell (3)"><span data-ic="fff"></span></button>
+        </div>
+        <button class="ibtn" data-act="menu" aria-label="Parkbüro" title="Parkbüro"><span data-ic="menu"></span></button>
+      </div>
+    </header>
+    <button id="goal" data-act="goals" title="Alle Ziele ansehen">
+      <span class="tag" id="goal-tag">Ziel</span><span class="txt" id="goal-txt"></span><span class="rew" id="goal-rew"></span>
+      <span class="bar"><i id="goal-bar"></i></span>
+    </button>
+    <div id="mid">
+      <div id="toasts" aria-live="polite"></div>
+      <section id="coach" hidden></section>
+      <aside id="panel" hidden></aside>
+      <div id="cam">
+        <button class="ibtn" data-act="camL" aria-label="Ansicht nach links drehen" title="Drehen (Q)"><span data-ic="rotl"></span></button>
+        <button class="ibtn" data-act="camR" aria-label="Ansicht nach rechts drehen" title="Drehen (E)"><span data-ic="rotr"></span></button>
+        <button class="ibtn" data-act="zin" aria-label="Näher heran" title="Heranzoomen"><span data-ic="plus"></span></button>
+        <button class="ibtn" data-act="zout" aria-label="Weiter weg" title="Herauszoomen"><span data-ic="minus"></span></button>
+        <button class="ibtn" data-act="walk" aria-label="Rundgang zu Fuss" title="Rundgang zu Fuss"><span data-ic="walk"></span></button>
+      </div>
+      <div id="toolbar" hidden></div>
+      <div id="modebar" hidden><b id="mode-txt"></b><button class="btn" data-act="exitMode">Beenden</button></div>
+      <div id="joy" hidden aria-label="Steuerkreuz zum Gehen"><i></i></div>
+    </div>
+    <footer id="dock">
+      <div id="tray" hidden></div>
+      <nav id="tabs" aria-label="Bauen"></nav>
+    </footer>
+  </div>
+  <div id="modal" hidden></div>
+  <div id="nogl" hidden><div><b>Rummelinsel 3D</b>Die 3D-Grafik konnte nicht starten. Öffne die Seite in einem aktuellen Browser mit WebGL.</div></div>
+</div>

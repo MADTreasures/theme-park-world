@@ -1,0 +1,35 @@
+/* ================= main loop ================= */
+let last = 0, acc = 0, uiT = 0, saveT = 0;
+function frame(now) {
+  requestAnimationFrame(frame);
+  const rdt = Math.min(0.1, (now - last) / 1000 || 0); last = now;
+  if (S.speed > 0 && !ui.mini) {
+    acc += rdt * S.speed; let n = 0;
+    while (acc >= STEP && n < 14) { simStep(STEP); acc -= STEP; n++; }
+    if (n === 14) acc = 0;
+  }
+  if (pathDirty) rebuildPaths();
+  if (litterDirty) rebuildLitter();
+  if (!modeCamera(rdt)) updateCamera(rdt);
+  updateSky(); updateWorldExtras(rdt); renderPeople(rdt); renderIcons();
+  for (const c of clouds) { c.position.x += c.userData.v * rdt; if (c.position.x > 150) c.position.x = -150; }
+  uiT += rdt; if (uiT > 0.25 || uiDirty) { uiT = 0; uiDirty = false; refreshUI(); }
+  saveT += rdt; if (saveT > 15) { saveT = 0; save(); }
+  renderer.render(scene, camera);
+}
+function start(hot) {
+  buildWorld(); buildWorldExtras(); makeThumbs(); resize();
+  let data = hot && hot.save;
+  if (!data) { try { data = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); } catch (e) { data = null; } }
+  let loaded = false;
+  if (data && data.v === 1 && Array.isArray(data.paths) && Array.isArray(data.objs)) { try { load(data); loaded = true; } catch (e) { loaded = false; } }
+  if (!loaded) newGame();
+  buildTabs(); renderTray(); renderCoach(); applyCurrency(); refreshUI();
+  if (!S.cur) openCurrency(true);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
+  window.__park = { S, DEFS, STAFF, cam, spawnThief, catchThief, enterFP, enterPOV, exitMode, openMini, openCurrency, lvlOf, socialTick, quit, get thieves() { return thieves; }, get fp() { return fp; }, get pov() { return pov; }, get mini() { return mini; }, analyseTrack, tool: () => tool, removeObj, fire, load, demolish, tType, toScreen: (x, z) => { _v.set(x, 0, z).project(camera); const r = canvas.getBoundingClientRect(); return [(_v.x * 0.5 + 0.5) * r.width + r.left, (-_v.y * 0.5 + 0.5) * r.height + r.top]; }, simStep, placeObj, setPath, hire, idx, newGame, save, serialize, setTool, select, get guests() { return guests; }, get builds() { return builds; }, get staff() { return staff; }, get fin() { return fin; } };
+  requestAnimationFrame(frame);
+}
+const HOT = window.claude && window.claude.hot;
+try { if (HOT && HOT.snapshot) HOT.snapshot(() => ({ save: serialize() })); } catch (e) { /* only present inside the viewer */ }
+if (HOT && HOT.ready) HOT.ready(start); else start((HOT && HOT.data) || {});
