@@ -402,7 +402,10 @@ function fillTeam() {
 }
 
 /* ----- top bar, goal, modals ----- */
+const narrow = () => !!(window.matchMedia && window.matchMedia('(max-width:760px)').matches);
 function refreshUI() {
+  // how much room the tool bar and the thief alarm take: on a phone, boxes and messages keep clear of them
+  { const tb = $('#toolbar'), h = tb.hidden ? 0 : tb.offsetHeight + 8, al = $('#alert'), ah = al.hidden ? 0 : al.offsetHeight + 8; if (h !== ui.tbh) { ui.tbh = h; $('#mid').style.setProperty('--tbh', h + 'px'); } if (ah !== ui.alh) { ui.alh = ah; $('#mid').style.setProperty('--alh', ah + 'px'); } }
   setTxt('v-money', eur(S.money)); $('#st-money').classList.toggle('neg', S.money < 0);
   setTxt('v-guests', guests.length); setTxt('v-rating', Math.round(S.rating));
   const d = (S.time % DAY) / DAY, hh = (6 + d * 24) % 24, hr = Math.floor(hh), mn = Math.floor((hh - hr) * 6) * 10;
@@ -540,7 +543,7 @@ const ACT = {
   askNew: () => modal('<h2>Neues Spiel beginnen?</h2><p>Dein jetziger Park wird dabei gelöscht.</p><div class="row"><button class="btn red" data-act="yesNew">Neu anfangen</button><button class="btn line" data-act="closeModal">Weiterspielen</button></div>'),
   yesNew: () => { closeModal(); setTool(null); select(null); ui.tab = null; newGame(); renderTray(); toast('Neuer Park eröffnet.', 'good'); uiDirty = true; save(); },
   coachOk: () => { S.coach = false; renderCoach(); sfx('click'); },
-  coachFold: () => { S.coach = !S.coach; renderCoach(); sfx('click'); },
+  coachFold: () => { S.coach = !S.coach; renderCoach(); sfx('click'); if (S.coach && narrow()) { const d = $('#dev'); if (d && !d.hidden) d.classList.add('min'); } },   // on a phone only one of the two boxes is open
   panelFold: () => { ui.panelMin = !ui.panelMin; $('#panel').classList.toggle('min', ui.panelMin); sfx('click'); },
   alertGo: () => {
     let f = null; for (const t of thieves) if (t.state === 'held' && (!f || t.heldT < f.heldT)) f = t;

@@ -245,9 +245,9 @@ table.fin.team .meter{min-width:64px}
   #dev.min .devhead .s{display:inline}
   #dev.min .devhead svg{transform:rotate(180deg)}
   /* opened, the head stays at the bottom, under the finger that opened it: one more tap there folds the box again */
-  #dev:not(.min){display:flex;flex-direction:column;padding-bottom:0}
-  #dev:not(.min) .devbody{order:1;padding-bottom:6px}
-  #dev:not(.min) .devhead{order:2;position:sticky;bottom:0;z-index:1;flex:none;padding:8px 0;background:var(--ink-2);border-top:2px solid var(--ink-3)}
+  #dev:not(.min){display:flex;flex-direction:column;padding-bottom:0;overflow:hidden}
+  #dev:not(.min) .devbody{order:1;flex:1 1 auto;min-height:0;overflow-y:auto;padding-bottom:6px}
+  #dev:not(.min) .devhead{order:2;flex:none;padding:8px 0;border-top:2px solid var(--ink-3)}
 }
 
 /* seven tabs */
@@ -294,13 +294,22 @@ table.fin.team .meter{min-width:64px}
 @media (prefers-reduced-motion:reduce){ #alert{animation:none} #hand[data-mode="knock"].press svg{animation:none} .fold-h svg,#dev .devhead svg{transition:none} }
 @media (max-width:760px){ #dev.min{left:auto} }
 #dev:not(.min){z-index:3}
-/* Phones: messages keep clear of the help tab. The thief alarm and the messages start one row lower, and while the
-   help box is open the messages appear near the bottom instead of on top of its text. */
+/* Phones: nothing lies on top of anything else. --tbh is the room the tool bar takes and --alh the room of the thief
+   alarm (both set by the game). From the bottom up: camera row with the dev tab, tool bar, then the boxes. At the top
+   the help tab, the alarm and one line for a message stay free. */
 @media (max-width:760px){
-  #toasts{top:46px}
+  #mid{--tbh:0px;--alh:0px}
   #alert{top:44px}
-  #mid.alerting #toasts{top:102px}
-  #hud:not(.immersive) #mid:has(#coach:not(.min):not([hidden])) #toasts{top:auto;bottom:124px;flex-direction:column-reverse}
+  #mid #toasts,#mid.alerting #toasts{top:calc(46px + var(--alh))}
   #hud.immersive #alert{top:66px}
-  #hud.immersive #mid.alerting #toasts{top:124px}
+  #hud.immersive #toasts,#hud.immersive #mid.alerting #toasts{top:calc(66px + var(--alh))}
+  #dev:not(.min){bottom:calc(52px + var(--tbh));max-height:calc(100% - 152px - var(--tbh) - var(--alh))}
+  #coach:not(.min){max-height:calc(100% - 124px - var(--tbh) - var(--alh));overflow:auto}
+  /* while the help box is open, the alarm and the messages appear below it */
+  #hud:not(.immersive) #mid:not(.sheet):has(#coach:not(.min):not([hidden])) #alert{top:auto;bottom:calc(60px + var(--tbh))}
+  #hud:not(.immersive) #mid:not(.sheet):has(#coach:not(.min):not([hidden])) #toasts{top:auto;bottom:calc(60px + var(--tbh) + var(--alh));flex-direction:column-reverse}
+  #mid:has(#coach:not(.min):not([hidden])) #dev:not(.min){display:none}
+  #panel{max-height:calc(100% - 104px - var(--alh))}
+  #mid.sheet #coach:not(.min){display:none}
+  #hud.immersive #panel{max-height:calc(100% - 256px - var(--alh))}
 }
