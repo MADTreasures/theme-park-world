@@ -16,9 +16,12 @@ function serve(b, g) {
     if (b.model.play) b.model.play(win ? 1 : rnd(0.3, 0.92));
   }
   else if (d.sells === 'hat') { wearHat(g); g.happy += 9 * val; }
+  else if (d.sells === 'umbrella') { g.umb = pick(UMB_COLS); g.happy += 6 * val; }
+  else if (d.sells === 'parasol') { g.sun = pick(SUN_COLS); g.happy += 7 * val; }
   else if (d.sells === 'costume') { wearCostume(g); g.happy += 11 * val; }
   else { g.wc = 0; g.happy += 2; }
   if (d.sells !== 'wc') personVoice(g, 'nom');
+  if (g.vip && g.log && d.sells !== 'wc') g.log.buys.push(d.name);
   if (d.dine) {   // sits down at a free place and eats; without one the meal is taken away
     const seat = b.model.seats.find((s) => !b.riders.some((r) => r.seat === s));
     if (seat) { g.state = 'ride'; g.seat = seat; g.dineT = d.dine * rnd(0.8, 1.25); g.tile = g.acc; b.riders.push(g); colorsDirty = true; return; }
@@ -64,6 +67,7 @@ function endRide(b) {
     if (g.nausea > 75) { gain -= 6; think(g, 'sick'); if (Math.random() < 0.35) dropLitter(g.acc); g.nausea = 40; }
     else if (Math.random() < 0.5) think(g, gain > 8 ? 'great' : 'happy');
     g.happy = clamp(g.happy + gain, 0, 100); g.rides[b.k] = times + 1; g.nRides++;
+    if (g.vip && g.log) g.log.rides.push([d.name, gain]);
     releaseGuest(g);
   }
   b.riders = []; b.state = 'idle'; b.loadT = 0; b.wear++;

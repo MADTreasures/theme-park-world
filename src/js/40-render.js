@@ -12,11 +12,11 @@ const FGL = figureGeos(0), FGH = figureGeos(1), MAT_FIG = MAT_INST(0.5, 0.16), M
 function figSet(G, cap) {
   const all = [], part = (g, n, mat) => { const m = inst(g, mat || MAT_FIG, n, false, false); all.push(m); return m; };
   return {
-    all, cap, nFig: 0, nLimb: 0, nSkirt: 0, nPack: 0, nShades: 0, nMask: 0, nHoops: 0, nCape: 0, nPlush: 0, nHair: G.hair.map(() => 0), nMouth: G.mouth.map(() => 0),
+    all, cap, nFig: 0, nLimb: 0, nSkirt: 0, nPack: 0, nShades: 0, nMask: 0, nHoops: 0, nCape: 0, nPlush: 0, nUmb: 0, nSun: 0, nStick: 0, nHair: G.hair.map(() => 0), nMouth: G.mouth.map(() => 0),
     iTorso: part(G.torso, cap), iTrim: part(G.trim, cap), iZip: part(G.zip, cap), iHoops: part(G.hoops, 16), iPelvis: part(G.pelvis, cap), iHead: part(G.head, cap),
     iThigh: part(G.thigh, cap * 2), iShin: part(G.shin, cap * 2), iShort: part(G.short, cap * 2), iShoe: part(G.shoe, cap * 2), iSole: part(G.sole, cap * 2),
     iUpper: part(G.upper, cap * 2), iCap: part(G.cap, cap * 2), iStripe: part(G.stripe, cap * 2), iFore: part(G.forearm, cap * 2), iWrist: part(G.wrist, cap * 2), iHand: part(G.hand, cap * 2),
-    iHair: G.hair.map((g) => part(g, cap)), iSkirt: part(G.skirt, cap), iPack: part(G.pack, cap), iShades: part(G.shades, cap), iMask: part(G.mask, 16), iCape: part(G.cape, cap), iPlush: part(G.plush, cap),
+    iHair: G.hair.map((g) => part(g, cap)), iSkirt: part(G.skirt, cap), iPack: part(G.pack, cap), iShades: part(G.shades, cap), iMask: part(G.mask, 16), iCape: part(G.cape, cap), iPlush: part(G.plush, cap), iUmb: part(G.umb, cap), iSun: part(G.sun, cap), iStick: part(G.stick, 4),
     iEyes: part(G.eye, cap * 2, MAT_EYE), iIris: part(G.iris, cap * 2, MAT_EYE), iLid: part(G.lid, cap * 2, MAT_EYE), iBrow: part(G.brow, cap * 2), iMouth: G.mouth.map((g) => part(g, cap)),
   };
 }
@@ -125,13 +125,18 @@ function drawFigure(f, seat, ride, rdt) {
   if (f.balloon && pose < 2) { ar = -0.35; er = -1.15; zr = 0.5; }   // held out to the side, so that the string stays clear of the face
   if (pose < 2 && tk) {
     if (tk === 'great') { const w = Math.sin(rt * 9 + ph) * 0.25; al = -2.7 + w; ar = -2.7 - w; el = er = -0.2; hx = -0.15; }
-    else if (tk === 'bye') { ar = -2.7 + 0.3 * Math.sin(rt * 11); er = -0.35; }
+    else if (tk === 'bye' || tk === 'fan') { ar = -2.7 + 0.3 * Math.sin(rt * 11); er = -0.35; }
     else if (tk === 'angry') { ar = -2.0 + 0.22 * Math.sin(rt * 15); er = -1.3; }
     else if (tk === 'sick') { ar = -1.0; er = -1.75; zr = 0.3; hx = 0.1; }
     else if (tk === 'thief') { al = ar = -1.3; el = er = -1.7; zl = zr = 0.42; }   // hands up beside the face, clear of the cheeks
     else if (tk === 'food') { al = -0.55; el = -1.6; }
   }
   if (f.chatT > 0) { ar = -2.5 + 0.35 * Math.sin(rt * 9); er = -0.3; hy = 0; }
+  // an open umbrella in the rain or a parasol in the sun, held in the left hand in front of the chest
+  const shade = !seat && pose < 2 && !ty && !f.thief ? (f.umb && WX.wet > 0.25 ? 1 : f.sun && WX.sunny && WX.wet < 0.1 ? 2 : 0) : 0;
+  if (shade) { al = -0.95; el = -1.25; zl = 0.12; }
+  // an influencer films with a phone on a stick, held up in front
+  if (f.vip && !seat && pose < 2 && !tk && !f.chatT) { ar = -2.2 + Math.sin(rt * 1.3 + ph) * 0.06; er = -0.35; zr = 0.28; hx = -0.12; hy = Math.sin(rt * 0.8 + ph) * 0.2; }
   if (ty === 'jan') { ar = f.job === 'clean' ? -0.45 + 0.3 * Math.sin(time * 10) : -0.35; er = -0.05; }
   else if (ty === 'mech') { al = 0.02; el = 0; if (f.job === 'fix') { ar = -1.25 + 0.5 * Math.sin(time * 12); er = -0.9; hx = 0.2; hy = 0; } }
   else if (ty === 'gard') { al = 0.02; el = 0; if (f.job === 'cut') { ar = -1.2 + 0.35 * Math.sin(time * 13); er = -0.7; hx = 0.15; hy = 0; } else if (f.job === 'water') { al = -0.9; el = -0.5; hx = 0.2; hy = 0; } }
@@ -175,8 +180,9 @@ function drawFigure(f, seat, ride, rdt) {
     else if (seat && ride && ride.def.grp === 'show' && ride.state === 'run') { mo = 1; ms = 0.8; bl = 0.012; }
     else if (pose === 3 || pose === 8 || pose === 9) { mo = 1; bl = 0.01; }
     else if (f.chatT > 0) { mo = 1; ms = 0.6 + 0.4 * Math.abs(Math.sin(rt * 10)); bl = 0.008; }
+    else if (f.vip && !tk) { mo = 1; ms = 0.55 + 0.45 * Math.abs(Math.sin(rt * 7 + ph)); mw = 1.1; bl = 0.012; }   // talking to the camera
     else if (tk === 'great') { mo = 1; ms = 1.15; bl = 0.014; eo = 0; ec = 2; }
-    else if (tk === 'happy' || tk === 'bye') { mw = 1.15; bl = 0.008; }
+    else if (tk === 'happy' || tk === 'bye' || tk === 'fan') { mw = 1.15; bl = 0.008; }
     else if (tk === 'sick') { mo = 3; ms = 0.8; ba = 0.5; eo = 0.6; }
     else if (tk === 'thief') { mo = 3; ms = 1.5; mw = 1.2; ba = 0.5; bl = 0.02; ps = 0.7; }
     else if (tk === 'food' || tk === 'drink' || tk === 'wc') { mo = 4; ba = 0.4; ly = 0.006; }
@@ -208,8 +214,14 @@ function drawFigure(f, seat, ride, rdt) {
   limb(_rm, -FIG.LX, FIG.HIP, 0, tl, -spread, _tm); M.iThigh.setMatrixAt(j, _tm); M.iShort.setMatrixAt(j, shorts ? _tm : M0); limb(_tm, 0, -FIG.THIGH, 0, kl, 0, _km); M.iShin.setMatrixAt(j, _km); M.iShoe.setMatrixAt(j, _km); M.iSole.setMatrixAt(j, _km);
   limb(_rm, FIG.LX, FIG.HIP, 0, tr, spread, _tm); M.iThigh.setMatrixAt(j + 1, _tm); M.iShort.setMatrixAt(j + 1, shorts ? _tm : M0); limb(_tm, 0, -FIG.THIGH, 0, kr, 0, _km); M.iShin.setMatrixAt(j + 1, _km); M.iShoe.setMatrixAt(j + 1, _km); M.iSole.setMatrixAt(j + 1, _km);
   limb(_rm, -FIG.SX, FIG.SHO, 0, al, -zl, _tm); M.iUpper.setMatrixAt(j, _tm); M.iCap.setMatrixAt(j, tee ? _tm : M0); M.iStripe.setMatrixAt(j, long ? _tm : M0); limb(_tm, 0, -FIG.UARM, 0, el, 0, _km); M.iFore.setMatrixAt(j, _km); M.iWrist.setMatrixAt(j, _km); M.iHand.setMatrixAt(j, _km); if (u && u.handL) follow(u.handL, _km);
-  if (f.prize) { M.iPlush.setMatrixAt(M.nPlush, _km); M.iPlush.setColorAt(M.nPlush, _gc.set(f.prize)); M.nPlush++; }   // a soft toy won at a game
+  if (f.prize && !shade) { M.iPlush.setMatrixAt(M.nPlush, _km); M.iPlush.setColorAt(M.nPlush, _gc.set(f.prize)); M.nPlush++; }   // a soft toy won at a game
+  if (shade) {   // upright in the hand, leaning back over the head
+    _lp.set(0, -FIG.HAND, 0).applyMatrix4(_km); _lq.setFromEuler(_eb.set(-0.3, f.rr, -0.2 + Math.sin(rt * 1.1 + ph) * 0.03));
+    const U = shade === 1 ? M.iUmb : M.iSun, n = shade === 1 ? M.nUmb++ : M.nSun++;
+    U.setMatrixAt(n, _lm.compose(_lp, _lq, _ls.set(sc, sc, sc))); U.setColorAt(n, _gc.set(shade === 1 ? f.umb : f.sun));
+  }
   limb(_rm, FIG.SX, FIG.SHO, 0, ar, zr, _tm); M.iUpper.setMatrixAt(j + 1, _tm); M.iCap.setMatrixAt(j + 1, tee ? _tm : M0); M.iStripe.setMatrixAt(j + 1, long ? _tm : M0); limb(_tm, 0, -FIG.UARM, 0, er, 0, _km); M.iFore.setMatrixAt(j + 1, _km); M.iWrist.setMatrixAt(j + 1, _km); M.iHand.setMatrixAt(j + 1, _km); if (u && u.handR) follow(u.handR, _km);
+  if (f.vip && !seat && M.nStick < 4) { M.iStick.setMatrixAt(M.nStick, _km); M.iStick.setColorAt(M.nStick, _gc.set(0xffffff)); M.nStick++; }
   const skirt = f.bottom === 2 && !seated;
   if (skirt) { M.iSkirt.setMatrixAt(M.nSkirt, _rm); M.iSkirt.setColorAt(M.nSkirt, _gc.set(f.pants)); M.nSkirt++; }
   if (f.cape) { M.iCape.setMatrixAt(M.nCape, _rm); M.iCape.setColorAt(M.nCape, _gc.set(f.cape)); M.nCape++; }
@@ -230,7 +242,7 @@ function drawFigure(f, seat, ride, rdt) {
   M.nFig++; M.nLimb += 2;
 }
 function renderPeople(rdt) {
-  for (const M of FIGSETS) { M.nFig = M.nLimb = M.nSkirt = M.nPack = M.nShades = M.nMask = M.nHoops = M.nCape = M.nPlush = 0; M.nHair.fill(0); M.nMouth.fill(0); }
+  for (const M of FIGSETS) { M.nFig = M.nLimb = M.nSkirt = M.nPack = M.nShades = M.nMask = M.nHoops = M.nCape = M.nPlush = M.nUmb = M.nSun = M.nStick = 0; M.nHair.fill(0); M.nMouth.fill(0); }
   nBall = nBlob = figNear = 0;
   figT = performance.now() * 0.001; figFaces = !!(fp || pov) || cam.d < 30;
   // The smooth set is for people who appear large: within a reach that depends on the lens. When more people are
@@ -265,7 +277,7 @@ function renderPeople(rdt) {
     const nFace = figFaces ? M.nLimb : 0;
     M.iTorso.count = M.iTrim.count = M.iZip.count = M.iPelvis.count = M.iHead.count = M.nFig;
     M.iThigh.count = M.iShin.count = M.iShort.count = M.iShoe.count = M.iSole.count = M.iUpper.count = M.iCap.count = M.iStripe.count = M.iFore.count = M.iWrist.count = M.iHand.count = M.nLimb;
-    M.iSkirt.count = M.nSkirt; M.iPack.count = M.nPack; M.iShades.count = M.nShades; M.iMask.count = M.nMask; M.iHoops.count = M.nHoops; M.iCape.count = M.nCape; M.iPlush.count = M.nPlush; M.iEyes.count = M.iIris.count = M.iLid.count = M.iBrow.count = nFace;
+    M.iSkirt.count = M.nSkirt; M.iPack.count = M.nPack; M.iShades.count = M.nShades; M.iMask.count = M.nMask; M.iHoops.count = M.nHoops; M.iCape.count = M.nCape; M.iPlush.count = M.nPlush; M.iUmb.count = M.nUmb; M.iSun.count = M.nSun; M.iStick.count = M.nStick; M.iEyes.count = M.iIris.count = M.iLid.count = M.iBrow.count = nFace;
     for (let h = 0; h < M.iHair.length; h++) M.iHair[h].count = M.nHair[h];
     for (let k = 0; k < M.iMouth.length; k++) M.iMouth[k].count = figFaces ? M.nMouth[k] : 0;
     for (const m of M.all) { const on = m.count > 0; m.visible = on; if (on) { m.instanceMatrix.needsUpdate = true; m.instanceColor.needsUpdate = true; } }   // parts that nobody wears are not drawn at all
@@ -308,6 +320,8 @@ const ICON_DRAW = {
   thief: (c) => { c.fillStyle = '#f1c39a'; c.beginPath(); c.arc(0, 2, 24, 0, TAU); c.fill(); c.fillStyle = INK; c.fillRect(-25, -10, 50, 15); c.beginPath(); c.arc(0, -4, 24, Math.PI, 0); c.fill(); c.fillStyle = '#fff'; c.beginPath(); c.arc(-9, -3, 4.5, 0, TAU); c.arc(9, -3, 4.5, 0, TAU); c.fill(); c.strokeStyle = INK; c.lineWidth = 3; c.beginPath(); c.arc(0, 20, 9, 1.15 * Math.PI, 1.85 * Math.PI); c.stroke(); },
   litter: (c) => { c.fillStyle = '#8a8fa8'; c.fillRect(-14, -8, 28, 30); c.fillStyle = INK; c.fillRect(-19, -15, 38, 6); c.fillRect(-6, -21, 12, 6); c.fillStyle = '#fff'; c.fillRect(-7, -2, 3, 18); c.fillRect(4, -2, 3, 18); },
   fix: (c) => { c.fillStyle = '#ffd447'; c.strokeStyle = INK; c.lineWidth = 4; c.beginPath(); c.moveTo(0, -25); c.lineTo(27, 20); c.lineTo(-27, 20); c.closePath(); c.fill(); c.stroke(); c.fillStyle = INK; c.fillRect(-3, -9, 6, 16); c.fillRect(-3, 11, 6, 6); },
+  cam: (c) => { c.fillStyle = '#ff4fa8'; c.strokeStyle = INK; c.lineWidth = 4; c.lineJoin = 'round'; c.beginPath(); c.rect(-24, -13, 48, 32); c.fill(); c.stroke(); c.beginPath(); c.rect(-10, -21, 20, 9); c.fill(); c.stroke(); c.fillStyle = '#fff'; c.beginPath(); c.arc(0, 3, 11, 0, TAU); c.fill(); c.stroke(); c.fillStyle = INK; c.beginPath(); c.arc(0, 3, 5, 0, TAU); c.fill(); c.fillStyle = '#ffd447'; c.beginPath(); c.arc(16, -6, 3, 0, TAU); c.fill(); },
+  fan: (c) => { c.fillStyle = '#ff4f64'; c.beginPath(); c.moveTo(0, 20); c.bezierCurveTo(-34, -4, -14, -30, 0, -10); c.bezierCurveTo(14, -30, 34, -4, 0, 20); c.fill(); },
   nopath: (c) => { c.fillStyle = '#ead7a6'; c.strokeStyle = INK; c.lineWidth = 3; c.beginPath(); c.moveTo(-8, -24); c.lineTo(8, -24); c.lineTo(20, 22); c.lineTo(-20, 22); c.closePath(); c.fill(); c.stroke(); glyph('?', INK, 34)(c); },
 };
 const ICON = {};
@@ -338,8 +352,10 @@ function renderIcons() {
   for (const s of staff) { if (n >= 26) break; if (s.asleep) put(ICON.zzz, s.x + 0.08, (s.seat ? 1.7 : 0.56) + Math.sin(performance.now() * 0.003) * 0.04, s.z, 1 + (s.wake || 0) * 0.12); else if (s.type === 'sec' && s.g === 'awake' && s.alertT > 71) put(ICON.alert, s.x, 0.78, s.z, 1); else if (s.mood < 30 && s.state !== 'rest') put(ICON.angry, s.x, 0.78, s.z, 0.8); }
   for (const sp of splashes) { sp.t += 0.03; if (n < sprites.length) put(SPLASH, sp.x, 0.1, sp.z, (0.9 + sp.t * 3.2) / sz); }
   if (splashes.length) { SPLASH.opacity = Math.max(0, 1 - splashes[0].t); if (splashes[0].t >= 1) splashes.shift(); }
+  // the influencer is easy to find: a camera floats above the head for the whole visit
+  if (vipG && !vipG.gone && vipG.state !== 'ride' && n < sprites.length) put(ICON.cam, vipG.x, 0.92 * vipG.sc + Math.sin(now * 0.004) * 0.03, vipG.z, 1.05);
   const cap = Math.min(sprites.length, n + 18);
-  for (const g of guests) { if (n >= cap) break; if (g.think > 0 && g.state !== 'ride') put(ICON[g.tk] || ICON.happy, g.x, (g.kid ? 0.77 : 0.73) * g.sc, g.z, 0.85 * Math.min(1, g.think * 4, (2.8 - g.think) * 6 + 0.2)); }
+  for (const g of guests) { if (n >= cap) break; if (g.think > 0 && g.state !== 'ride' && !g.vip) put(ICON[g.tk] || ICON.happy, g.x, (g.kid ? 0.77 : 0.73) * g.sc, g.z, 0.85 * Math.min(1, g.think * 4, (2.8 - g.think) * 6 + 0.2)); }
   for (let i = n; i < sprites.length; i++) sprites[i].visible = false;
   const sg = sel && (sel.guest || (sel.staff && sel.staff.state !== 'rest' ? sel.staff : null));
   if (sg && sg.state !== 'ride') { selMark.visible = true; selMark.position.set(sg.x, 0.76 * (sg.sc || 1.2) + 0.2 + Math.sin(performance.now() * 0.006) * 0.06, sg.z); selMark.rotation.y += 0.05; } else selMark.visible = false;

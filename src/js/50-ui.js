@@ -26,6 +26,12 @@ const IC = {
   turn: svg(stroke('M6.3 7.3A7.5 7.5 0 1 1 4.5 12') + '<path d="M2.3 3.3l1.2 6 5.5-2.5z"/>'),
   walk: svg('<circle cx="13" cy="4.3" r="2.4"/><path d="M10.6 7.6l3.2.5 2.4 3.3 3 .9-.5 1.9-3.9-1-1-1.3-.8 3.6 2.6 2.7.9 5.3h-2.2l-.8-4.3-2.6-2.3-1.5 6.6H7.2l2.1-9.3.3-2.8-2 1.2-.7 2.9-2-.4.9-4z"/>'),
   chev: svg(stroke('M6 9l6 6 6-6', 2.8)),
+  // advertising: newspaper, radio, internet, television, influencer
+  ad_news: svg('<path d="M3 4.5h14.5v13.2a2.3 2.3 0 0 0 4.5 0V8h-2.6v9.4a.5.5 0 0 1-1 0V4.5z" opacity=".5"/><path fill-rule="evenodd" d="M3 4.5h14.5v13.2c0 .8.3 1.4.8 1.8H5.5A2.5 2.5 0 0 1 3 17zM5.5 7v4h4V7zM11 7.3v1.6h4V7.3zM11 10v1.6h4V10zM5.5 13v1.6H15V13zM5.5 15.8v1.6H15v-1.6z"/>'),
+  ad_radio: svg('<path fill-rule="evenodd" d="M4 8.5h16a1.5 1.5 0 0 1 1.5 1.5v9a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 19v-9A1.5 1.5 0 0 1 4 8.5zM7.5 11a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM13.5 11.5v1.7H19v-1.7zM13.5 15v1.7H19V15z"/>' + stroke('M5 8.3L17 3', 2)),
+  ad_web: svg('<g fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></g>'),
+  ad_tv: svg('<path fill-rule="evenodd" d="M4 6.5h16A1.5 1.5 0 0 1 21.5 8v9a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 17V8A1.5 1.5 0 0 1 4 6.5zM5 9v7h10.5V9zM18 10a1.1 1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.2zM18 13.6a1.1 1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.2z"/>' + stroke('M8 3l4 3.3L16 3M7 21h10', 2)),
+  ad_vip: svg('<path fill-rule="evenodd" d="M8 1.5h8A2 2 0 0 1 18 3.5v17a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-17a2 2 0 0 1 2-2zM8 4.5v13h8v-13zM12 18.6a1.1 1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.2z"/><path d="M12 14.6c-3.6-2.4-3.7-4.2-2.9-5.2.8-1 2.2-.8 2.9.3.7-1.1 2.1-1.3 2.9-.3.8 1 .7 2.8-2.9 5.2z"/>'),
   plus: svg(stroke('M12 5v14M5 12h14', 2.8)), minus: svg(stroke('M5 12h14', 2.8)), x: svg(stroke('M6 6l12 12M18 6L6 18', 2.8)), check: svg(stroke('M5 12.5l4.5 4.5L19 7.5', 3)),
 };
 document.querySelectorAll('[data-ic]').forEach((e) => { e.innerHTML = IC[e.dataset.ic]; });
@@ -56,7 +62,14 @@ function showToast(t) {
   const box = $('#toasts'), b = document.createElement('button'); let dead = false;
   b.className = 'toast ' + (t.kind || ''); b.dataset.t = t.text; b.innerHTML = '<i></i><span class="tx"></span><span class="more"></span>'; b.children[1].textContent = t.text;
   const kill = () => { if (dead) return; dead = true; b.classList.add('out'); setTimeout(() => { b.remove(); pumpToasts(); }, 220); };
-  b.onclick = () => { const o = t.focus; if (o && !o.removed) { cam.tx = o.group.position.x; cam.tz = o.group.position.z; if (!tool) select({ obj: o }); } kill(); };
+  // a tap on a message goes to what it is about: a building, a person, or whatever the message itself wants to open
+  b.onclick = () => {
+    const o = t.focus;
+    if (typeof o === 'function') o();
+    else if (o && o.group) { if (!o.removed) { cam.tx = o.group.position.x; cam.tz = o.group.position.z; if (!tool) select({ obj: o }); } }
+    else if (o && o.x !== undefined && !o.gone) { cam.tx = o.x; cam.tz = o.z; if (!tool && o.state !== 'arrive') select({ guest: o }); }
+    kill();
+  };
   box.appendChild(b);
   setTimeout(kill, (2400 + t.text.length * 45) * (toastQ.length > 1 ? 0.6 : 1));
 }
@@ -356,7 +369,7 @@ function renderPanel() {
       '<div class="kv"><span>Lohn pro Tag</span><b>' + eur(d.wage * WAGE[S.wage]) + '</b><span>Wohnplatz</span><b id="s-house"></b></div>' +
       '<div class="row"><button class="btn line" data-act="team">Team-Übersicht</button><button class="btn red" data-act="fireOne">Entlassen</button></div>';
   } else {
-    h += '<h2>' + sel.guest.name + '</h2><p class="note" id="g-th"></p>' +
+    h += '<h2>' + sel.guest.name + '</h2>' + (sel.guest.vip ? '<span class="pill warn">Influencer zu Besuch</span>' : '') + '<p class="note" id="g-th"></p>' +
       '<div class="meters"><span>Laune</span><div class="meter"><i id="g-happy"></i></div><span>Hunger</span><div class="meter need"><i id="g-hunger"></i></div><span>Durst</span><div class="meter need"><i id="g-thirst"></i></div><span>WC</span><div class="meter need"><i id="g-wc"></i></div></div>' +
       '<div class="kv"><span>Geld dabei</span><b id="g-cash"></b><span>Fahrten</span><b id="g-rides"></b><span>Macht gerade</span><b id="g-state"></b></div>' +
       '<div class="row"><button class="btn" data-act="hello">Hallo sagen</button><button class="btn line" data-act="gift">Gutschein schenken · ' + eur(5) + '</button></div>';
@@ -434,6 +447,8 @@ function refreshUI() {
   else { setTxt('goal-tag', 'Geschafft'); setTxt('goal-txt', 'Alle Ziele erreicht. Bau einfach weiter.'); setTxt('goal-rew', ''); $('#goal-bar').style.width = '100%'; }
   refreshTray(); refreshPanel(); refreshAlert();
   if (ui.modal && document.getElementById('m-ticket')) fillMenu();
+  if (ui.modal && document.getElementById('a-now')) fillAds();
+  { const b = adBoost(), e = $('#st-guests'); e.classList.toggle('boost', b > 0.005); e.classList.toggle('bust', b < -0.005); }
 }
 // the banner for a caught thief: who is held shortest decides the countdown
 function refreshAlert() {
@@ -443,11 +458,11 @@ function refreshAlert() {
 }
 const signed = (n) => (n < -0.5 ? '−' : n > 0.5 ? '+' : '') + eur(Math.abs(n));
 function showFinance() {
-  const net = (f) => f.tick + f.ride + f.shop + f.bonus - f.goods - f.upkeep - f.wage - f.build - f.loan;
+  const net = (f) => f.tick + f.ride + f.shop + f.bonus - f.goods - f.upkeep - f.wage - f.build - f.loan - f.ads;
   const row = (lbl, k, s) => '<tr><td>' + lbl + '</td><td' + (s < 0 && fin.today[k] > 0.5 ? ' class="neg"' : '') + '>' + signed(fin.today[k] * s) + '</td><td' + (s < 0 && fin.yest[k] > 0.5 ? ' class="neg"' : '') + '>' + signed(fin.yest[k] * s) + '</td></tr>';
   modal('<h2>Finanzen</h2><table class="fin"><thead><tr><th>Posten</th><th>Heute</th><th>Gestern</th></tr></thead><tbody>' +
     row('Eintritt', 'tick', 1) + row('Attraktionen', 'ride', 1) + row('Buden', 'shop', 1) + row('Prämien und Rückbau', 'bonus', 1) +
-    row('Wareneinkauf', 'goods', -1) + row('Unterhalt', 'upkeep', -1) + row('Löhne', 'wage', -1) + row('Bau', 'build', -1) + row('Kreditzinsen', 'loan', -1) +
+    row('Wareneinkauf', 'goods', -1) + row('Unterhalt', 'upkeep', -1) + row('Löhne', 'wage', -1) + row('Bau', 'build', -1) + row('Werbung', 'ads', -1) + row('Kreditzinsen', 'loan', -1) +
     '<tr class="sum"><td>Ergebnis</td><td>' + signed(net(fin.today)) + '</td><td>' + signed(net(fin.yest)) + '</td></tr></tbody></table>' +
     '<div class="kv"><span>Kontostand</span><b>' + eur(S.money) + '</b><span>Schulden</span><b>' + eur(S.loan) + '</b><span>Laufende Kosten pro Tag</span><b>' + eur(builds.reduce((n, b) => n + b.def.upkeep, 0) + staff.reduce((n, s) => n + STAFF[s.type].wage, 0)) + '</b></div>');
 }
@@ -455,7 +470,7 @@ function showGoals() {
   modal('<h2>Ziele</h2><ol class="goals">' + GOALS.map((g, i) => '<li class="' + (i < S.goal ? 'done' : i === S.goal ? 'now' : '') + '"><span class="n">' + (i < S.goal ? '✓' : i + 1) + '</span><span>' + g.t + '</span><span class="r">+' + eur(g.r) + '</span></li>').join('') + '</ol>');
 }
 function showMenu() {
-  modal('<h2>Parkbüro</h2><div class="kv"><span>Parkwertung</span><b id="m-rate"></b><span>Gäste im Park</span><b id="m-now"></b><span>Gäste insgesamt</span><b id="m-all"></b><span>Wetter</span><b id="m-wx"></b></div>' +
+  modal('<h2>Parkbüro</h2><div class="kv"><span>Parkwertung</span><b id="m-rate"></b><span>Gäste im Park</span><b id="m-now"></b><span>Gäste insgesamt</span><b id="m-all"></b><span>Wetter</span><b id="m-wx"></b></div><div class="row"><button class="btn" data-act="ads">Besucher und Werbung</button></div>' +
     '<h3>Eintritt</h3><div class="stepper"><span class="lbl">Ticketpreis</span><button class="sq" data-act="ticket" data-d="-1" aria-label="Eintritt senken">' + IC.minus + '</button><output id="m-ticket"></output><button class="sq" data-act="ticket" data-d="1" aria-label="Eintritt erhöhen">' + IC.plus + '</button></div><p class="note">Gäste finden den Eintritt <b id="m-op"></b>. Mehr und aufregendere Attraktionen und mehr Land erlauben höhere Preise.</p>' +
     '<h3>Kredit</h3><div class="stepper"><span class="lbl">Schulden · 1,2 % Zinsen pro Tag</span><button class="sq" data-act="loan" data-d="-1" aria-label="Kredit tilgen">' + IC.minus + '</button><output id="m-loan"></output><button class="sq" data-act="loan" data-d="1" aria-label="Kredit aufnehmen">' + IC.plus + '</button></div>' +
     '<h3>Einstellungen</h3><div class="row"><button class="btn line" data-act="mute" id="m-mute"></button><button class="btn line" data-act="music" id="m-music"></button><button class="btn line" data-act="shadows" id="m-shadow"></button><button class="btn line" data-act="outline" id="m-outline"></button><button class="btn line" data-act="currency">Währung gestalten</button><button class="btn line" data-act="help">Steuerung zeigen</button><button class="btn red" data-act="askNew">Neues Spiel</button></div>');
@@ -482,6 +497,9 @@ function renderCoach() {
 const ACT = {
   speed: (el) => { S.speed = +el.dataset.v; if (S.speed) ui.lastSpeed = S.speed; uiDirty = true; sfx('click'); },
   finance: showFinance, menu: showMenu, goals: showGoals, closeModal,
+  ads: () => { sfx('click'); showAds(); },
+  ad: (el) => { buyAd(el.dataset.k); fillAds(); },
+  vip: () => { const v = vipG && !vipG.gone ? vipG : null; if (v) { closeModal(); cam.tx = v.x; cam.tz = v.z; if (v.state !== 'arrive') select({ guest: v }); } else { inviteVip(); fillAds(); } },
   tab: (el) => openTab(el.dataset.k),
   card: (el) => {
     const d = DEFS[el.dataset.k];

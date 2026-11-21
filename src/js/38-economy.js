@@ -24,6 +24,7 @@ const GOALS = [
   { t: 'Zeige zwei verschiedene Shows', r: 3000, p: () => new Set(rideList().filter((b) => b.def.grp === 'show').map((b) => b.k)).size / 2 },
   { t: 'Eröffne ein Restaurant, ein Hutgeschäft und ein Kostümgeschäft', r: 4000, p: () => ((builds.some((b) => b.def.dine) ? 1 : 0) + has('hats') + has('costume')) / 3 },
   { t: 'Betreibe 20 verschiedene Attraktionen', r: 15000, p: () => rideTypes() / 20 },
+  { t: 'Schalte eine Werbung und lade einen Influencer ein', r: 3000, p: () => (S.adsN ? 0.5 : 0) + (S.vipLast ? 0.5 : 0) },
 ];
 function checkGoal() {
   const g = GOALS[S.goal]; if (!g || g.p() < 1) return;
@@ -49,13 +50,17 @@ function advisor() {
     let own = 0, free = 0; for (let i = 0; i < N * N; i++) if (owned[i]) { own++; if (tType[i] === 0) free++; }
     if (free < own * 0.22) { adviceAt.land = S.time; toast('Dein Park wird eng. Über «Land» kaufst du neue Flächen dazu, das nächste Stück kostet ' + eur(landPrice()) + '.'); return; }
   }
+  // room for more visitors, money in the till and no advertising running: a reminder now and then
+  if (guests.length > 12 && guests.length < BASECAP * 0.8 && S.money > 1500 && adBoost() < 0.01 && !S.vip && S.time - (adviceAt.ads || -999) > 900 && S.time > DAY * 1.2) {
+    adviceAt.ads = S.time; toast('Mehr Besucher? Mit Werbung in Zeitung, Radio, Internet oder Fernsehen kommen mehr Gäste. Tippe hier oder oben auf die Besucherzahl.', '', showAds); return;
+  }
   const lost = builds.find((b) => !b.def.noPath && !connected(b));
   if (lost && S.time - (adviceAt.lost || -999) > 120) { adviceAt.lost = S.time; toast(lost.def.name + ' hat keinen Weg zum Eingang.', 'bad', lost); }
 }
 function secondTick() {
   let up = 0; for (const b of builds) if (!b.site) up += b.def.upkeep;
   spend(up / DAY, 'upkeep');
-  socialTick(); thiefTick(); weatherTick();
+  socialTick(); thiefTick(); weatherTick(); adTick();
   if (S.loan > 0) spend(S.loan * 0.012 / DAY, 'loan');
   let sum = 0;
   for (const g of guests) sum += g.happy;

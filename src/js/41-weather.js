@@ -1,7 +1,7 @@
 /* ================= weather ================= */
 // Mostly sunshine. Clouds pass through, and now and then it rains or storms: fewer guests come and those in the park
 // leave a little sooner. After the rain a rainbow brings extra visitors, so the park catches up again.
-const WX = { k: 'sun', t: 240, wet: 0, over: 0, bow: 0, flash: 0, bonus: 0, wasRain: false };
+const WX = { k: 'sun', t: 240, wet: 0, over: 0, bow: 0, flash: 0, bonus: 0, wasRain: false, sunny: false, umb: false };   // sunny: the sun shines; umb: an umbrella stand is open
 const WX_NAME = { sun: 'Sonnig', cloud: 'Bewölkt', rain: 'Regen', storm: 'Gewitter' };
 const WX_GREY = new T.Color(0x8d98aa), _wc = new T.Color();
 let rainLines = null, rainPos = null, cloudMat = null, bowMat = null, bow = null;
@@ -23,7 +23,7 @@ function wxSet(k, quiet) {
   const was = WX.k; WX.k = k; WX.t = k === 'sun' ? rnd(180, 360) : k === 'cloud' ? rnd(60, 120) : k === 'rain' ? rnd(60, 120) : rnd(40, 70);
   S.wx = { k, t: WX.t }; uiDirty = true;
   if (quiet) return;
-  if (k === 'rain') toast('Es regnet. Bei Regen kommen weniger Gäste.', '');
+  if (k === 'rain') toast('Es regnet. Bei Regen kommen weniger Gäste.' + (unlocked(DEFS.umbrella) && !builds.some((b) => b.k === 'umbrella') ? ' Ein Regenschirmstand hält sie trocken.' : ''), '');
   else if (k === 'storm') toast('Ein Gewitter zieht auf. Viele Gäste bleiben zu Hause.', 'bad');
   else if (k === 'cloud' && (was === 'rain' || was === 'storm')) toast('Der Regen ist vorbei. Ein Regenbogen lockt besonders viele Gäste an.', 'good');
 }
@@ -31,14 +31,19 @@ function wxSet(k, quiet) {
 function weatherTick() {
   WX.t -= 1; if (S.wx) S.wx.t = WX.t;
   if (WX.bonus > 0) WX.bonus--;
-  if (WX.wet > 0.5) for (const g of guests) if (g.state !== 'ride') { g.happy = Math.max(0, g.happy - 0.04); g.stay -= 0.5; }
+  const dd = (S.time % DAY) / DAY; WX.sunny = WX.k === 'sun' && dd > 0.08 && dd < 0.6;
+  WX.umb = false; for (const b of builds) if (b.def.sells === 'umbrella' && b.open && !b.site) { WX.umb = true; break; }
+  // rain spoils the mood and sends people home sooner, unless they carry an umbrella; a parasol is a small joy in the sun
+  if (WX.wet > 0.5) { for (const g of guests) if (g.state !== 'ride' && !g.umb) { g.happy = Math.max(0, g.happy - 0.04); g.stay -= 0.5; } }
+  else if (WX.sunny) for (const g of guests) if (g.sun && g.state !== 'ride') g.happy = Math.min(100, g.happy + 0.03);
   if (WX.t > 0) return;
   const k = WX.k;
   if (k === 'sun') wxSet('cloud');
   else if (k === 'cloud') { const r = Math.random(); if (WX.wasRain || S.goal < 2 || r < 0.5) { WX.wasRain = false; wxSet('sun'); } else wxSet(r < 0.94 ? 'rain' : 'storm'); }
   else { WX.wasRain = true; WX.bonus = 150; wxSet('cloud'); }
 }
-const wxFactor = () => (WX.k === 'rain' ? 0.45 : WX.k === 'storm' ? 0.28 : WX.bonus > 0 ? 1.25 : 1);
+// how many of the usual guests come in this weather; where umbrellas are sold, rain keeps fewer away
+const wxFactor = () => (WX.k === 'rain' ? (WX.umb ? 0.62 : 0.45) : WX.k === 'storm' ? (WX.umb ? 0.38 : 0.28) : WX.bonus > 0 ? 1.25 : 1);
 function weatherFrame(rdt) {
   const k = WX.k, wetT = k === 'rain' || k === 'storm' ? 1 : 0, overT = k === 'sun' ? 0 : k === 'cloud' ? 0.6 : k === 'rain' ? 0.9 : 1, a = 1 - Math.exp(-rdt * 0.6);
   WX.wet = lerp(WX.wet, wetT, a); WX.over = lerp(WX.over, overT, a); WX.bow = lerp(WX.bow, WX.bonus > 0 && !wetT ? 1 : 0, a);

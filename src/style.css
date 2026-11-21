@@ -323,3 +323,43 @@ table.fin.team .meter{min-width:64px}
 .chip[aria-pressed="true"] i{background:rgba(23,26,66,.16)}
 #tray{padding-top:8px}
 @media (max-width:760px){ #hud.sheet #chips,#hud.tool #chips{display:none} }
+/* advertising: one row per campaign, with what it does, how long it still runs and the price */
+.ads{display:grid;gap:8px;margin-top:6px}
+.ad{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 10px;border-radius:12px;background:var(--ink);border:2px solid var(--ink-3)}
+.ad .ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:var(--ink-3);color:var(--bulb)}
+.ad .ic svg{width:22px;height:22px}
+.ad .tx{display:grid;gap:2px;min-width:0}
+.ad .hd{display:grid;gap:2px;min-width:0}
+.ad .tx b{font:900 14px/1.15 var(--font-ui)}
+.ad .fx{font-size:12.5px;font-weight:800;color:var(--mint)}
+.ad .sub{font-size:12px;opacity:.8;line-height:1.3}
+.ad .meter{margin-top:4px;height:6px;background:var(--ink-3)}
+.ad .btn{white-space:nowrap;padding:8px 10px;font-size:13px;min-width:76px}
+.ad.on{border-color:var(--mint)}
+.ad.on .ic{background:var(--mint);color:var(--ink)}
+.ad.bad{border-color:var(--candy)}
+.ad.bad .ic{background:var(--candy);color:var(--paper)}
+.ad.bad .fx{color:var(--candy)}
+.ad.bad .meter i{background:var(--candy)}
+.vid{margin:0 0 4px}
+.stars{color:var(--bulb);letter-spacing:1px}
+.stars i{font-style:normal;opacity:.3}
+.vidl{margin:4px 0 0;padding:0;list-style:none;font-size:13px;display:grid;gap:3px}
+.vidl li{padding-left:18px;position:relative}
+.vidl li::before{position:absolute;left:2px;top:0;font-weight:900}
+.vidl li.g::before{content:"+";color:var(--mint)}
+.vidl li.b::before{content:"\2212";color:var(--candy)}
+/* on a phone the name and the price share the first line, the description runs below over the full width */
+@media (max-width:520px){
+  .ad{grid-template-areas:"ic hd btn" "sub sub sub" "mt mt mt";gap:6px 10px}
+  .ad .ic{grid-area:ic}
+  .ad .tx{display:contents}
+  .ad .hd{grid-area:hd}
+  .ad .sub{grid-area:sub}
+  .ad .meter{grid-area:mt;margin-top:0}
+  .ad .btn{grid-area:btn}
+}
+/* the visitor count shows whether advertising is at work */
+#st-guests.boost svg{color:var(--mint)}
+#st-guests.bust svg{color:var(--candy)}
+.kv + .note{margin-top:10px}

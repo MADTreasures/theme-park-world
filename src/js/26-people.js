@@ -294,6 +294,19 @@ function figureGeos(q) {
       b.add(new T.CylinderGeometry(0.058, 0.092, 0.29, s(5, 12), s(1, 3), true, Math.PI / 2 + 0.25, Math.PI - 0.5), W, 0, 0.318, 0.004, { sz: 0.82 });
       b.add(new T.CylinderGeometry(0.064, 0.061, 0.044, s(6, 12), 1, true), D, 0, 0.476, 0, { sz: 0.74 }); b.sph(0.011, D, 0, 0.468, 0.045, { seg: 6, seg2: 4 });
     }),
+    // An umbrella and a parasol. The origin lies in the hand that holds them; the canopy stands above the head.
+    umb: mk((b) => {
+      b.cyl(0.0038, 0.0038, 0.46, 0x3a3a44, 0, 0.2, 0, { seg: s(3, 5) }); b.tor(0.014, 0.0045, 0x3a3a44, 0.014, -0.03, 0, { rs: s(3, 4), seg: s(4, 8) });
+      b.add(new T.SphereGeometry(0.235, s(8, 16), s(2, 5), 0, TAU, 0, Math.PI * 0.4), W, 0, 0.215, 0); b.sph(0.01, D, 0, 0.455, 0, { seg: 5, seg2: 4 });
+      if (q) for (let i = 0; i < 8; i++) { const a = i / 8 * TAU; b.sph(0.011, D, Math.cos(a) * 0.222, 0.29, Math.sin(a) * 0.222, { seg: 5, seg2: 4 }); }
+    }),
+    sun: mk((b) => {
+      // light and a little lighter in turn, with a hanging edge all round
+      b.cyl(0.0042, 0.0042, 0.4, 0xc79a5e, 0, 0.17, 0, { seg: s(3, 5) }); b.scone(0.215, 0.11, [W, 0xcfcfcf], 8, 0, 0.375, 0); b.sph(0.012, 0xb0b0b0, 0, 0.436, 0, { seg: 5, seg2: 4 });
+      b.add(new T.CylinderGeometry(0.215, 0.215, 0.026, s(8, 16), 1, true), 0xcfcfcf, 0, 0.307, 0);
+    }),
+    // a selfie stick with a phone on it: follows the forearm of the arm that holds it out
+    stick: mk((b) => { b.cyl(0.0042, 0.0042, 0.25, 0x2b2b33, 0, -0.215, 0, { seg: s(3, 5) }); b.box(0.042, 0.012, 0.078, 0x1c1c22, 0, -0.345, 0); b.box(0.035, 0.004, 0.068, 0x9fe0ff, 0, -0.337, 0); b.box(0.05, 0.008, 0.014, 0x55596a, 0, -0.352, 0); }),
     // a soft toy won at a game, carried in the left hand
     plush: mk((b) => {
       b.sph(0.03, W, 0, -0.158, 0.04, sp([6, 4], [10, 7], { sy: 1.1 })); b.sph(0.024, W, 0, -0.113, 0.046, sp([6, 4], [10, 7]));

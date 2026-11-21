@@ -5,7 +5,7 @@ if (!window.THREE) { $('#nogl').hidden = false; return; }
 const T = window.THREE;
 
 /* ================= helpers ================= */
-const N = 60, HALF = N / 2, STEP = 1 / 30, DAY = 240, MAXG = 340;
+const N = 60, HALF = N / 2, STEP = 1 / 30, DAY = 240, MAXG = 430, BASECAP = 330;   // BASECAP: how many guests a park attracts at most without advertising
 const rnd = (a = 1, b) => (b === undefined ? Math.random() * a : a + Math.random() * (b - a));
 const rint = (a, b) => Math.floor(rnd(a, b + 1));
 const pick = (a) => a[(Math.random() * a.length) | 0];

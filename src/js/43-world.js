@@ -3,6 +3,7 @@
 // sun, moon and stars, beach life, and tufts of grass and wild flowers on every free tile.
 let waterTex = null, foamMat = null, beamMat = null, starMat = null, sunDisc = null, moonDisc = null, hotAir = null, beam = null, iTuft = null, iBloom = null, tuftV = -1;
 const gulls = [], sails = [], lampLights = [];
+let adPlane = null;
 let lampTick = 0;
 const LAMP_FIXED = [[wX(HALF) - 1.05, HALF + 0.08], [wX(HALF) + 1.05, HALF + 0.08], [wX(HALF), HALF + 5.5], [wX(HALF), HALF + 11]];
 // Only a handful of real lights exist. Every few frames they move to the lanterns nearest to the view.
@@ -77,6 +78,18 @@ function buildWorldExtras() {
   hb.cyl(0.55, 0.3, 0.7, K.red, 0, -1.9, 0, { seg: 10 }); hb.box(0.5, 0.4, 0.5, K.wood, 0, -2.9, 0);
   for (const [x, z] of [[-0.22, -0.22], [0.22, -0.22], [-0.22, 0.22], [0.22, 0.22]]) hb.cyl(0.012, 0.012, 0.6, K.inkD, x, -2.45, z, { seg: 3 });
   hotAir = hb.mesh(false); hotAir.userData = { a: rnd(TAU) }; scene.add(hotAir);
+  // a small plane that tows a banner round the island for as long as advertising is running or an influencer is visiting
+  const pb = new Builder();
+  pb.cyl(0.34, 0.2, 2.3, K.red, 0, 0, 0, { rx: Math.PI / 2, seg: 8 }); pb.sph(0.34, K.paper, 0, 0, 1.15, { seg: 8, seg2: 6 }); pb.sph(0.26, 0x9fe0ff, 0, 0.26, 0.35, { seg: 8, seg2: 5, sz: 1.5 });
+  pb.box(4.0, 0.08, 0.8, K.yel, 0, 0.14, 0.3); pb.box(1.4, 0.06, 0.46, K.yel, 0, 0.1, -1.05); pb.box(0.07, 0.6, 0.46, K.red, 0, 0.38, -1.05);
+  pb.cyl(0.012, 0.012, 3.2, K.inkD, 0, -0.05, -2.75, { rx: Math.PI / 2, seg: 3 });
+  adPlane = pb.mesh(false);
+  const pr = new Builder(); pr.box(0.09, 1.2, 0.05, K.inkD, 0, 0, 0); pr.box(1.2, 0.09, 0.05, K.inkD, 0, 0, 0);
+  const prop = pr.mesh(false); prop.position.set(0, 0, 1.5); adPlane.add(prop);
+  // the banner can be read from both sides
+  const bt = boardTex('Rummelinsel');
+  for (const sd of [1, -1]) { const m = new T.Mesh(new T.PlaneGeometry(7.2, 1.8), new T.MeshBasicMaterial({ map: bt, fog: false })); m.position.set(sd * 0.01, -0.05, -7.95); m.rotation.y = sd * Math.PI / 2; adPlane.add(m); }
+  adPlane.userData = { a: rnd(TAU), prop }; adPlane.visible = false; adPlane.scale.setScalar(0.62); scene.add(adPlane);
   // sun, moon and stars
   sunDisc = new T.Mesh(new T.CircleGeometry(16, 24), new T.MeshBasicMaterial({ color: 0xfff3b0, fog: false, transparent: true })); scene.add(sunDisc);
   moonDisc = new T.Mesh(new T.CircleGeometry(9, 24), new T.MeshBasicMaterial({ color: 0xe9eeff, fog: false, transparent: true, opacity: 0 })); scene.add(moonDisc);
@@ -117,6 +130,9 @@ function updateWorldExtras(rdt) {
   }
   for (const m of sails) { const u = m.userData; u.a += u.sp * rdt; m.position.set(Math.cos(u.a) * u.r, -0.42 + Math.sin(t * 1.2 + u.ph) * 0.05, Math.sin(u.a) * u.r); m.rotation.y = -u.a + (u.sp > 0 ? 0 : Math.PI); m.rotation.z = Math.sin(t * 0.9 + u.ph) * 0.05; }
   const h = hotAir.userData; h.a += rdt * 0.02; hotAir.position.set(Math.cos(h.a) * (HALF + 16), 21 + Math.sin(t * 0.3) * 1.5, Math.sin(h.a * 1.3) * (HALF + 12));
+  const ad = adBoost() > 0.01 || !!S.vip; adPlane.visible = ad;
+  // it circles above the island, higher than the camera usually is: seen when zoomed out or when walking through the park
+  if (ad) { const u = adPlane.userData, rx = 25, rz = 18; u.a += rdt * 0.16; adPlane.position.set(Math.cos(u.a) * rx, 17 + Math.sin(t * 0.5) * 0.6, 7 + Math.sin(u.a) * rz); adPlane.rotation.set(0, Math.atan2(-Math.sin(u.a) * rx, Math.cos(u.a) * rz), 0.1); u.prop.rotation.z += rdt * 28; }
   beam.rotation.y = t * 0.7; beamMat.opacity = night * 0.22;
   starMat.opacity = night * 0.9;
   sunDisc.position.copy(camera.position).addScaledVector(sunDir, 400); sunDisc.lookAt(camera.position); sunDisc.material.opacity = 1 - night;

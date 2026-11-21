@@ -25,6 +25,7 @@ function devAct(k) {
   else if (k === 'land') { const l = []; for (let p = 0; p < PN * PN; p++) l.push(p); landSet(l); }
   else if (k === 'cut') { for (const o of cuts.slice()) finishCut(o); }
   else if (k === 'sites') { for (const b of builds.slice()) if (b.site) finishSite(b); }
+  else if (k === 'vip') { if (!S.vip && !(vipG && !vipG.gone)) { S.vip = { name: pick(VIP_NAMES), left: VIP.stay }; const g = spawnVip(false); toast(g.name + ' kommt zu Besuch.', 'gold', g); } }
   else if (k === 'hide') { const m = $('#dev').classList.toggle('min'); uiPref('dev', !m); sfx('click'); if (!m && narrow() && S.coach) { S.coach = false; renderCoach(); } return; }
   uiDirty = true; devPaint(); sfx('click');
 }
@@ -39,7 +40,7 @@ function devInit() {
   const el = $('#dev'), btn = (k, t) => '<button data-act="dev" data-k="' + k + '">' + t + '</button>';
   el.innerHTML = '<button class="devhead" data-act="dev" data-k="hide" title="Ein- oder ausklappen"><span class="l">Dev-Modus</span><span class="s">Dev</span>' + IC.chev + '</button><div class="devbody">' +
     '<b>Geld und Fortschritt</b><div>' + btn('cash', '+10.000') + btn('rich', 'Unendlich Geld') + btn('unlock', 'Alles freischalten') + btn('lvl', 'Attraktionen +1 Stufe') + '</div>' +
-    '<b>Gäste</b><div>' + btn('guests', '+25 Gäste') + btn('happy', 'Alle glücklich') + btn('litter', 'Abfall streuen') + btn('clean', 'Alles sauber') + '</div>' +
+    '<b>Gäste</b><div>' + btn('guests', '+25 Gäste') + btn('vip', 'Influencer holen') + btn('happy', 'Alle glücklich') + btn('litter', 'Abfall streuen') + btn('clean', 'Alles sauber') + '</div>' +
     '<b>Wetter und Zeit</b><div>' + btn('sun', 'Sonne') + btn('cloud', 'Wolken') + btn('rain', 'Regen') + btn('storm', 'Gewitter') + btn('time', '+6 Stunden') + btn('fast', 'Tempo ×10') + '</div>' +
     '<b id="dev-sec">Wachleute</b><div>' + btn('thief', 'Dieb schicken') + btn('sec+', 'Stufe +') + btn('sec-', 'Stufe −') + '</div>' +
     '<b>Personal und Technik</b><div>' + btn('mood+', 'Stimmung 100') + btn('mood-', 'Stimmung 26') + btn('tired', 'Alle müde') + btn('break', 'Panne auslösen') + btn('new', 'Neues Spiel') + '</div>' +

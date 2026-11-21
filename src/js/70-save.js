@@ -11,7 +11,7 @@ function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(serialize(
 function clearWorld() {
   for (const o of builds.concat(decos)) { o.removed = true; scene.remove(o.group); o.group.traverse((m) => { if (m.geometry && !m.userData.shared) m.geometry.dispose(); }); }
   if (pov || fp) exitMode();
-  builds = []; decos = []; animDecos = []; guests = []; thieves = []; thiefSeen = false; splashes = []; cuts = []; plotDirty.fill(1);
+  builds = []; decos = []; animDecos = []; guests = []; vipG = null; thieves = []; thiefSeen = false; splashes = []; cuts = []; plotDirty.fill(1);
   for (const s of staff) { scene.remove(s.mesh); s.mesh.traverse((m) => { if (m.geometry) m.geometry.dispose(); }); }
   staff = [];
   tType.fill(0); tObj.fill(null); litter.fill(0); beauty.fill(0); binNear.fill(0);
@@ -25,6 +25,7 @@ function scatterStaff() {
 function load(data) {
   clearWorld();
   const keep = { speed: S.speed };
+  S.ads = {}; S.vip = null; S.vipLast = null; S.adsN = 0;   // a park saved before there was advertising has none
   Object.assign(S, data.S, keep);
   if (data.fin && data.fin.today && data.fin.yest) fin = { today: Object.assign(newFin(), data.fin.today), yest: Object.assign(newFin(), data.fin.yest) };
   curDay = Math.floor(S.time / DAY);
@@ -49,12 +50,13 @@ function load(data) {
   if (!S.b1) { S.b1 = true; if (!staffN('build')) hire('build', true); }   // every park has one builder to begin with
   scatterStaff();
   for (let i = 0; i < Math.min(data.guests || 0, MAXG - 30); i++) spawnGuest(true);
+  if (S.vip && S.vip.name) spawnVip(true);   // an influencer who was visiting carries on
   sun.castShadow = S.shadows;
   if (S.wx && WX_NAME[S.wx.k]) { WX.k = S.wx.k; WX.t = S.wx.t; } else wxSet('sun', true);
 }
 function newGame() {
   clearWorld();
-  Object.assign(S, { money: 4000, loan: 0, time: DAY * 0.1, ticket: 5, rating: 55, goal: 0, exitAvg: 62, visitors: 0, rep: 70, wage: 1, secLvl: 1, secXp: 0 });
+  Object.assign(S, { money: 4000, loan: 0, time: DAY * 0.1, ticket: 5, rating: 55, goal: 0, exitAvg: 62, visitors: 0, rep: 70, wage: 1, secLvl: 1, secXp: 0, ads: {}, vip: null, vipLast: null, adsN: 0, plush: 0 });
   wxSet('sun', true); WX.bonus = 0; WX.wasRain = false;
   fin = { today: newFin(), yest: newFin() }; curDay = 0;
   landSet(START_PLOTS);
@@ -68,7 +70,7 @@ function newGame() {
   for (let p = 0; p < PN * PN; p++) growWild(p, plotOwned[p] ? 5 : rint(9, 12));
   for (const [x, y] of [[HALF - 3, N - 3], [HALF + 5, N - 3], [HALF - 5, N - 8], [HALF + 6, N - 8], [HALF - 2, N - 8]]) if (tType[idx(x, y)] === 0) placeObj('tree', x, y, 0, { nat: true });
   for (let i = 0; i < 9; i++) spawnGuest(true);
-  hire('build', true); S.b1 = true; S.n2 = true;
+  hire('build', true); S.b1 = true; S.n2 = true; S.n3 = true;
   sun.castShadow = S.shadows;
 }
 
