@@ -141,6 +141,7 @@ window.addEventListener('keydown', (e) => {
   const tag = e.target && e.target.tagName, k = e.key.toLowerCase();
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (tag === 'INPUT') { if (k === 'enter') e.target.blur(); return; }
+  if (ui.title) return;   // no shortcuts on the title screen
   if (k === 'escape') { if (ui.modal) closeModal(); else if (tool) ACT.cancel(); else if (sel) select(null); else if (fp || pov) exitMode(); return; }
   if (ui.modal) { if (ui.mini && (k === 'arrowleft' || k === 'a')) miniLane(-1); else if (ui.mini && (k === 'arrowright' || k === 'd')) miniLane(1); return; }
   keys[k] = true;

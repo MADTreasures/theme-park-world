@@ -7,7 +7,7 @@
       <div class="stats">
         <button class="stat money" id="st-money" data-act="finance" title="Finanzen"><img id="coin-img" alt="" width="24" height="24"><b id="v-money">0</b></button>
         <button class="stat" id="st-guests" data-act="ads" title="Besucher und Werbung"><span data-ic="people"></span><b id="v-guests">0</b></button>
-        <button class="stat" id="st-rating" data-act="menu" title="Parkwertung"><span data-ic="star"></span><b id="v-rating">0</b></button>
+        <button class="stat" id="st-rating" data-act="menu" title="Parkruf"><span data-ic="star"></span><b id="v-rating">0</b><i id="v-trend" aria-hidden="true"></i></button>
       </div>
       <div class="stat" id="st-day" title="Tag und Uhrzeit"><span id="ic-day" data-ic="sun"></span><b id="v-day">Tag 1</b></div>
       <div class="ctrl">
@@ -20,10 +20,13 @@
         <button class="ibtn" data-act="menu" aria-label="Parkbüro" title="Parkbüro"><span data-ic="menu"></span></button>
       </div>
     </header>
-    <button id="goal" data-act="goals" title="Alle Ziele ansehen">
-      <span class="tag" id="goal-tag">Ziel</span><span class="txt" id="goal-txt"></span><span class="rew" id="goal-rew"></span>
-      <span class="bar"><i id="goal-bar"></i></span>
-    </button>
+    <div id="goalw">
+      <button id="goal" data-act="goals" title="Alle Ziele ansehen">
+        <span class="tag" id="goal-tag">Ziel</span><span class="txt" id="goal-txt"></span><span class="rew" id="goal-rew"></span>
+        <span class="bar"><i id="goal-bar"></i></span>
+      </button>
+      <button id="goal-x" class="ibtn" data-act="goalHide" aria-label="Leiste schliessen" title="Schliessen" hidden></button>
+    </div>
     <div id="mid">
       <button id="alert" data-act="alertGo" hidden aria-live="assertive"><svg viewBox="0 0 48 48" aria-hidden="true"><g fill="#fff6dc" stroke="#232861" stroke-width="2.6" stroke-linejoin="round"><rect x="11" y="9" width="6.5" height="20" rx="3.2"/><rect x="17.5" y="4" width="6.5" height="24" rx="3.2"/><rect x="24" y="6" width="6.5" height="22" rx="3.2"/><rect x="30.5" y="11" width="6" height="18" rx="3"/><path d="M11 24h25.5v9a10 10 0 0 1-10 10h-5.5a10 10 0 0 1-10-10z"/><path d="M11.5 31l-6-5a3.2 3.2 0 0 1 4-5l5 4z"/></g></svg><span><b id="alert-t">Dieb gefasst!</b><span>Antippen und hinauswerfen</span></span><span class="n" id="alert-n"></span></button>
       <div id="toasts" aria-live="polite"></div>
@@ -48,5 +51,6 @@
     </footer>
   </div>
   <div id="modal" hidden></div>
+  <div id="title" hidden></div>
   <div id="nogl" hidden><div><b>Rummelinsel 3D</b>Die 3D-Grafik konnte nicht starten. Öffne die Seite in einem aktuellen Browser mit WebGL.</div></div>
 </div>

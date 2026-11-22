@@ -2,7 +2,7 @@
 function mShop(kind) {
   const g = new T.Group(), b = new Builder();
   const C = { fries: [K.red, K.yel], burger: [K.ora, K.paper], drink: [K.blue, K.paper], ice: [K.pink, K.paper], balloon: [K.vio, K.yel], throw: [K.teal, K.yel],
-    umbrella: [K.blue, K.yel], parasol: [K.ora, K.paper], wurst: [K.redD, K.paper], brezel: [K.woodD, K.paper], doener: [K.teal, K.yel], candy: [K.pink, K.mint], marroni: [0x6b3a2a, K.ora], cotton: [0x7cc4e6, K.pink] }[kind];
+    umbrella: [K.blue, K.yel], parasol: [K.ora, K.paper], wurst: [K.redD, K.paper], brezel: [K.woodD, K.paper], doener: [K.teal, K.yel], candy: [K.pink, K.mint], marroni: [0x6b3a2a, K.ora], cotton: [0x7cc4e6, K.pink], torch: [0x3b2a6b, 0x7cf2b0] }[kind];
   b.box(0.9, 0.05, 0.9, K.stoneD, 0, 0.025, 0);
   b.box(0.76, 0.36, 0.5, C[0], 0, 0.23, -0.1);
   b.box(0.8, 0.04, 0.3, K.paper, 0, 0.43, 0.2);
@@ -31,6 +31,17 @@ function mShop(kind) {
     for (let i = 0; i < 8; i++) { const a = i / 8 * TAU; b.sph(0.022, K.yel, -0.01 + Math.cos(a) * 0.325, 1.42 + Math.cos(a) * 0.05, z + Math.sin(a) * 0.325, { seg: 5, seg2: 4 }); }
     for (const [x, y, zz] of [[-0.36, 1.24, 0.14], [0.36, 1.3, 0.2], [0.3, 1.16, -0.02]]) b.sph(0.03, 0x9fe0ff, x, y, z + zz, { seg: 6, seg2: 5, sy: 1.6 });
     for (const [x, c] of [[-0.3, K.red], [-0.22, K.mint]]) { b.cone(0.035, 0.3, c, x, 1.27, z - 0.12, { rx: Math.PI, seg: 6 }); b.cyl(0.006, 0.006, 0.1, K.inkD, x, 1.44, z - 0.12, { seg: 4 }); }
+  } else if (kind === 'torch') {
+    // a friendly ghost that holds up a torch, a row of torches on the counter, a glowing sign
+    const W = 0xf4f1ff;
+    b.sph(0.15, W, 0, 1.44, z, { sy: 1.1, seg: 12, seg2: 9 }); b.cyl(0.15, 0.2, 0.26, W, 0, 1.24, z, { seg: 12 });
+    for (let i = 0; i < 6; i++) { const a = i / 6 * TAU; b.sph(0.05, W, Math.cos(a) * 0.17, 1.11, z + Math.sin(a) * 0.17, { seg: 6, seg2: 4 }); }
+    for (const x of [-0.055, 0.055]) b.sph(0.03, 0x1b1530, x, 1.47, z + 0.13, { sy: 1.4, seg: 6, seg2: 5 });
+    b.sph(0.028, 0x1b1530, 0, 1.38, z + 0.14, { seg: 6, seg2: 5 });
+    b.cyl(0.03, 0.03, 0.12, W, 0.17, 1.33, z + 0.05, { rz: -0.9, seg: 6 }); b.cyl(0.02, 0.02, 0.12, 0x2b2b33, 0.25, 1.39, z + 0.05, { rz: -0.9, seg: 6 });
+    b.cyl(0.028, 0.02, 0.03, 0xb7ff7a, 0.305, 1.43, z + 0.05, { rz: -0.9, seg: 8, glow: true });
+    for (const [x, c] of [[-0.24, 0xb7ff7a], [-0.1, 0xc9a6ff], [0.04, 0x8fe9ff], [0.18, 0xfff07a]]) { b.cyl(0.022, 0.022, 0.12, 0x2b2b33, x, 0.5, 0.2, { rx: Math.PI / 2, seg: 6 }); b.cyl(0.03, 0.03, 0.02, c, x, 0.5, 0.27, { rx: Math.PI / 2, seg: 8, glow: true }); }
+    b.box(0.56, 0.1, 0.02, 0xb7ff7a, 0, 0.84, -0.295, { glow: true });
   } else if (kind === 'parasol') {
     // a striped parasol, tilted towards the sun that sits beside it
     b.scone(0.4, 0.16, [K.ora, K.paper], 8, 0, 1.52, z, { rz: -0.2 }); b.cyl(0.012, 0.012, 0.5, K.woodD, -0.05, 1.3, z, { rz: -0.2, seg: 5 }); b.sph(0.028, K.ora, 0.02, 1.62, z, { seg: 6, seg2: 4 });

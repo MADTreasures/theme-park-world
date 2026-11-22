@@ -34,21 +34,28 @@ if (fs.existsSync(path.join(audioDir, 'manifest.json'))) {
   audio = '<!-- Recordings for music, crowd and voices. Sources and licences: AUDIO-QUELLEN.md and the list in the park office. -->\n<script>window.RUMMEL_AUDIO = ' +
     JSON.stringify({ clips, credits }).replace(/</g, '\\u003c') + ';</script>\n';
 }
+// Every published version gets its own build mark, made from its date and the content of the whole game. When the game
+// sees a mark it has not seen before, it deletes all saved parks of earlier versions, so every new version starts afresh.
+const crypto = require('crypto');
+const stamp = new Date().toISOString().slice(0, 10);
+const buildId = 'v' + stamp + '-' + crypto.createHash('sha256').update(game + read('src/style.css') + read('src/body.html') + audio).digest('hex').slice(0, 8);
+const buildTag = '<script>window.RUMMEL_BUILD = ' + JSON.stringify(buildId) + ';</script>\n';
 const head = '<title>Rummelinsel 3D</title>\n<meta name="claude:viewport-fit-sides" content="cover">\n';
 const style = '<style>\n' + read('src/style.css') + '</style>\n';
 const script = '<script>\n(function () {\n' + game + '})();\n</script>\n';
 if (online > -1) {
   const out = head + '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Nunito:wght@700;800;900&display=swap">\n' + style +
     read('src/body.html').replace('<div id="app">', '<div id="app" lang="de">') +
-    '<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>\n' + audio + script;
+    '<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>\n' + audio + buildTag + script;
   fs.writeFileSync(process.argv[online + 1], out);
 } else {
   const out = '<!DOCTYPE html>\n<html lang="de">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n' + head + style +
     '<!-- Fonts Bungee and Nunito (SIL Open Font License 1.1), embedded so the page needs no network. -->\n<style>\n' + read('vendor/fonts.css') + '</style>\n</head>\n<body>\n' +
     read('src/body.html') +
     '<!-- three.js r128 (MIT licence), embedded so the page needs no network. The game code follows in the last script block. -->\n<script>\n' + read('vendor/three.min.js') + '</script>\n' +
-    audio + script + '</body>\n</html>\n';
+    audio + buildTag + script + '</body>\n</html>\n';
   fs.writeFileSync(path.join(outDir, 'index.html'), out);
   // dev.html: the same game with the developer panel switched on and its own save game
+  console.log('build ' + buildId);
   fs.writeFileSync(path.join(outDir, 'dev.html'), out.replace('<title>Rummelinsel 3D</title>', '<title>Rummelinsel 3D Dev</title>').replace(script, () => '<script>window.RUMMEL_DEV = true;</script>\n' + script));
 }

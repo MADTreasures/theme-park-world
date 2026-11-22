@@ -61,7 +61,8 @@ function hire(type, free, saved) {
   if (type === 'sec') s.postB = freePost(s);
   if (type !== 'ent') { staffLook(s, type); s.fig = true; }
   s.rr = s.rot; s.brave = 0; s.balloon = 0;
-  if (saved) { s.name = saved[1] || s.name; s.mood = +saved[2] || 60; s.energy = +saved[3] || 80; }
+  s.xp = 0;
+  if (saved) { s.name = saved[1] || s.name; s.mood = +saved[2] || 60; s.energy = +saved[3] || 80; s.xp = +saved[4] || 0; }
   staff.push(s); colorsDirty = true; if (!free) sfx('hello'); return s;
 }
 function removeStaff(s) {
@@ -69,6 +70,7 @@ function removeStaff(s) {
   if (s.cutT) { if (s.cutT.cutter === s) s.cutT.cutter = null; s.cutT = null; }
   if (s.site) leaveSite(s);
   if (s.fix && s.fix.fixer === s) s.fix.fixer = null;
+  if (s.mt && s.mt.mtBy === s) s.mt.mtBy = null;
   if (s.room) { s.room.res = Math.max(0, s.room.res - 1); const i = s.room.resting.indexOf(s); if (i >= 0) s.room.resting.splice(i, 1); }
   scene.remove(s.mesh); s.mesh.traverse((o) => { if (o.geometry) o.geometry.dispose(); });
   const i = staff.indexOf(s); if (i >= 0) staff.splice(i, 1);
@@ -96,6 +98,56 @@ function quit(s) {
   toast(s.name + ' hat gekündigt (' + reason + '). Stelle frei: ' + job + ', jetzt noch ' + staffN(k) + '. Antippen, um Ersatz einzustellen.', 'bad', () => showJob(k), true);
   sfx('hmpf'); uiDirty = true;
 }
+/* ----- experience: every job done counts. The first level comes within minutes; the highest only with regular play over
+   several days. A higher level makes the work go faster, not the tiredness: energy runs down by the minute, not by the job. ----- */
+const XP_LV = [0, 8, 30, 90, 220];
+const lvlOfS = (s) => { if (s.type === 'sec') return S.secLvl; let l = 1; while (l < 5 && (s.xp || 0) >= XP_LV[l]) l++; return l; };
+const SKILL = { jan: 0.15, mech: 0.16, build: 0.12, gard: 0.13, ent: 0.15, clown: 0.15, jug: 0.15 };
+const skill = (s, l) => 1 + (SKILL[s.type] || 0) * ((l || lvlOfS(s)) - 1);
+const walkOf = (s, l) => 1 + (s.type === 'jan' || s.type === 'mech' || s.type === 'gard' ? 0.04 : 0) * ((l || lvlOfS(s)) - 1);
+const BASE_T = { jan: 0.7, mech: 3.2, maint: 2.4, gard: 2.4 };
+const f1 = (x) => x.toFixed(1).replace('.', ',');
+// what a level means for this person, in words
+function staffBenefit(s, l) {
+  l = l || lvlOfS(s); const k = skill(s, l), w = Math.round((walkOf(s, l) - 1) * 100), pc = Math.round((k - 1) * 100);
+  if (s.type === 'jan') return 'fegt ein Wegstück in ' + f1(BASE_T.jan / k) + ' s' + (w ? ' und geht ' + w + ' % flotter' : '');
+  if (s.type === 'mech') return 'repariert in ' + f1(BASE_T.mech / k) + ' s und wartet in ' + f1(BASE_T.maint / k) + ' s' + (w ? ', geht ' + w + ' % flotter' : '');
+  if (s.type === 'build') return pc ? 'baut ' + pc + ' % schneller als am Anfang' : 'baut im Grundtempo';
+  if (s.type === 'gard') return 'rodet eine Pflanze in ' + f1(BASE_T.gard / k) + ' s' + (w ? ' und geht ' + w + ' % flotter' : '');
+  if (s.type === 'sec') return SEC_INFO[l - 1];
+  return pc ? 'macht die Gäste ' + pc + ' % fröhlicher als am Anfang' : 'macht die Gäste fröhlich';
+}
+function gainXp(s, n) {
+  if (s.type === 'sec' || s.state === 'quit') return;   // guards learn together, see secXp
+  const l0 = lvlOfS(s); s.xp = (s.xp || 0) + n; const l = lvlOfS(s);
+  if (l > l0) { toast(s.name + ' (' + STAFF[s.type].name + ') erreicht Stufe ' + l + ' und ' + staffBenefit(s, l) + '.', 'gold', () => { cam.tx = s.x; cam.tz = s.z; if (!tool) select({ staff: s }); }); sfxAt('bell', s.x, s.z); uiDirty = true; }
+}
+// A ride has broken down: the nearest mechanic who is free sets off at once, instead of whoever happens to look first.
+function callMech(b) {
+  const df = distOf(b); if (!df) return;
+  let best = null, bd = 1e9;
+  for (const s of staff) {
+    if (s.type !== 'mech' || s.state !== 'work' || s.job === 'fix' || (s.fix && s.fix !== b && s.fix.broken && !s.fix.removed)) continue;
+    const d = df[s.tile]; if (d >= 0 && d < bd) { bd = d; best = s; }
+  }
+  if (!best) return;
+  const acc = accessOf(b), route = bfsRoute(best.tile, (t) => acc.indexOf(t) >= 0); if (!route) return;
+  if (best.mt) { if (best.mt.mtBy === best) best.mt.mtBy = null; best.mt = null; if (best.job === 'maint') { best.busy = 0; best.job = null; } }
+  if (b.fixer && b.fixer !== best && b.fixer.fix === b) b.fixer.fix = null;
+  best.fix = b; b.fixer = best; best.route = route; best.off = best.cross = false;
+  if (!best.going && best.busy <= 0) staffArrive(best);
+}
+// Strolling without work, colleagues of the same job drift apart, so that the next task is never far for all of them.
+function spreadNeighbor(c, p, s) {
+  const cx = c % N, cy = (c / N) | 0; let best = -1, bs = -1e9;
+  for (let k = 0; k < 4; k++) {
+    const nx = cx + DIRS[k][0], ny = cy + DIRS[k][1]; if (!inB(nx, ny)) continue;
+    const n = idx(nx, ny); if (tType[n] !== 1 || n === p) continue;
+    let dm = 14; for (const o of staff) if (o !== s && o.type === s.type && o.state === 'work') { const d = Math.abs(o.tile % N - nx) + Math.abs(((o.tile / N) | 0) - ny); if (d < dm) dm = d; }
+    const sc = dm + Math.random() * 3; if (sc > bs) { bs = sc; best = n; }
+  }
+  return best >= 0 ? best : randNeighbor(c, p);
+}
 function staffGo(s, n) { s.prev = s.tile; s.tile = n; setWP(s, n); s.going = true; }
 const breakFree = () => { for (const b of builds) if (b.def.rest && !b.removed && b.res < b.def.rest) return true; return false; };
 // tired, and there is a place to rest
@@ -109,6 +161,7 @@ function seekBreak(s) {
   s.state = 'toBreak'; s.route = route; s.chase = null; s.target = null; s.asleep = false; s.off = s.cross = false; s.sweep = -1; if (s.site) leaveSite(s);
   if (s.cutT) { if (s.cutT.cutter === s) s.cutT.cutter = null; s.cutT = null; }
   if (s.fix) { if (s.fix.fixer === s) s.fix.fixer = null; s.fix = null; }
+  if (s.mt) { if (s.mt.mtBy === s) s.mt.mtBy = null; s.mt = null; }
   staffArrive(s); return true;
 }
 function endBreak(s) {
@@ -122,14 +175,14 @@ function endBreak(s) {
 function staffArrive(s) {
   if (s.type === 'jan' && s.state === 'work' && litter[s.tile] && !sweptBy(s.tile, s)) {   // whoever is first on the spot sweeps; a colleague still on his way here turns to something else
     for (const o of staff) if (o !== s && o.type === 'jan' && o.sweep === s.tile && !(o.job === 'clean' && o.busy > 0)) { o.sweep = -1; o.route = []; }
-    s.busy = 0.7; s.job = 'clean'; s.sweep = s.tile; sfxAt('sweep', s.x, s.z); return;
+    s.busy = BASE_T.jan / skill(s); s.job = 'clean'; s.sweep = s.tile; sfxAt('sweep', s.x, s.z); return;
   }
   // a cleaner who is only strolling looks round at every step: as soon as litter lies somewhere, the stroll ends
   if (s.type === 'jan' && s.state === 'work' && s.sweep < 0 && litterTotal > 0 && s.route.length && !s.cross) s.route = [];
   while (s.route.length) { const n = s.route.shift(); if (tType[n] === 1 || (s.off && walkable(n))) { staffGo(s, n); return; } s.route = []; }
   if (s.type === 'gard' && s.cutT && s.state === 'work') {
     const o = s.cutT, near = !o.removed && o.cut && Math.abs(tX(s.tile) - o.x) + Math.abs(tY(s.tile) - o.y) <= 1;
-    if (near) { s.busy = 2.4; s.job = 'cut'; s.rot = Math.atan2(wX(o.x) - s.x, wZ(o.y) - s.z); sfxAt('chop', s.x, s.z); } else { if (o.cutter === s) o.cutter = null; s.cutT = null; }
+    if (near) { s.busy = BASE_T.gard / skill(s); s.job = 'cut'; s.rot = Math.atan2(wX(o.x) - s.x, wZ(o.y) - s.z); sfxAt('chop', s.x, s.z); } else { if (o.cutter === s) o.cutter = null; s.cutT = null; }
     return;
   }
   if (s.state === 'quit') { if (s.tile === ENT) removeStaff(s); return; }
@@ -140,23 +193,28 @@ function staffArrive(s) {
     return;
   }
   const b = s.fix;
-  if (s.type === 'mech' && b && !b.removed && b.broken && accessOf(b).indexOf(s.tile) >= 0) { s.busy = 4; s.job = 'fix'; sfxAt('clank', s.x, s.z); return; }
+  if (s.type === 'mech' && b && !b.removed && b.broken && accessOf(b).indexOf(s.tile) >= 0) { s.busy = BASE_T.mech / skill(s); s.job = 'fix'; sfxAt('clank', s.x, s.z); return; }
   if (b) { if (b.fixer === s) b.fixer = null; s.fix = null; }
+  const mt = s.mt;   // a maintenance visit: worn parts are replaced before they break
+  if (s.type === 'mech' && mt && !mt.removed && !mt.broken && accessOf(mt).indexOf(s.tile) >= 0) { s.busy = BASE_T.maint / skill(s); s.job = 'maint'; sfxAt('clank', s.x, s.z, 0.5); return; }
+  if (mt) { if (mt.mtBy === s) mt.mtBy = null; s.mt = null; }
   if (s.type === 'clown' && s.target) { s.busy = 8; s.job = 'show'; s.target = null; sfxAt('honk', s.x, s.z); return; }
   if (s.type === 'jug' && s.show) { s.busy = 9; s.job = 'juggle'; s.show = false; sfxAt('toss', s.x, s.z); return; }
   if (s.type === 'gard' && s.state === 'work' && beauty[s.tile] > 0.5 && Math.random() < 0.14) { s.busy = 2.8; s.job = 'water'; sfxAt('water', s.x, s.z); }
 }
 function staffDone(s) {
-  if (s.job === 'clean') { if (litter[s.tile]) { litterTotal -= litter[s.tile]; litter[s.tile] = 0; litterDirty = true; } s.sweep = -1; }
-  else if (s.job === 'fix' && s.fix) { if (!s.fix.removed && s.fix.broken) repair(s.fix); s.fix = null; }
+  if (s.job === 'clean') { if (litter[s.tile]) { litterTotal -= litter[s.tile]; litter[s.tile] = 0; litterDirty = true; gainXp(s, 1); } s.sweep = -1; }
+  else if (s.job === 'fix' && s.fix) { if (!s.fix.removed && s.fix.broken) { repair(s.fix); gainXp(s, 4); } s.fix = null; }
+  else if (s.job === 'maint') { const m = s.mt; if (m && !m.removed) { m.wear = Math.floor(m.wear * 0.15); if (m.mtBy === s) m.mtBy = null; gainXp(s, 1); } s.mt = null; }
   else if (s.job === 'hold') { if (s.hold) throwThief(s.hold, false); }
-  else if (s.job === 'cut') { const o = s.cutT; s.cutT = null; if (o && !o.removed && o.cut) { sfxAt('timber', s.x, s.z); finishCut(o); } }
-  else if (s.job === 'build') { if (s.site && s.site.site && s.state === 'work' && !needsBreak(s) && !noPlace(s)) { s.busy = 3; return; } }   // keeps hammering; the site counts the work, see stepSites
-  else if (s.job === 'water') { for (const g of guests) { const dx = g.x - s.x, dz = g.z - s.z; if (dx * dx + dz * dz < 9 && g.state !== 'ride') g.happy = Math.min(100, g.happy + 2); } }
+  else if (s.job === 'cut') { const o = s.cutT; s.cutT = null; if (o && !o.removed && o.cut) { sfxAt('timber', s.x, s.z); finishCut(o); gainXp(s, 3); } }
+  else if (s.job === 'build') { if (s.site && s.site.site) gainXp(s, 1); if (s.site && s.site.site && s.state === 'work' && !needsBreak(s) && !noPlace(s)) { s.busy = 3; return; } }   // keeps hammering; the site counts the work, see stepSites
+  else if (s.job === 'water') { gainXp(s, 0.5); for (const g of guests) { const dx = g.x - s.x, dz = g.z - s.z; if (dx * dx + dz * dz < 9 && g.state !== 'ride') g.happy = Math.min(100, g.happy + 2); } }
+  else if (s.job === 'show') gainXp(s, 1);
   else if (s.job === 'juggle') {
-    sfxAt('clap', s.x, s.z);
-    let n = 0;
-    for (const g of guests) { const dx = g.x - s.x, dz = g.z - s.z; if (dx * dx + dz * dz < 12 && g.state !== 'ride') { g.happy = Math.min(100, g.happy + 5); n++; if (Math.random() < 0.15) think(g, 'great'); } }
+    sfxAt('clap', s.x, s.z); gainXp(s, 1);
+    let n = 0; const k = skill(s);
+    for (const g of guests) { const dx = g.x - s.x, dz = g.z - s.z; if (dx * dx + dz * dz < 12 && g.state !== 'ride') { g.happy = Math.min(100, g.happy + 5 * k); n++; if (Math.random() < 0.15) think(g, 'great'); } }
     if (n) earn(n * 0.4, 'bonus');
   }
   s.job = null;
@@ -172,8 +230,11 @@ function sweepTaken(me) {
 // The way to the nearest litter that is worth going for: litter nobody is heading for, or litter that a colleague is
 // heading for from much further away (he then looks for something else). Along paths; null if there is none.
 const _dep = new Int16Array(N * N);
-function sweepRoute(s, taken) {
-  const mine = (t, d) => { if (!(litter[t] > 0)) return false; const o = taken.get(t); if (!o) return true; if (o.job === 'clean' && o.busy > 0) return false; return d + 3 < o.route.length + (o.going ? 1 : 0); };
+// With zones, litter within four steps of a colleague's target is left to him, so that a free cleaner heads for the next
+// place where litter lies instead of walking the same path behind a colleague.
+function sweepRoute(s, taken, zones) {
+  const near = (t) => { const x = t % N, y = (t / N) | 0; for (const z of zones) if (Math.abs(z % N - x) + Math.abs(((z / N) | 0) - y) <= 4) return true; return false; };
+  const mine = (t, d) => { if (!(litter[t] > 0)) return false; if (zones && d > 0 && near(t)) return false; const o = taken.get(t); if (!o) return true; if (o.job === 'clean' && o.busy > 0) return false; return d + 3 < o.route.length + (o.going ? 1 : 0); };
   const done = (t) => { const o = taken.get(t); if (o) { o.sweep = -1; o.route = []; taken.delete(t); } };
   if (mine(s.tile, 0)) { done(s.tile); return []; }
   _par.fill(-2); _par[s.tile] = -1; _dep[s.tile] = 0; let h = 0, q = 0; _bq[q++] = s.tile;
@@ -205,8 +266,10 @@ function staffPlan(s) {
     // clean twelve places at once instead of following each other from heap to heap.
     s.sweep = -1;
     if (litterTotal > 0) {
-      const taken = sweepTaken(s);
-      route = sweepRoute(s, taken);
+      const taken = sweepTaken(s), zones = [];
+      for (const o of staff) if (o !== s && o.type === 'jan' && o.state === 'work' && o.sweep >= 0) zones.push(o.sweep);
+      route = sweepRoute(s, taken, zones.length ? zones : null);
+      if (!route && zones.length) route = sweepRoute(s, taken, null);   // all litter lies near colleagues: then help them
       // nothing left within reach along the paths: litter may lie on a stretch of path that has been cut off. Then across the lawn.
       if (!route) { route = fieldRoute(s.tile, (t) => tType[t] === 1 && litter[t] > 0 && !taken.has(t)); if (route) s.off = s.cross = true; }
       if (route) s.sweep = route.length ? route[route.length - 1] : s.tile;
@@ -218,6 +281,12 @@ function staffPlan(s) {
     if (goals.size) {
       route = bfsRoute(s.tile, (t) => goals.has(t));
       if (route) { s.fix = goals.get(route.length ? route[route.length - 1] : s.tile); s.fix.fixer = s; }
+    }
+    // nothing broken: the most worn ride that no colleague is seeing to gets a maintenance visit
+    if (!route) {
+      let best = null, bw = 6;
+      for (const b of builds) if (b.def.cat === 'ride' && !b.site && !b.broken && b.wear > bw && !(b.mtBy && b.mtBy !== s && b.mtBy.mt === b && staff.indexOf(b.mtBy) >= 0)) { bw = b.wear; best = b; }
+      if (best) { const acc = accessOf(best); route = bfsRoute(s.tile, (t) => acc.indexOf(t) >= 0); if (route) { s.mt = best; best.mtBy = s; } }
     }
   } else if (s.type === 'gard') {
     route = gardPlan(s); if (route === false) return;
@@ -237,7 +306,7 @@ function staffPlan(s) {
   }
   if (!route) {
     route = []; let c = s.tile, p = s.prev;
-    for (let k = s.type === 'sec' ? rint(4, 9) : rint(2, 5); k > 0; k--) { const n = randNeighbor(c, p); if (n < 0) break; route.push(n); p = c; c = n; }
+    for (let k = s.type === 'sec' ? rint(4, 9) : rint(2, 5); k > 0; k--) { const n = s.type === 'jan' || s.type === 'mech' ? spreadNeighbor(c, p, s) : randNeighbor(c, p); if (n < 0) break; route.push(n); p = c; c = n; }
     if (s.type === 'jug') s.show = true;
     if (!route.length) { s.busy = 0.8; s.job = null; return; }
   }
@@ -264,7 +333,7 @@ function stepStaff(s, dt) {
   s.moving = false;
   if (s.state === 'rest') { s.energy = Math.min(100, s.energy + dt * 3.4); if (s.energy >= 100 || !s.room || s.room.removed) endBreak(s); return; }
   s.energy = s.asleep ? Math.min(100, s.energy + dt) : Math.max(0, s.energy - dt * 0.5);
-  s.sp = s.sp0 * (s.mood < 35 ? 0.72 : 1) * (s.energy < 8 ? 0.8 : 1) * (s.chase ? 1.3 + 0.05 * S.secLvl : 1);
+  s.sp = s.sp0 * walkOf(s) * (s.mood < 35 ? 0.72 : 1) * (s.energy < 8 ? 0.8 : 1) * (s.chase ? 1.3 + 0.05 * S.secLvl : 1) * (s.type === 'mech' && s.fix && s.fix.broken ? 1.3 : 1);   // a mechanic hurries to a breakdown
   if (s.breakCd > 0) s.breakCd -= dt;
   if (s.type === 'sec') guardStep(s, dt);
   if (s.busy > 0) { s.busy -= dt; if (s.busy <= 0) staffDone(s); return; }
@@ -300,7 +369,8 @@ function socialTick() {
     if (s.type === 'ent' && Math.random() < 0.06) sfxAt('squeak', s.x, s.z);
     if (s.type === 'ent' || s.type === 'clown') {
       const r2 = s.type === 'ent' ? 6.5 : 9;
-      for (const g of guests) { const dx = g.x - s.x, dz = g.z - s.z; if (dx * dx + dz * dz < r2 && g.state !== 'ride') { g.happy = Math.min(100, g.happy + (s.type === 'ent' ? 1.3 : 0.7)); if (s.type === 'clown' && g.state === 'queue') g.qt = Math.max(1, g.qt - 0.6); } }
+      const k = skill(s); if (s.type === 'ent') gainXp(s, 0.05);
+      for (const g of guests) { const dx = g.x - s.x, dz = g.z - s.z; if (dx * dx + dz * dz < r2 && g.state !== 'ride') { g.happy = Math.min(100, g.happy + (s.type === 'ent' ? 1.3 : 0.7) * k); if (s.type === 'clown' && g.state === 'queue') g.qt = Math.max(1, g.qt - 0.6); } }
     }
   }
   if (wg) spend(wg * WAGE[S.wage] / DAY, 'wage');

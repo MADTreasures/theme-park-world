@@ -307,6 +307,12 @@ function figureGeos(q) {
     }),
     // a selfie stick with a phone on it: follows the forearm of the arm that holds it out
     stick: mk((b) => { b.cyl(0.0042, 0.0042, 0.25, 0x2b2b33, 0, -0.215, 0, { seg: s(3, 5) }); b.box(0.042, 0.012, 0.078, 0x1c1c22, 0, -0.345, 0); b.box(0.035, 0.004, 0.068, 0x9fe0ff, 0, -0.337, 0); b.box(0.05, 0.008, 0.014, 0x55596a, 0, -0.352, 0); }),
+    // a torch from the ghost stall, held in the fist and pointing along the forearm; the lens and the beam are a second part that glows
+    torch: mk((b) => { b.cyl(0.0125, 0.011, 0.1, 0x2b2b33, 0, -0.13, 0, { seg: s(5, 8) }); b.cyl(0.019, 0.0135, 0.03, 0x2b2b33, 0, -0.19, 0, { seg: s(6, 10) }); }),
+    torchGlow: mk((b) => {
+      b.cyl(0.017, 0.017, 0.006, 0xffffff, 0, -0.207, 0, { seg: s(6, 10) });
+      b.add(new T.CylinderGeometry(0.018, 0.17, 0.8, s(8, 14), 1, true), 0x6a6a6a, 0, -0.61, 0);
+    }),
     // a soft toy won at a game, carried in the left hand
     plush: mk((b) => {
       b.sph(0.03, W, 0, -0.158, 0.04, sp([6, 4], [10, 7], { sy: 1.1 })); b.sph(0.024, W, 0, -0.113, 0.046, sp([6, 4], [10, 7]));

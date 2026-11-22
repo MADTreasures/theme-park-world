@@ -9,14 +9,15 @@ function inst(geo, mat, n, cast, receive) {
 // Every part exists twice: light (FGL) for the crowd and smooth (FGH) for the people who are closest to the camera. Each
 // person is drawn from one of the two sets, depending on how large they appear; the smooth set holds a limited number.
 const FGL = figureGeos(0), FGH = figureGeos(1), MAT_FIG = MAT_INST(0.5, 0.16), MAT_EYE = new T.MeshBasicMaterial({ vertexColors: true });
+const MAT_TGLOW = new T.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.62, blending: T.AdditiveBlending, depthWrite: false, side: T.DoubleSide });
 function figSet(G, cap) {
   const all = [], part = (g, n, mat) => { const m = inst(g, mat || MAT_FIG, n, false, false); all.push(m); return m; };
   return {
-    all, cap, nFig: 0, nLimb: 0, nSkirt: 0, nPack: 0, nShades: 0, nMask: 0, nHoops: 0, nCape: 0, nPlush: 0, nUmb: 0, nSun: 0, nStick: 0, nHair: G.hair.map(() => 0), nMouth: G.mouth.map(() => 0),
+    all, cap, nFig: 0, nLimb: 0, nSkirt: 0, nPack: 0, nShades: 0, nMask: 0, nHoops: 0, nCape: 0, nPlush: 0, nUmb: 0, nSun: 0, nStick: 0, nTorch: 0, nHair: G.hair.map(() => 0), nMouth: G.mouth.map(() => 0),
     iTorso: part(G.torso, cap), iTrim: part(G.trim, cap), iZip: part(G.zip, cap), iHoops: part(G.hoops, 16), iPelvis: part(G.pelvis, cap), iHead: part(G.head, cap),
     iThigh: part(G.thigh, cap * 2), iShin: part(G.shin, cap * 2), iShort: part(G.short, cap * 2), iShoe: part(G.shoe, cap * 2), iSole: part(G.sole, cap * 2),
     iUpper: part(G.upper, cap * 2), iCap: part(G.cap, cap * 2), iStripe: part(G.stripe, cap * 2), iFore: part(G.forearm, cap * 2), iWrist: part(G.wrist, cap * 2), iHand: part(G.hand, cap * 2),
-    iHair: G.hair.map((g) => part(g, cap)), iSkirt: part(G.skirt, cap), iPack: part(G.pack, cap), iShades: part(G.shades, cap), iMask: part(G.mask, 16), iCape: part(G.cape, cap), iPlush: part(G.plush, cap), iUmb: part(G.umb, cap), iSun: part(G.sun, cap), iStick: part(G.stick, 4),
+    iHair: G.hair.map((g) => part(g, cap)), iSkirt: part(G.skirt, cap), iPack: part(G.pack, cap), iShades: part(G.shades, cap), iMask: part(G.mask, 16), iCape: part(G.cape, cap), iPlush: part(G.plush, cap), iUmb: part(G.umb, cap), iSun: part(G.sun, cap), iStick: part(G.stick, 4), iTorch: part(G.torch, cap), iTGlow: part(G.torchGlow, cap, MAT_TGLOW),
     iEyes: part(G.eye, cap * 2, MAT_EYE), iIris: part(G.iris, cap * 2, MAT_EYE), iLid: part(G.lid, cap * 2, MAT_EYE), iBrow: part(G.brow, cap * 2), iMouth: G.mouth.map((g) => part(g, cap)),
   };
 }
@@ -135,10 +136,13 @@ function drawFigure(f, seat, ride, rdt) {
   // an open umbrella in the rain or a parasol in the sun, held in the left hand in front of the chest
   const shade = !seat && pose < 2 && !ty && !f.thief ? (f.umb && WX.wet > 0.25 ? 1 : f.sun && WX.sunny && WX.wet < 0.1 ? 2 : 0) : 0;
   if (shade) { al = -0.95; el = -1.25; zl = 0.12; }
+  // at night a torch from the ghost stall, held out in front so that it lights the path ahead
+  const torch = !shade && !f.prize && !seat && pose < 2 && !ty && !f.thief && f.torch && night > 0.35;
+  if (torch) { al = -0.78 + Math.sin(rt * 1.7 + ph) * 0.05; el = -0.5; zl = 0.06; }
   // an influencer films with a phone on a stick, held up in front
   if (f.vip && !seat && pose < 2 && !tk && !f.chatT) { ar = -2.2 + Math.sin(rt * 1.3 + ph) * 0.06; er = -0.35; zr = 0.28; hx = -0.12; hy = Math.sin(rt * 0.8 + ph) * 0.2; }
   if (ty === 'jan') { ar = f.job === 'clean' ? -0.45 + 0.3 * Math.sin(time * 10) : -0.35; er = -0.05; }
-  else if (ty === 'mech') { al = 0.02; el = 0; if (f.job === 'fix') { ar = -1.25 + 0.5 * Math.sin(time * 12); er = -0.9; hx = 0.2; hy = 0; } }
+  else if (ty === 'mech') { al = 0.02; el = 0; if (f.job === 'fix' || f.job === 'maint') { ar = -1.25 + 0.5 * Math.sin(time * 12); er = -0.9; hx = 0.2; hy = 0; } }
   else if (ty === 'gard') { al = 0.02; el = 0; if (f.job === 'cut') { ar = -1.2 + 0.35 * Math.sin(time * 13); er = -0.7; hx = 0.15; hy = 0; } else if (f.job === 'water') { al = -0.9; el = -0.5; hx = 0.2; hy = 0; } }
   else if (ty === 'clown' && f.job === 'show') { al = -2.4 + 0.5 * Math.sin(time * 8); el = -0.3; ar = -2.4 - 0.5 * Math.sin(time * 8); er = -0.3; tl = 0.25 * Math.sin(time * 8); tr = -tl; }
   else if (ty === 'jug' && f.job === 'juggle') { al = ar = -0.3; el = -1.3 + 0.25 * Math.sin(time * 9.5); er = -1.3 - 0.25 * Math.sin(time * 9.5); hy = 0; hx = -0.2; }
@@ -215,6 +219,7 @@ function drawFigure(f, seat, ride, rdt) {
   limb(_rm, FIG.LX, FIG.HIP, 0, tr, spread, _tm); M.iThigh.setMatrixAt(j + 1, _tm); M.iShort.setMatrixAt(j + 1, shorts ? _tm : M0); limb(_tm, 0, -FIG.THIGH, 0, kr, 0, _km); M.iShin.setMatrixAt(j + 1, _km); M.iShoe.setMatrixAt(j + 1, _km); M.iSole.setMatrixAt(j + 1, _km);
   limb(_rm, -FIG.SX, FIG.SHO, 0, al, -zl, _tm); M.iUpper.setMatrixAt(j, _tm); M.iCap.setMatrixAt(j, tee ? _tm : M0); M.iStripe.setMatrixAt(j, long ? _tm : M0); limb(_tm, 0, -FIG.UARM, 0, el, 0, _km); M.iFore.setMatrixAt(j, _km); M.iWrist.setMatrixAt(j, _km); M.iHand.setMatrixAt(j, _km); if (u && u.handL) follow(u.handL, _km);
   if (f.prize && !shade) { M.iPlush.setMatrixAt(M.nPlush, _km); M.iPlush.setColorAt(M.nPlush, _gc.set(f.prize)); M.nPlush++; }   // a soft toy won at a game
+  else if (torch) { M.iTorch.setMatrixAt(M.nTorch, _km); M.iTorch.setColorAt(M.nTorch, _gc.set(0xffffff)); M.iTGlow.setMatrixAt(M.nTorch, _km); M.iTGlow.setColorAt(M.nTorch, _gc.set(f.torch).multiplyScalar(Math.min(1, (night - 0.35) * 3))); M.nTorch++; }
   if (shade) {   // upright in the hand, leaning back over the head
     _lp.set(0, -FIG.HAND, 0).applyMatrix4(_km); _lq.setFromEuler(_eb.set(-0.3, f.rr, -0.2 + Math.sin(rt * 1.1 + ph) * 0.03));
     const U = shade === 1 ? M.iUmb : M.iSun, n = shade === 1 ? M.nUmb++ : M.nSun++;
@@ -244,7 +249,7 @@ function drawFigure(f, seat, ride, rdt) {
   M.nFig++; M.nLimb += 2;
 }
 function renderPeople(rdt) {
-  for (const M of FIGSETS) { M.nFig = M.nLimb = M.nSkirt = M.nPack = M.nShades = M.nMask = M.nHoops = M.nCape = M.nPlush = M.nUmb = M.nSun = M.nStick = 0; M.nHair.fill(0); M.nMouth.fill(0); }
+  for (const M of FIGSETS) { M.nFig = M.nLimb = M.nSkirt = M.nPack = M.nShades = M.nMask = M.nHoops = M.nCape = M.nPlush = M.nUmb = M.nSun = M.nStick = M.nTorch = 0; M.nHair.fill(0); M.nMouth.fill(0); }
   nBall = nBlob = figNear = 0;
   figT = performance.now() * 0.001; figFaces = !!(fp || pov) || cam.d < 30;
   figFar = !(fp || pov) && cam.d > 36;   // the whole park in view: people are a few pixels tall, their smallest parts are left out
@@ -287,7 +292,7 @@ function renderPeople(rdt) {
     M.iThigh.count = M.iShin.count = M.iShoe.count = M.iUpper.count = M.iFore.count = M.iHand.count = M.nLimb;
     const small = figFar && M === LO ? 0 : 1;   // soles, cuffs, stripes, sleeves, trouser legs, collar and zip
     M.iShort.count = M.iSole.count = M.iCap.count = M.iStripe.count = M.iWrist.count = M.nLimb * small; M.iTrim.count = M.iZip.count = M.nFig * small;
-    M.iSkirt.count = M.nSkirt; M.iPack.count = M.nPack; M.iShades.count = M.nShades; M.iMask.count = M.nMask; M.iHoops.count = M.nHoops; M.iCape.count = M.nCape; M.iPlush.count = M.nPlush; M.iUmb.count = M.nUmb; M.iSun.count = M.nSun; M.iStick.count = M.nStick; M.iEyes.count = M.iIris.count = M.iLid.count = M.iBrow.count = nFace;
+    M.iSkirt.count = M.nSkirt; M.iPack.count = M.nPack; M.iShades.count = M.nShades; M.iMask.count = M.nMask; M.iHoops.count = M.nHoops; M.iCape.count = M.nCape; M.iPlush.count = M.nPlush; M.iUmb.count = M.nUmb; M.iSun.count = M.nSun; M.iStick.count = M.nStick; M.iTorch.count = M.iTGlow.count = M.nTorch; M.iEyes.count = M.iIris.count = M.iLid.count = M.iBrow.count = nFace;
     for (let h = 0; h < M.iHair.length; h++) M.iHair[h].count = M.nHair[h];
     for (let k = 0; k < M.iMouth.length; k++) M.iMouth[k].count = figFaces ? M.nMouth[k] : 0;
     // parts that nobody wears are not drawn at all; of the others only the instances in use are sent to the graphics card

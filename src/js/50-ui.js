@@ -65,11 +65,14 @@ function pumpToasts() {
   more.forEach((m, i) => { m.textContent = toastQ.length && i === more.length - 1 ? '+' + toastQ.length : ''; });
 }
 function showToast(t) {
-  const box = $('#toasts'), b = document.createElement('button'); let dead = false;
-  b.className = 'toast ' + (t.kind || '') + (t.prio ? ' prio' : ''); b.dataset.t = t.text; b.innerHTML = '<i></i><span class="tx"></span><span class="more"></span>'; b.children[1].textContent = t.text;
+  const box = $('#toasts'), b = document.createElement('div'); let dead = false;
+  b.className = 'toast ' + (t.kind || '') + (t.prio ? ' prio' : ''); b.dataset.t = t.text; b.setAttribute('role', 'status');
+  b.innerHTML = '<button class="tgo"><i></i><span class="tx"></span><span class="more"></span></button><button class="tclose" aria-label="Meldung schliessen" title="Schliessen">' + IC.x + '</button>';
+  b.querySelector('.tx').textContent = t.text;
   const kill = () => { if (dead) return; dead = true; b.classList.add('out'); setTimeout(() => { b.remove(); pumpToasts(); }, 220); };
+  b.querySelector('.tclose').onclick = (e) => { e.stopPropagation(); kill(); };
   // a tap on a message goes to what it is about: a building, a person, or whatever the message itself wants to open
-  b.onclick = () => {
+  b.querySelector('.tgo').onclick = () => {
     const o = t.focus;
     if (typeof o === 'function') o();
     else if (o && o.group) { if (!o.removed) { cam.tx = o.group.position.x; cam.tz = o.group.position.z; if (!tool) select({ obj: o }); } }
@@ -79,9 +82,9 @@ function showToast(t) {
   box.appendChild(b);
   setTimeout(kill, t.prio ? 5200 + t.text.length * 60 : (2400 + t.text.length * 45) * (toastQ.length > 1 ? 0.6 : 1));
 }
-function modal(html) {
+function modal(html, cls) {
   const m = $('#modal');
-  m.innerHTML = '<div class="box" role="dialog" aria-modal="true"><button class="ibtn x" data-act="closeModal" aria-label="Zuklappen">' + IC.x + '</button>' + html + '</div>';
+  m.innerHTML = '<div class="box' + (cls ? ' ' + cls : '') + '" role="dialog" aria-modal="true"><button class="ibtn x" data-act="closeModal" aria-label="Zuklappen">' + IC.x + '</button>' + html + '</div>';
   m.hidden = false; ui.modal = true;
 }
 function closeModal() { const f = ui.onClose; ui.onClose = null; if (f) f(); const m = $('#modal'); m.hidden = true; m.innerHTML = ''; ui.modal = false; ui.ask = null; }
@@ -118,7 +121,7 @@ function renderTray() {
     h += '<button class="card team" data-act="team" title="Stimmung, Pausen und Löhne"><span class="big" id="team-mood"></span><span class="nm">Team-Übersicht</span><span class="pr">Stimmung</span></button>';
     for (const k of ORDER.fac) h += card(k);
     for (const k in STAFF) { const d = STAFF[k], ok = S.goal >= (d.need || 0);
-      h += '<div class="card staff' + (ok ? '' : ' locked') + '" data-job="' + k + '" title="' + d.info + '"><span class="cnt" data-cnt="' + k + '">0</span><span class="vac" data-vac="' + k + '" hidden></span>' + thumbImg('@' + k) + '<span class="nm">' + nm(d.name) + '</span>' +
+      h += '<div class="card staff' + (ok ? '' : ' locked') + '" data-job="' + k + '" title="' + d.info + '"><span class="shd"><span class="cnt" data-cnt="' + k + '" title="im Dienst">0</span><span class="vac" data-vac="' + k + '" hidden></span></span>' + thumbImg('@' + k) + '<span class="nm">' + nm(d.name) + '</span>' +
         (ok ? '<span class="pr" data-hire="' + k + '"></span><span class="pm"><button data-act="fire" data-k="' + k + '" aria-label="' + d.name + ' entlassen">' + IC.minus + '</button><button data-act="hire" data-k="' + k + '" aria-label="' + d.name + ' einstellen">' + IC.plus + '</button></span>' : '<span class="pr">nach Ziel ' + d.need + '</span>') + '</div>'; }
   } else {
     const g = ui.grp[ui.tab] || '', keys = ORDER[ui.tab].filter((k) => !g || DEFS[k].grp === g);
@@ -137,8 +140,8 @@ function refreshTray() {
     c.classList.toggle('poor', unlocked(d) && S.money < d.cost);
     c.setAttribute('aria-pressed', !!tool && ((tool.type === 'build' && tool.k === d.k) || (tool.type === 'path' && d.k === 'path') || (tool.type === 'track' && d.k === 'custom')));
   });
-  document.querySelectorAll('#tray [data-cnt]').forEach((c) => { c.textContent = staffN(c.dataset.cnt); });
-  document.querySelectorAll('#tray [data-vac]').forEach((c) => { const n = (S.vac && S.vac[c.dataset.vac]) || 0; c.hidden = !n; const v = n + ' frei'; if (c.textContent !== v) { c.textContent = v; c.title = n === 1 ? 'Eine Stelle ist frei: jemand hat gekündigt' : n + ' Stellen sind frei: es wurde gekündigt'; } });
+  document.querySelectorAll('#tray [data-cnt]').forEach((c) => { const v = staffN(c.dataset.cnt) + ' im Dienst'; if (c.textContent !== v) c.textContent = v; });
+  document.querySelectorAll('#tray [data-vac]').forEach((c) => { const n = (S.vac && S.vac[c.dataset.vac]) || 0; c.hidden = !n; const v = n === 1 ? '1 Stelle frei' : n + ' Stellen frei'; if (c.textContent !== v) { c.textContent = v; c.title = n === 1 ? 'Eine Stelle ist frei: jemand hat gekündigt' : n + ' Stellen sind frei: es wurde gekündigt'; } });
   document.querySelectorAll('#tray [data-hire]').forEach((c) => { const v = eur(hireCost(c.dataset.hire)); if (c.textContent !== v) c.textContent = v; });
   if (document.getElementById('team-mood')) { let m = 0, n = 0; for (const s of staff) if (s.state !== 'quit') { m += s.mood; n++; } setTxt('team-mood', n ? Math.round(m / n) + ' %' : '–'); }
 }
@@ -362,8 +365,8 @@ function renderPanel() {
       else if (b.k === 'lukas') extra = '<button class="btn" data-act="mini" data-k="lukas">Selbst zuschlagen</button>';
       else if (ride && (lv >= 2 || DEV)) extra = (b.k === 'ghost' ? '<button class="btn" data-act="mini" data-k="ghosts">Hineingehen: Geisterjagd</button>' : '') + (b.k === 'kart' ? '<button class="btn" data-act="mini" data-k="kart">Selbst ans Steuer</button>' : '') + (b.k === 'dunk' ? '<button class="btn" data-act="mini" data-k="dunk">Selbst werfen</button>' : '') + (b.model.povSeat || b.model.seats.length ? '<button class="btn" data-act="ridePov">' + (b.k === 'ghost' ? 'Mit dem Gespenst fliegen' : d.grp === 'show' ? 'Zuschauen' : d.calm ? 'Platz nehmen' : 'Mitfahren') + '</button>' : '');
       h += '<span class="pill" id="p-status"></span>' + (ride ? ' <span class="pill warn" id="p-lvl"></span>' : '') + '<p class="note">' + d.info + '</p>' +
-        '<div class="stepper"><span class="lbl">' + (ride ? 'Preis pro Fahrt' : 'Preis') + '</span><button class="sq" data-act="price" data-d="-1" aria-label="Preis senken">' + IC.minus + '</button><output id="p-price"></output><button class="sq" data-act="price" data-d="1" aria-label="Preis erhöhen">' + IC.plus + '</button></div>' +
-        '<p class="note">Gäste finden das <b id="p-op"></b>.</p>' +
+        '<div class="stepper"><span class="lbl">' + (ride ? 'Preis pro Fahrt' : 'Preis') + '</span><button class="sq" data-act="price" data-d="-1" aria-label="Preis senken">' + IC.minus + '</button><output id="p-price"></output><button class="sq" id="p-up" data-act="price" data-d="1" aria-label="Preis erhöhen">' + IC.plus + '</button></div>' +
+        '<p class="note">Gäste finden das <b id="p-op"></b>. Parkruf: <b id="p-ruf"></b></p><p class="note lock" id="p-lock" hidden></p>' +
         '<div class="kv"><span>In der Schlange</span><b id="p-q"></b><span>' + (ride ? 'Fahrgäste bisher' : 'Kunden bisher') + '</span><b id="p-n"></b><span>' + (ride ? 'Einnahmen' : 'Gewinn') + '</span><b id="p-inc"></b><span>Unterhalt pro Tag</span><b>' + eur(d.upkeep) + '</b>' +
         (ride ? '<span>Plätze · Nervenkitzel</span><b id="p-exc"></b><span>Nächste Stufe</span><b id="p-next"></b>' : '') + '</div>' +
         (extra ? '<div class="row">' + extra + '</div>' : ride && !d.calm ? '<p class="note">Ab Stufe 2 kannst du selbst hinein.</p>' : '') +
@@ -372,6 +375,7 @@ function renderPanel() {
   } else if (sel.staff) {
     const s = sel.staff, d = STAFF[s.type];
     h += '<h2>' + s.name + '</h2><span class="pill">' + d.name + '</span> <span class="pill" id="s-state"></span><p class="note" id="s-note"></p>' +
+      '<div class="lvlbox"><div class="lvlhd"><b id="s-lvl"></b><small id="s-xpt"></small></div><div class="meter xp"><i id="s-xp"></i></div><p class="note" id="s-now"></p><p class="note nx" id="s-next"></p></div>' +
       '<div class="meters"><span>Stimmung</span><div class="meter"><i id="s-mood"></i></div><span>Energie</span><div class="meter need"><i id="s-energy"></i></div></div>' +
       '<div class="kv"><span>Lohn pro Tag</span><b>' + eur(d.wage * WAGE[S.wage]) + '</b><span>Wohnplatz</span><b id="s-house"></b></div>' +
       '<div class="row"><button class="btn line" data-act="team">Team-Übersicht</button><button class="btn red" data-act="fireOne">Entlassen</button></div>';
@@ -401,17 +405,17 @@ function refreshPanel() {
     if (b.broken) { txt = 'Defekt'; cls = 'bad'; } else if (!connected(b)) { txt = 'Kein Weg zum Eingang'; cls = 'warn'; } else if (!b.open) { txt = d.cat === 'ride' ? 'Angehalten' : 'Geschlossen'; cls = 'warn'; }
     else if (d.cat !== 'ride') txt = 'Geöffnet'; else if (b.state === 'run') txt = 'Fährt'; else if (b.queue.length) txt = 'Einstieg'; else { txt = 'Wartet auf Gäste'; cls = ''; }
     st.textContent = txt; st.className = 'pill ' + cls;
-    setTxt('p-price', eur2(b.price)); setTxt('p-op', opinion(b.price / fairB(b))); setTxt('p-q', b.queue.length); setTxt('p-n', b.count); setTxt('p-inc', eur(b.income));
+    setTxt('p-price', eur2(b.price)); setTxt('p-op', opinion(b.price / fairB(b))); lockShow('p'); setTxt('p-q', b.queue.length); setTxt('p-n', b.count); setTxt('p-inc', eur(b.income));
     if (d.cat === 'ride') { const lv = lvlOf(b); setTxt('p-lvl', 'Stufe ' + lv); setTxt('p-exc', d.cap + ' · ' + Math.round(excOf(b))); setTxt('p-next', lv > LVL.length ? 'höchste Stufe' : 'noch ' + (LVL[lv - 1] - b.count) + ' Fahrgäste'); }
     setTxt('p-toggle', b.open ? (d.cat === 'ride' ? 'Anhalten' : 'Zumachen') : 'Wieder öffnen');
     const rp = $('#p-repair'); if (rp) rp.hidden = !b.broken;
   } else if (sel.staff) {
     const s = sel.staff;
-    setW('s-mood', s.mood); setW('s-energy', s.energy);
+    setW('s-mood', s.mood); setW('s-energy', s.energy); fillLevel(s, 's');
     setTxt('s-state', s.asleep ? 'Schläft am Posten' : s.hold ? 'Hält einen Dieb fest' : s.state === 'rest' ? 'In der Pause' : s.state === 'toBreak' ? 'Geht in die Pause' : s.state === 'quit' ? 'Hat gekündigt' : 'Arbeitet');
     setTxt('s-house', s.housed ? 'ja' : 'fehlt');
     const why = []; if (!s.housed) why.push('hat kein Zuhause'); if (s.energy < 8) why.push('ist völlig erschöpft'); else if (S.time - s.lastBreak >= 320) why.push('hatte lange keine Pause'); if (S.wage === 0) why.push('findet den Lohn knapp');
-    setTxt('s-note', (why.length ? s.name + ' ' + why.join(', ') + '.' : s.name + ' fühlt sich wohl im Team.') + (s.type === 'sec' ? ' Wachleute Stufe ' + S.secLvl + ': ' + SEC_INFO[S.secLvl - 1] : ''));
+    setTxt('s-note', why.length ? s.name + ' ' + why.join(', ') + '.' : s.name + ' fühlt sich wohl im Team.');
   } else {
     const g = sel.guest;
     setTxt('g-th', g.tk && THOUGHT[g.tk] ? '„' + THOUGHT[g.tk] + '“' : 'Schaut sich um.');
@@ -420,23 +424,55 @@ function refreshPanel() {
     setTxt('g-state', { arrive: 'Kommt an', decide: 'Überlegt', walk: g.target ? 'Geht zu: ' + g.target.def.name : 'Unterwegs', wander: 'Bummelt', queue: 'Steht an', buy: 'Kauft ein', ride: !g.target ? 'Fährt' : g.target.def.dine ? 'Isst im Restaurant' : g.target.def.grp === 'show' ? 'Schaut die Vorstellung' : g.target.def.calm ? 'Ruht sich aus' : 'Fährt', leave: 'Geht heim', exit: 'Geht heim' }[g.state]);
   }
 }
+// Level, progress bar, missing points and what the next level brings, for one person (prefix s: panel, t: team list).
+function levelInfo(s) {
+  const sec = s.type === 'sec', l = lvlOfS(s), top = l >= 5, xs = sec ? SEC_XP : XP_LV, xp = sec ? S.secXp : (s.xp || 0);
+  const lo = xs[l - 1], hi = top ? lo : xs[l], need = top ? 0 : Math.max(1, Math.ceil(hi - xp));
+  return { l, top, p: top ? 100 : clamp((xp - lo) / (hi - lo) * 100, 0, 100), need, now: staffBenefit(s, l), next: top ? '' : staffBenefit(s, l + 1), sec };
+}
+function fillLevel(s, pre) {
+  const v = levelInfo(s);
+  setTxt(pre + '-lvl', 'Stufe ' + v.l + (v.sec ? ' · ' + SEC_NAME[v.l - 1] : ''));
+  setTxt(pre + '-xpt', v.top ? 'höchste Stufe' : 'noch ' + v.need + ' Erfahrungspunkte bis Stufe ' + (v.l + 1));
+  setW(pre + '-xp', v.p);
+  setTxt(pre + '-now', (v.sec ? 'Die Wachleute lernen gemeinsam: jeder Fang zählt für alle. Jetzt: ' : 'Jetzt: ') + v.now + (v.sec ? '' : '.'));
+  setTxt(pre + '-next', v.top ? 'Mehr geht nicht: ' + s.name + ' ist ein Profi.' : 'Auf Stufe ' + (v.l + 1) + ': ' + v.next + (v.sec ? '' : '.'));
+}
 function showTeam() {
   const list = staff.filter((s) => s.state !== 'quit');
-  const rows = list.map((s) => '<tr><td>' + s.name + '<small> · ' + STAFF[s.type].name + '</small></td><td><div class="meter"><i style="width:' + Math.round(s.mood) + '%"></i></div></td><td><div class="meter need"><i style="width:' + Math.round(s.energy) + '%"></i></div></td><td>' + (s.state === 'rest' ? 'Pause' : s.housed ? '' : 'ohne Bett') + '</td></tr>').join('');
+  const rows = list.map((s) => { const v = levelInfo(s); return '<li><div class="sl-h"><b>' + esc(s.name) + '</b><small>' + STAFF[s.type].name + (s.state === 'rest' ? ' · in der Pause' : s.housed ? '' : ' · ohne Wohnplatz') + '</small></div>' +
+    '<div class="sl-l"><span class="pill">Stufe ' + v.l + '</span><div class="meter xp"><i style="width:' + Math.round(v.p) + '%"></i></div><small>' + (v.top ? 'höchste Stufe' : 'noch ' + v.need + ' P.') + '</small></div>' +
+    '<div class="sl-m"><span>Stimmung</span><div class="meter"><i style="width:' + Math.round(s.mood) + '%"></i></div><span>Energie</span><div class="meter need"><i style="width:' + Math.round(s.energy) + '%"></i></div></div></li>'; }).join('');
   const vac = Object.keys(S.vac || {}).filter((k) => S.vac[k] > 0 && STAFF[k]), left = (S.left || []).slice().reverse();
-  const vacH = vac.length ? '<h3>Offene Stellen</h3><div class="vacs">' + vac.map((k) => '<div class="vacr"><span><b>' + S.vac[k] + ' × ' + STAFF[k].name + '</b><small>jetzt ' + staffN(k) + ' im Dienst</small></span><button class="btn" data-act="vacHire" data-k="' + k + '">Einstellen · ' + eur(hireCost(k)) + '</button><button class="btn line" data-act="vacDrop" data-k="' + k + '">Nicht ersetzen</button></div>').join('') + '</div>' : '';
-  const leftH = left.length ? '<h3>Zuletzt gekündigt</h3><ul class="leftl">' + left.slice(0, 6).map((e) => '<li><b>' + e[1] + '</b> · ' + (STAFF[e[0]] ? STAFF[e[0]].name : e[0]) + ' · Tag ' + e[2] + '<small>' + e[3] + '</small></li>').join('') + '</ul>' : '';
-  modal('<h2>Dein Team</h2><p class="note">Zufriedenes Personal bleibt und arbeitet schneller. Es braucht einen Wohnplatz, regelmässige Pausen und fairen Lohn. Wer unzufrieden kündigt, schadet deinem Ruf, und neue Leute werden teurer.</p>' + vacH +
-    '<div class="kv"><span>Ruf als Arbeitgeber</span><b id="t-rep"></b><span>Wohnplätze (2 im Torhaus)</span><b>' + Math.min(list.length, housing()) + ' von ' + housing() + '</b><span>Plätze in Pausenräumen</span><b>' + builds.reduce((n, b) => n + (b.def.rest || 0), 0) + '</b><span>Löhne pro Tag</span><b id="t-sum"></b><span>Höchstens pro Beruf</span><b>' + staffMax() + '</b><span>Wachleute</span><b id="t-sec"></b></div><p class="note" id="t-secinfo"></p>' +
-    '<h3>Lohnniveau</h3><div class="stepper"><span class="lbl">Alle Löhne</span><button class="sq" data-act="wage" data-d="-1" aria-label="Löhne senken">' + IC.minus + '</button><output id="t-wage"></output><button class="sq" data-act="wage" data-d="1" aria-label="Löhne erhöhen">' + IC.plus + '</button></div>' +
-    (rows ? '<h3>Mitarbeitende</h3><table class="fin team"><thead><tr><th>Name</th><th>Stimmung</th><th>Energie</th><th></th></tr></thead><tbody>' + rows + '</tbody></table>' : '<p class="note">Noch niemand eingestellt.</p>') + leftH);
+  const vacH = vac.length ? '<section class="tsec"><h3>Offene Stellen</h3><div class="vacs">' + vac.map((k) => '<div class="vacr"><span><b>' + S.vac[k] + ' × ' + STAFF[k].name + '</b><small>jetzt ' + staffN(k) + ' im Dienst</small></span><button class="btn" data-act="vacHire" data-k="' + k + '">Einstellen · ' + eur(hireCost(k)) + '</button><button class="btn line" data-act="vacDrop" data-k="' + k + '">Nicht ersetzen</button></div>').join('') + '</div></section>' : '';
+  const leftH = left.length ? '<section class="tsec"><h3>Zuletzt gekündigt</h3><ul class="leftl">' + left.slice(0, 6).map((e) => '<li><b>' + esc(e[1]) + '</b> · ' + (STAFF[e[0]] ? STAFF[e[0]].name : e[0]) + ' · Tag ' + e[2] + '<small>' + e[3] + '</small></li>').join('') + '</ul></section>' : '';
+  const row = (l, v) => '<div class="trow"><span>' + l + '</span><b>' + v + '</b></div>';
+  modal('<h2>Dein Team</h2><p class="note">Zufriedenes Personal bleibt und arbeitet schneller. Es braucht einen Wohnplatz, regelmässige Pausen und fairen Lohn. Wer unzufrieden kündigt, schadet deinem Ruf als Arbeitgeber, und neue Leute werden teurer. Mit jeder erledigten Aufgabe sammeln alle Erfahrung und steigen auf.</p>' + vacH +
+    '<section class="tsec"><h3>Arbeitgeber</h3>' + row('Ruf als Arbeitgeber', '<span id="t-rep"></span>') + row('Personalgrenze', 'höchstens ' + staffMax() + ' pro Beruf') +
+    '<p class="note">' + (plotsOwned() < PN * PN ? 'Mit jedem Stück Land darfst du mehr Leute pro Beruf einstellen, bis 36 auf der ganzen Insel.' : 'Die ganze Insel gehört dir: 36 pro Beruf.') + ' Der Ruf als Arbeitgeber ist ein eigener Wert und hat mit dem Parkruf bei den Gästen nichts zu tun.</p></section>' +
+    '<section class="tsec"><h3>Wohnen und Pausen</h3>' + row('Wohnplätze', Math.min(list.length, housing()) + ' von ' + housing() + ' belegt') + row('Plätze in Pausenräumen', builds.reduce((n, b) => n + (b.def.rest || 0), 0)) +
+    '<p class="note">2 Wohnplätze bietet das Torhaus, weitere die Personalhäuser.</p></section>' +
+    '<section class="tsec"><h3>Löhne</h3>' + row('Löhne pro Tag', '<span id="t-sum"></span>') +
+    '<div class="stepper"><span class="lbl">Lohnniveau für alle</span><button class="sq" data-act="wage" data-d="-1" aria-label="Löhne senken">' + IC.minus + '</button><output id="t-wage"></output><button class="sq" data-act="wage" data-d="1" aria-label="Löhne erhöhen">' + IC.plus + '</button></div></section>' +
+    '<section class="tsec"><h3>Wachleute</h3><div class="lvlbox"><div class="lvlhd"><b id="t-sec"></b></div><small class="lvlsub" id="t-secname"></small><div class="meter xp"><i id="t-secbar"></i></div><small class="lvlsub" id="t-secnext"></small></div><p class="note" id="t-secinfo"></p></section>' +
+    '<section class="tsec"><h3>Mitarbeitende</h3>' + (rows ? '<ul class="staffl">' + rows + '</ul>' : '<p class="note">Noch niemand eingestellt.</p>') + '</section>' + leftH, 'wide');
   fillTeam();
 }
 function fillTeam() {
-  setTxt('t-sec', 'Stufe ' + S.secLvl + ' · ' + SEC_NAME[S.secLvl - 1]);
-  setTxt('t-secinfo', 'Wachleute: ' + SEC_INFO[S.secLvl - 1] + (S.secLvl < 5 ? ' Bis zur nächsten Stufe fehlen ' + Math.max(0, SEC_XP[S.secLvl] - S.secXp) + ' Punkte.' : '') + ' Fangchance pro Versuch: ' + Math.round(catchChance() * 100) + ' %. Jeder weitere Wachmann erhöht sie. Wachposten: ' + staffN('sec') + ' von ' + postPlaces() + ' Plätzen besetzt. Von jedem Beruf kannst du höchstens ' + staffMax() + ' Leute einstellen' + (plotsOwned() < PN * PN ? '; mit jedem Stück Land werden es mehr (36 auf der ganzen Insel).' : '.'));
+  setTxt('t-sec', 'Stufe ' + S.secLvl);
+  setTxt('t-secname', SEC_NAME[S.secLvl - 1]);
+  setW('t-secbar', S.secLvl >= 5 ? 100 : (S.secXp - SEC_XP[S.secLvl - 1]) / (SEC_XP[S.secLvl] - SEC_XP[S.secLvl - 1]) * 100);
+  setTxt('t-secnext', S.secLvl < 5 ? 'noch ' + Math.max(0, SEC_XP[S.secLvl] - S.secXp) + ' Punkte bis Stufe ' + (S.secLvl + 1) : 'höchste Stufe');
+  setTxt('t-secinfo', SEC_INFO[S.secLvl - 1] + ' Fangchance pro Versuch: ' + Math.round(catchChance() * 100) + ' %. Jeder weitere Wachmann erhöht sie. Wachposten: ' + staffN('sec') + ' von ' + postPlaces() + ' Plätzen besetzt.');
   setTxt('t-rep', repWord() + ' (' + Math.round(S.rep) + ' von 100)'); setTxt('t-wage', WAGE_NAME[S.wage]);
   setTxt('t-sum', eur(staff.reduce((n, s) => n + (s.state === 'quit' ? 0 : STAFF[s.type].wage), 0) * WAGE[S.wage]));
+}
+// next to a price: the park's reputation, and why raising the price does not work right now
+function lockShow(pre) {
+  const f = rufInfo(), lk = priceLock(), up = document.getElementById(pre + '-up'), n = document.getElementById(pre + '-lock');
+  setTxt(pre + '-ruf', f.text + ' (' + Math.round(f.r) + ')');
+  if (up) { up.classList.toggle('off', !!lk); up.setAttribute('aria-disabled', lk ? 'true' : 'false'); }
+  if (n) { n.hidden = !lk; setTxt(pre + '-lock', lk); }
 }
 
 /* ----- top bar, goal, modals ----- */
@@ -446,6 +482,7 @@ function refreshUI() {
   { const tb = $('#toolbar'), h = tb.hidden ? 0 : tb.offsetHeight + 8, al = $('#alert'), ah = al.hidden ? 0 : al.offsetHeight + 8; if (h !== ui.tbh) { ui.tbh = h; $('#mid').style.setProperty('--tbh', h + 'px'); } if (ah !== ui.alh) { ui.alh = ah; $('#mid').style.setProperty('--alh', ah + 'px'); } }
   setTxt('v-money', eur(S.money)); $('#st-money').classList.toggle('neg', S.money < 0);
   setTxt('v-guests', guests.length); setTxt('v-rating', Math.round(S.rating));
+  { const f = rufInfo(), t = $('#v-trend'); setTxt('v-trend', f.arrow); t.className = f.trend > 0 ? 'up' : f.trend < 0 ? 'down' : ''; const st = $('#st-rating'), tt = 'Parkruf: ' + f.text + ' (' + Math.round(f.r) + ' von 100)'; if (st.title !== tt) st.title = tt; }
   const d = (S.time % DAY) / DAY, hh = (6 + d * 24) % 24, hr = Math.floor(hh), mn = Math.floor((hh - hr) * 6) * 10;
   const dayTxt = 'Tag ' + (curDay + 1) + ' · ' + String(hr).padStart(2, '0') + ':' + String(mn).padStart(2, '0');
   const vd = $('#v-day'); if (vd.dataset.t !== dayTxt) { vd.dataset.t = dayTxt; vd.innerHTML = 'Tag ' + (curDay + 1) + '<span class="hm"> · ' + String(hr).padStart(2, '0') + ':' + String(mn).padStart(2, '0') + '</span>'; }
@@ -455,9 +492,14 @@ function refreshUI() {
   const g = GOALS[S.goal];
   if (g) { setTxt('goal-tag', 'Ziel ' + (S.goal + 1) + '/' + GOALS.length); setTxt('goal-txt', g.t); setTxt('goal-rew', '+' + eur(g.r)); $('#goal-bar').style.width = clamp(g.p() * 100, 0, 100) + '%'; }
   else { setTxt('goal-tag', 'Geschafft'); setTxt('goal-txt', 'Alle Ziele erreicht. Bau einfach weiter.'); setTxt('goal-rew', ''); $('#goal-bar').style.width = '100%'; }
+  { const done = !g, now = performance.now();
+    if (done && !S.goalHid) { if (!ui.goalAt) ui.goalAt = now + 6000; else if (now > ui.goalAt) S.goalHid = true; }
+    const hid = done && !!S.goalHid; if ($('#goalw').hidden !== hid) $('#goalw').hidden = hid;
+    const x = $('#goal-x'); if (x.hidden === done) { x.hidden = !done; if (!x.firstChild) x.innerHTML = IC.x; } }
   refreshTray(); refreshPanel(); refreshAlert();
   { let n = 0; if (S.vac) for (const k in S.vac) n += S.vac[k] || 0; const tb = document.querySelector('#tabs [data-k=staff]'); if (tb && tb.dataset.n !== String(n)) { tb.dataset.n = n; tb.classList.toggle('badge', n > 0); } }
   if (ui.modal && document.getElementById('m-ticket')) fillMenu();
+  if (ui.modal && document.getElementById('t-sec')) fillTeam();
   if (ui.modal && document.getElementById('a-now')) fillAds();
   { const b = adBoost(), e = $('#st-guests'); e.classList.toggle('boost', b > 0.005); e.classList.toggle('bust', b < -0.005); }
 }
@@ -504,10 +546,10 @@ function showGoals() {
   modal('<h2>Ziele</h2><ol class="goals">' + GOALS.map((g, i) => '<li class="' + (i < S.goal ? 'done' : i === S.goal ? 'now' : '') + '"><span class="n">' + (i < S.goal ? '✓' : i + 1) + '</span><span>' + g.t + '</span><span class="r">+' + eur(g.r) + '</span></li>').join('') + '</ol>');
 }
 function showMenu() {
-  modal('<h2>Parkbüro</h2><div class="kv"><span>Parkwertung</span><b id="m-rate"></b><span>Gäste im Park</span><b id="m-now"></b><span>Gäste insgesamt</span><b id="m-all"></b><span>Wetter</span><b id="m-wx"></b></div><div class="row"><button class="btn" data-act="ads">Besucher und Werbung</button><button class="btn line" data-act="log">Letzte Meldungen</button></div>' +
-    '<h3>Eintritt</h3><div class="stepper"><span class="lbl">Ticketpreis</span><button class="sq" data-act="ticket" data-d="-1" aria-label="Eintritt senken">' + IC.minus + '</button><output id="m-ticket"></output><button class="sq" data-act="ticket" data-d="1" aria-label="Eintritt erhöhen">' + IC.plus + '</button></div><p class="note">Gäste finden den Eintritt <b id="m-op"></b>. Mehr und aufregendere Attraktionen und mehr Land erlauben höhere Preise.</p>' +
+  modal('<h2>Parkbüro' + (S.park ? ' · ' + esc(S.park) : '') + '</h2><div class="kv"><span>Parkruf</span><b id="m-rate"></b><span>Gäste im Park</span><b id="m-now"></b><span>Gäste insgesamt</span><b id="m-all"></b><span>Wetter</span><b id="m-wx"></b></div><div class="row"><button class="btn" data-act="ads">Besucher und Werbung</button><button class="btn line" data-act="goals">Ziele</button><button class="btn line" data-act="log">Letzte Meldungen</button></div>' +
+    '<h3>Eintritt</h3><div class="stepper"><span class="lbl">Ticketpreis</span><button class="sq" data-act="ticket" data-d="-1" aria-label="Eintritt senken">' + IC.minus + '</button><output id="m-ticket"></output><button class="sq" id="m-up" data-act="ticket" data-d="1" aria-label="Eintritt erhöhen">' + IC.plus + '</button></div><p class="note">Gäste finden den Eintritt <b id="m-op"></b>. Parkruf: <b id="m-ruf"></b></p><p class="note lock" id="m-lock" hidden></p><p class="note">Jede Attraktion, die Gäste nutzen können, und mehr Land erlauben einen höheren Eintritt. Ist der Parkruf gut, zählt jede weitere Attraktion noch mehr. Erhöhen kannst du Preise nur, solange der Parkruf gut ist und nicht sinkt; senken geht immer.</p>' +
     '<h3>Kredit</h3><div class="stepper"><span class="lbl">Schulden · 1,2 % Zinsen pro Tag</span><button class="sq" data-act="loan" data-d="-1" aria-label="Kredit tilgen">' + IC.minus + '</button><output id="m-loan"></output><button class="sq" data-act="loan" data-d="1" aria-label="Kredit aufnehmen">' + IC.plus + '</button></div>' +
-    '<h3>Einstellungen</h3><div class="row"><button class="btn line" data-act="mute" id="m-mute"></button><button class="btn line" data-act="music" id="m-music"></button><button class="btn line" data-act="shadows" id="m-shadow"></button><button class="btn line" data-act="outline" id="m-outline"></button><button class="btn line" data-act="currency">Währung gestalten</button><button class="btn line" data-act="help">Steuerung zeigen</button>' + (audioCredits().length ? '<button class="btn line" data-act="credits">Musik und Geräusche: Quellen</button>' : '') + '<button class="btn red" data-act="askNew">Neues Spiel</button></div>');
+    '<h3>Einstellungen</h3><div class="row"><button class="btn line" data-act="mute" id="m-mute"></button><button class="btn line" data-act="music" id="m-music"></button><button class="btn line" data-act="shadows" id="m-shadow"></button><button class="btn line" data-act="outline" id="m-outline"></button><button class="btn line" data-act="currency">Währung gestalten</button><button class="btn line" data-act="help">Steuerung zeigen</button>' + (audioCredits().length ? '<button class="btn line" data-act="credits">Musik und Geräusche: Quellen</button>' : '') + '<button class="btn" data-act="toTitle">Zum Titelbildschirm</button></div><p class="note">Auf dem Titelbildschirm wechselst du zwischen deinen drei Parks oder legst einen neuen an. Dein Park wird vorher gespeichert.</p>');
   fillMenu();
 }
 // the recordings used for music, crowd and voices, with author, licence and where they come from
@@ -518,7 +560,7 @@ function showCredits() {
   modal('<h2>Musik und Geräusche</h2><p class="note">Musik, Stimmengewirr, Lachen und Jubel sind echte Aufnahmen. Alle sind gemeinfrei oder von ihren Urhebern ohne Bedingungen freigegeben; für das Spiel wurden sie gekürzt, in der Lautstärke angeglichen und in Mono umgewandelt. Die übrigen Geräusche erzeugt das Spiel selbst.</p><ul class="credl">' + rows + '</ul>');
 }
 function fillMenu() {
-  setTxt('m-rate', Math.round(S.rating) + ' von 100'); setTxt('m-now', guests.length); setTxt('m-all', S.visitors);
+  setTxt('m-rate', rufInfo().text + ' · ' + Math.round(S.rating) + ' von 100'); setTxt('m-now', guests.length); setTxt('m-all', S.visitors); lockShow('m');
   setTxt('m-ticket', eur(S.ticket)); setTxt('m-op', opinion(S.ticket / willing() / 0.8)); setTxt('m-loan', eur(S.loan));
   setTxt('m-music', S.music ? 'Musik ausschalten' : 'Musik einschalten'); setTxt('m-wx', WX_NAME[WX.k] + (WX.bonus > 0 && WX.k !== 'rain' && WX.k !== 'storm' ? ' mit Regenbogen' : ''));
   setTxt('m-mute', S.muted ? 'Ton einschalten' : 'Ton ausschalten'); setTxt('m-shadow', S.shadows ? 'Schatten ausschalten' : 'Schatten einschalten'); setTxt('m-outline', S.outline === true ? 'Comic-Linien ausschalten' : 'Comic-Linien einschalten');
@@ -555,6 +597,7 @@ const ACT = {
   vacHire: (el) => { hireClick(el.dataset.k); showTeam(); },
   vacDrop: (el) => { if (S.vac) S.vac[el.dataset.k] = 0; sfx('click'); uiDirty = true; showTeam(); },
   log: () => { sfx('click'); showLog(); },
+  goalHide: () => { sfx('click'); S.goalHid = true; uiDirty = true; },
   credits: () => { sfx('click'); showCredits(); },
   fire: (el) => { if (fire(el.dataset.k)) sfx('doze'); uiDirty = true; },
   fireOne: () => { const s = sel && sel.staff; if (s && fire(s.type, s)) sfx('doze'); },
@@ -582,7 +625,7 @@ const ACT = {
   tundo: () => { const t = tool; if (!t || t.type !== 'track') return; if (t.sel != null && t.nodes[t.sel]) t.nodes.splice(t.sel, 1); else if (t.nodes.length) t.nodes.pop(); else t.station = null; t.sel = null; sfx('click'); trackChanged(); },
   cancel: () => { setTool(null); if (ui.tab === 'path' || ui.tab === 'doze' || ui.tab === 'land') { ui.tab = null; renderTray(); } },
   unselect: () => select(null),
-  price: (el) => { const b = sel && sel.obj; if (!b) return; b.price = clamp(Math.round((b.price + el.dataset.d * 0.5) * 2) / 2, 0, 25); uiDirty = true; sfx('click'); },
+  price: (el) => { const b = sel && sel.obj; if (!b) return; if (+el.dataset.d > 0 && priceLock()) { sfx('error'); toast(priceLock(), 'bad'); return; } b.price = clamp(Math.round((b.price + el.dataset.d * 0.5) * 2) / 2, 0, 25); uiDirty = true; sfx('click'); },
   toggle: () => {
     const b = sel && sel.obj; if (!b) return;
     b.open = !b.open;
@@ -599,7 +642,7 @@ const ACT = {
   crew: (el) => { const b = sel && sel.obj; if (b && b.site) { setCrew(b, b.site.want + +el.dataset.d); sfx('click'); refreshPanel(); } },
   buyLand: () => { const t = tool; if (!t || t.type !== 'land' || t.plot < 0) return; if (buyPlot(t.plot)) { t.plot = -1; hl.visible = false; } renderToolbar(); },
   yesDemolish: () => { const b = ui.ask; closeModal(); if (b && !b.removed) demolish(b); },
-  ticket: (el) => { S.ticket = clamp(S.ticket + +el.dataset.d, 0, 90); fillMenu(); sfx('click'); },
+  ticket: (el) => { if (+el.dataset.d > 0 && priceLock()) { sfx('error'); toast(priceLock(), 'bad'); fillMenu(); return; } S.ticket = clamp(S.ticket + +el.dataset.d, 0, 90); fillMenu(); sfx('click'); },
   loan: (el) => {
     if (+el.dataset.d > 0) { if (S.loan >= 10000) { toast('Mehr als ' + eur(10000) + ' leiht dir die Bank nicht.', 'bad'); return; } S.loan += 1000; S.money += 1000; }
     else { const pay = Math.min(1000, S.loan); if (!pay) return; if (S.money < pay) { toast('Dafür reicht das Geld nicht.', 'bad'); return; } S.loan -= pay; S.money -= pay; }

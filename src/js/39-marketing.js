@@ -86,7 +86,7 @@ function adTick() {
 /* ----- the dialog ----- */
 function showAds() {
   let h = '<h2>Besucher und Werbung</h2><div class="kv"><span>Gäste im Park</span><b id="a-now"></b><span>Der Park zieht zurzeit an</span><b id="a-cap"></b><span>Dein Land fasst</span><b id="a-land"></b><span>Wirkung der Werbung</span><b id="a-boost"></b></div>' +
-    '<p class="note">Mehr Gäste kommen durch mehr Attraktionen, eine hohe Parkwertung und einen fairen Eintritt. Werbung bringt zusätzlich Besucher, solange sie läuft; mehrere Kampagnen addieren sich. Mehr Gäste, als das Land fasst, kommen nie: Jedes gekaufte Stück Land schafft Platz für 18 weitere.</p><h3>Werbung schalten</h3><div class="ads">';
+    '<p class="note">Mehr Gäste kommen durch mehr Attraktionen, einen guten Parkruf und einen fairen Eintritt. Werbung bringt zusätzlich Besucher, solange sie läuft; mehrere Kampagnen addieren sich. Mehr Gäste, als das Land fasst, kommen nie: Jedes gekaufte Stück Land schafft Platz für 18 weitere.</p><h3>Werbung schalten</h3><div class="ads">';
   for (const k in ADS) { const a = ADS[k];
     h += '<div class="ad" data-ad="' + k + '"><span class="ic">' + IC['ad_' + k] + '</span><div class="tx"><div class="hd"><b>' + a.name + '</b><span class="fx">' + pct(a.k) + ' Besucher · ' + dayTxt(a.days) + '</span></div><span class="sub">' + a.info + '</span><div class="meter" hidden><i></i></div></div>' +
       '<button class="btn" data-act="ad" data-k="' + k + '"></button></div>'; }

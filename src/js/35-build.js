@@ -78,7 +78,7 @@ function buildPlan(s) {
 function stepSites(dt) {
   for (let i = 0; i < builds.length; i++) {
     const b = builds[i], st = b.site; if (!st) continue;
-    let rate = 0; for (const s of st.crew) if (s.job === 'build') rate += (s.mood < 35 ? 0.72 : 1) * (s.energy < 8 ? 0.8 : 1);
+    let rate = 0; for (const s of st.crew) if (s.job === 'build') rate += (s.mood < 35 ? 0.72 : 1) * (s.energy < 8 ? 0.8 : 1) * skill(s);
     st.rate = rate; st.done += dt * rate;
     if (rate && S.time - hammerAt > 0.4) { hammerAt = S.time; sfxAt(Math.random() < 0.82 ? 'hammer' : 'saw', b.group.position.x, b.group.position.z, 0.8); }
     if (st.done >= st.total) finishSite(b);

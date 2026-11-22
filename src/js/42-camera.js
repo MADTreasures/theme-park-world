@@ -1,5 +1,5 @@
 /* ================= camera, sky ================= */
-const cam = { tx: 1.5, tz: HALF - 5, dist: 24, az: 0.62, el: 0.72, d: 24, a: 0.62, e: 0.72 };
+const cam = { tx0: 1.5, tz0: HALF - 5, dist0: 24, tx: 1.5, tz: HALF - 5, dist: 24, az: 0.62, el: 0.72, d: 24, a: 0.62, e: 0.72 };
 const keys = {};
 function clampCam() { cam.tx = clamp(cam.tx, -HALF - 4, HALF + 4); cam.tz = clamp(cam.tz, -HALF - 4, HALF + 10); }
 function panPx(dx, dy) {

@@ -9,13 +9,19 @@ function gripe(g, kind) {
   if (g.t - g.gripeT < 12) return;
   g.gripeT = g.t; g.happy -= 2.5; think(g, kind); complaints[kind]++;
 }
+// What guests think a ticket is worth. Every attraction they can use adds to it, a bigger park too. The ceiling rises
+// with the land and, when the park's reputation is good, with every usable attraction beyond the first ten.
+let _wil = { t: -9, n: 0, v: 0, nb: -1 };
 function willing() {
-  let w = 3; const seen = new Set();
-  for (const b of builds) if (b.def.cat === 'ride' && !b.site) { w += 0.25; if (!seen.has(b.k)) { seen.add(b.k); w += b.def.exc * 0.11; } }
-  // a bigger park is worth more to its guests: every plot bought raises what they will pay, and the ceiling with it
-  const extra = plotsOwned() - START_PLOTS.length;
-  return Math.min(60 + extra * 0.8, w + extra * 0.4);
+  if (Math.abs(S.time - _wil.t) < 0.5 && _wil.nb === builds.length) return _wil.v;
+  let w = 3, n = 0; const seen = new Set();
+  for (const b of builds) if (b.def.cat === 'ride' && !b.site && b.open && !b.broken && connected(b)) { n++; w += 0.25; if (!seen.has(b.k)) { seen.add(b.k); w += b.def.exc * 0.11; } }
+  const extra = plotsOwned() - START_PLOTS.length, rq = clamp((S.rating - 50) / 35, 0, 1);
+  const ceil = (60 + extra * 0.8 + Math.max(0, n - 10) * 1.2) * (0.85 + 0.4 * rq);
+  _wil = { t: S.time, n, nb: builds.length, v: Math.min(ceil, w + extra * 0.4) };
+  return _wil.v;
 }
+const usableRides = () => { willing(); return _wil.n; };
 function guestCap() {
   let c = 8; for (const b of builds) if (!b.site) c += b.def.cat === 'ride' ? b.def.cap * 2 + b.def.exc * 0.1 : b.def.cat === 'shop' ? 1.5 : 0;
   // what the attractions draw, with advertising on top; but never more than the park's land can hold
@@ -39,7 +45,7 @@ function spawnGuest(inside) {
   const W = willing();
   const g = { id: uid++, name: pick(NAMES), x: 0, z: 0, rot: Math.PI, tile: ENT, prev: -1, wx: 0, wz: 0, ox: rnd(-0.3, 0.3), oz: rnd(-0.3, 0.3), sp: rnd(1.0, 1.45), sc: rnd(0.84, 1.1), ph: rnd(TAU),
     state: 'arrive', wait: 0, target: null, steps: 0, hunger: rnd(0, 35), thirst: rnd(0, 35), wc: rnd(0, 30), nausea: 0,
-    happy: clamp(64 - 14 * (S.ticket / W - 0.6) + rnd(-8, 8), 20, 95), cash: rnd(24, 62) * (0.8 + S.rating / 180), gen: rnd(0.97, 1.6), brave: Math.random(),
+    happy: clamp(64 - 14 * (S.ticket / W - 0.6) + rnd(-8, 8), 20, 95), cash: rnd(24, 62) * (0.8 + S.rating / 180) * (1 + Math.min(1, usableRides() / 30)), gen: rnd(0.97, 1.6), brave: Math.random(),
     hr: rnd(0.16, 0.3), tr: rnd(0.2, 0.36), wr: rnd(0.08, 0.16), t: 0, stay: rnd(200, 380), patience: rnd(45, 90), qt: 0, qi: 0, acc: ENT, qdx: 0, qdz: 0,
     seat: null, rides: {}, nRides: 0, trash: 0, balloon: 0, think: 0, tk: '', gripeT: -99, moving: false, gone: false,
     shirt: pick(SHIRT), skin: pick(SKIN), pants: pick(PANTS) };
@@ -115,6 +121,7 @@ function decide(g) {
   if (!tg && g.nausea > 50) tg = nearestCalm(g, here);
   if (!tg && WX.wet > 0.4 && !g.umb && g.cash > 6 && Math.random() < 0.7) tg = nearestShop(g, here, 'umbrella');   // it rains: first of all an umbrella
   if (!tg && WX.sunny && !g.sun && g.cash > 8 && Math.random() < 0.035) tg = nearestShop(g, here, 'parasol');   // in the sun, now and then someone wants shade
+  if (!tg && night > 0.45 && !g.torch && g.cash > 6 && Math.random() < (g.kid ? 0.16 : 0.08)) tg = nearestShop(g, here, 'torch');   // in the dark: a glowing torch
   if (!tg && Math.random() < 0.82) tg = pickRide(g, here);
   if (!tg && Math.random() < 0.35) { const w = ['treat', 'game']; if (!g.balloon) w.push('balloon'); if (!g.hat && !g.costume) w.push('hat'); if (!g.costume) w.push('costume'); if (WX.sunny && !g.sun) w.push('parasol', 'parasol'); tg = nearestShop(g, here, pick(w)); }
   if (tg) { g.target = tg; g.state = 'walk'; } else { g.target = null; g.state = 'wander'; g.steps = rint(3, 9); }

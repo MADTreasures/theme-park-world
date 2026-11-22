@@ -9,14 +9,14 @@ const GOALS = [
   { t: 'Stelle eine Reinigungskraft ein und baue einen Pausenraum', r: 300, p: () => (Math.min(1, staffN('jan')) + has('breakroom')) / 2 },
   { t: 'Habe 30 Gäste gleichzeitig im Park', r: 400, p: () => guests.length / 30 },
   { t: 'Betreibe 3 verschiedene Attraktionen', r: 500, p: () => rideTypes() / 3 },
-  { t: 'Parkwertung 60 mit mindestens 40 Gästen', r: 600, p: () => Math.min(S.rating / 60, guests.length / 40) },
+  { t: 'Parkruf 60 mit mindestens 40 Gästen', r: 600, p: () => Math.min(S.rating / 60, guests.length / 40) },
   { t: 'Stelle einen Mechaniker ein und setze 10 Deko-Objekte', r: 500, p: () => (Math.min(1, staffN('mech')) + Math.min(1, decos.filter((d) => !d.nat).length / 10)) / 2 },
   { t: '5 verschiedene Attraktionen und 70 Gäste', r: 800, p: () => Math.min(rideTypes() / 5, guests.length / 70) },
   { get t() { return 'Spare ' + eur(6000) + ' an'; }, r: 1000, p: () => S.money / 6000 },
   { t: 'Baue ein Riesenrad', r: 800, p: () => has('wheel') },
-  { t: '120 Gäste bei Parkwertung 70', r: 1500, p: () => Math.min(guests.length / 120, S.rating / 70) },
+  { t: '120 Gäste bei Parkruf 70', r: 1500, p: () => Math.min(guests.length / 120, S.rating / 70) },
   { t: 'Betreibe eine Achterbahn mit Nervenkitzel 100', r: 2000, p: () => rideList().reduce((m, b) => (b.k === 'coaster' || b.k === 'custom' ? Math.max(m, b.def.exc) : m), 0) / 100 },
-  { t: '200 Gäste bei Parkwertung 80', r: 3000, p: () => Math.min(guests.length / 200, S.rating / 80) },
+  { t: '200 Gäste bei Parkruf 80', r: 3000, p: () => Math.min(guests.length / 200, S.rating / 80) },
   { get t() { return 'Spare ' + eur(30000) + ' an'; }, r: 5000, p: () => S.money / 30000 },
   { t: 'Kaufe 4 Stücke Land dazu', r: 2500, p: () => (plotsOwned() - START_PLOTS.length) / 4 },
   { t: 'Besitze die halbe Insel (18 Stücke Land)', r: 8000, p: () => plotsOwned() / 18 },
@@ -62,6 +62,27 @@ function advisor() {
   const lost = builds.find((b) => !b.def.noPath && !connected(b));
   if (lost && S.time - (adviceAt.lost || -999) > 120) { adviceAt.lost = S.time; toast(lost.def.name + ' hat keinen Weg zum Eingang.', 'bad', lost); }
 }
+/* ----- Parkruf: what the guests think of the park (0 to 100), in a word, and where it is heading ----- */
+const RUF = { h: [], t: 0 };
+function rufReset() { RUF.h.length = 0; RUF.t = 0; }
+// change per minute: a straight line through the samples of the last minute, taken every two seconds
+function rufSlope() {
+  const h = RUF.h, n = h.length; if (n < 8) return 0;
+  let sx = 0, sy = 0, sxy = 0, sxx = 0; for (let i = 0; i < n; i++) { sx += i; sy += h[i]; sxy += i * h[i]; sxx += i * i; }
+  return (n * sxy - sx * sy) / (n * sxx - sx * sx) * 30;
+}
+const rufWord = (r) => (r >= 85 ? 'Ausgezeichnet' : r >= 65 ? 'Gut' : r >= 50 ? 'Mittel' : r >= 35 ? 'Mässig' : 'Schlecht');
+function rufInfo() {
+  const r = S.rating, sl = rufSlope(), tr = sl > 1 ? 1 : sl < -1 ? -1 : 0, word = rufWord(r);
+  return { r, word, good: r >= 65, trend: tr, arrow: tr > 0 ? '↑' : tr < 0 ? '↓' : '→', text: word + ' ' + (tr > 0 ? '↑ steigend' : tr < 0 ? '↓ sinkend' : '→ stabil') };
+}
+// Prices may only go up while the park's reputation is good and not falling. Lowering a price is always possible.
+function priceLock() {
+  const f = rufInfo();
+  if (f.trend < 0) return 'Dein Parkruf sinkt. Preiserhöhungen sind momentan gesperrt.';
+  if (!f.good) return 'Dein Parkruf ist «' + f.word + '». Preise erhöhen kannst du erst ab «Gut».';
+  return '';
+}
 function secondTick() {
   let up = 0; for (const b of builds) if (!b.site) up += b.def.upkeep;
   spend(up / DAY, 'upkeep');
@@ -71,6 +92,7 @@ function secondTick() {
   for (const g of guests) sum += g.happy;
   const avg = guests.length ? sum / guests.length : 55, clean = 1 - Math.min(1, litterTotal / (pathCount * 0.2 + 2));
   S.rating = lerp(S.rating, 0.55 * avg + 18 * Math.min(1, rideTypes() / 8) + 12 * clean + 0.15 * S.exitAvg, 0.04);
+  if ((RUF.t = (RUF.t + 1) % 2) === 0) { RUF.h.push(S.rating); if (RUF.h.length > 30) RUF.h.shift(); }
   checkGoal();
   if (++hintT >= 25) { hintT = 0; advisor(); }
 }

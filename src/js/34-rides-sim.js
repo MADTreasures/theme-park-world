@@ -18,6 +18,7 @@ function serve(b, g) {
   else if (d.sells === 'hat') { wearHat(g); g.happy += 9 * val; }
   else if (d.sells === 'umbrella') { g.umb = pick(UMB_COLS); g.happy += 6 * val; }
   else if (d.sells === 'parasol') { g.sun = pick(SUN_COLS); g.happy += 7 * val; }
+  else if (d.sells === 'torch') { g.torch = pick(TORCH_COLS); g.happy += 8 * val; }
   else if (d.sells === 'costume') { wearCostume(g); g.happy += 11 * val; }
   else { g.wc = 0; g.happy += 2; }
   if (d.sells !== 'wc') personVoice(g, 'nom');
@@ -51,9 +52,13 @@ function startRide(b) {
 }
 function breakDown(b) {
   b.broken = true; b.fixer = null;
-  for (const g of b.queue) { g.happy -= 3; think(g, 'angry'); g.state = 'decide'; g.wait = rnd(0.2, 1); g.tile = g.acc; }
-  b.queue = [];
-  toast(b.def.name + ' ist defekt.' + (staffN('mech') ? ' Ein Mechaniker ist unterwegs.' : ' Kein Mechaniker im Dienst.'), 'bad', b);
+  if (b.mtBy) { if (b.mtBy.mt === b) b.mtBy.mt = null; b.mtBy = null; }
+  callMech(b);   // the nearest free mechanic sets off at once
+  // With a mechanic on the way, the queue waits (as long as each guest's patience lasts) and rides as soon as it is fixed.
+  // Without one, everybody gives up at once.
+  if (!b.fixer) { for (const g of b.queue) { g.happy -= 3; think(g, 'angry'); g.state = 'decide'; g.wait = rnd(0.2, 1); g.tile = g.acc; } b.queue = []; }
+  else for (const g of b.queue) g.happy -= 1;
+  toast(b.def.name + ' ist defekt.' + (b.fixer ? ' ' + b.fixer.name + ' (Mechaniker) ist unterwegs, die Wartenden bleiben in der Schlange.' : staffN('mech') ? ' Gerade ist kein Mechaniker frei.' : ' Kein Mechaniker im Dienst.'), 'bad', b);
   sfx('error'); sfxAt('clank', b.group.position.x, b.group.position.z, 1.2); uiDirty = true;
 }
 function repair(b) { b.broken = false; b.wear = 0; b.fixer = null; toast(b.def.name + ' läuft wieder.', 'good', b); uiDirty = true; }

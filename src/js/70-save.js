@@ -1,13 +1,20 @@
 /* ================= save, load, new game ================= */
-const SAVE_KEY = DEV ? 'rummelinsel.dev.v1' : 'rummelinsel.save.v1';
+// Each of the three parks has its own place in the browser's storage (see 56-title.js); a small list next to them holds
+// name, day and time of saving for the title screen.
 function serialize() {
   const paths = [], lit = [];
   for (let i = 0; i < N * N; i++) { if (tType[i] === 1) paths.push(i); if (litter[i]) lit.push(i, litter[i]); }
-  return { v: 1, n: N, S: Object.assign({}, S), fin, paths, lit, guests: guests.length,
+  return { v: 1, build: BUILD, n: N, S: Object.assign({}, S), fin, paths, lit, guests: guests.length,
     objs: builds.concat(decos).map((o) => (o.def.cat === 'deco' ? [o.k, o.x, o.y, o.rot, o.nat ? 1 : 0, o.cut ? (o.then === 'path' ? 2 : 1) : 0] : [o.k, o.x, o.y, o.rot, o.price, o.count, Math.round(o.income), o.open ? 1 : 0, o.broken ? 1 : 0, o.wear, o.nodes || 0, o.site ? [Math.round(o.site.done * 10) / 10, o.site.total, o.site.want] : 0])),
-    staffList: staff.filter((s) => s.state !== 'quit').map((s) => [s.type, s.name, Math.round(s.mood), Math.round(s.energy)]) };
+    staffList: staff.filter((s) => s.state !== 'quit').map((s) => [s.type, s.name, Math.round(s.mood), Math.round(s.energy), Math.round((s.xp || 0) * 10) / 10]) };
 }
-function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(serialize())); } catch (e) { /* storage is optional */ } }
+function save() {
+  if (curSlot < 0) return;   // the island behind the title screen is never saved
+  try {
+    localStorage.setItem(SKEY.slot(curSlot), JSON.stringify(serialize()));
+    const m = readMeta(); m.slots[curSlot] = { name: S.park || 'Mein Park', day: curDay + 1, at: Date.now() }; m.last = curSlot; writeMeta(m);
+  } catch (e) { /* storage is optional */ }
+}
 function clearWorld() {
   for (const o of builds.concat(decos)) { o.removed = true; scene.remove(o.group); o.group.traverse((m) => { if (m.geometry && !m.userData.shared) m.geometry.dispose(); }); }
   if (pov || fp) exitMode();
@@ -58,7 +65,7 @@ function load(data) {
 }
 function newGame() {
   clearWorld();
-  Object.assign(S, { money: 4000, loan: 0, time: DAY * 0.1, ticket: 5, rating: 55, goal: 0, exitAvg: 62, visitors: 0, rep: 70, wage: 1, secLvl: 1, secXp: 0, ads: {}, vip: null, vipLast: null, adsN: 0, plush: 0, vac: {}, left: [] });
+  Object.assign(S, { money: 4000, loan: 0, time: DAY * 0.1, ticket: 5, rating: 55, goal: 0, exitAvg: 62, visitors: 0, rep: 70, wage: 1, secLvl: 1, secXp: 0, ads: {}, vip: null, vipLast: null, adsN: 0, plush: 0, vac: {}, left: [], park: '', goalHid: false, coach: true, cur: null });
   wxSet('sun', true); WX.bonus = 0; WX.wasRain = false;
   fin = { today: newFin(), yest: newFin() }; curDay = 0;
   landSet(START_PLOTS);
