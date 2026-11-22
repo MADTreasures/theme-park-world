@@ -56,7 +56,7 @@ function hire(type, free, saved) {
   if (!free) { const c = hireCost(type); if (S.money < c) return null; spend(c, 'wage'); }
   const m = mStaff(type); scene.add(m);
   const s = { type, mesh: m, name: pick(NAMES), x: wX(HALF) + rnd(-0.2, 0.2), z: wZ(N - 1), tile: ENT, prev: -1, wx: 0, wz: 0, ox: rnd(-0.25, 0.25), oz: rnd(-0.25, 0.25),
-    sp0: type === 'ent' ? 0.8 : type === 'sec' ? 1.45 : type === 'jug' ? 1.0 : type === 'gard' ? 1.2 : 1.3, sp: 1.3, off: false, cutT: null, site: null, seat: null, rot: Math.PI, route: [], going: false, busy: 0, job: null, fix: null, moving: false, ph: rnd(TAU),
+    sp0: type === 'ent' ? 0.8 : type === 'sec' ? 1.45 : type === 'jug' ? 1.0 : type === 'gard' ? 1.2 : 1.3, sp: 1.3, off: false, cross: false, sweep: -1, cutT: null, site: null, seat: null, rot: Math.PI, route: [], going: false, busy: 0, job: null, fix: null, moving: false, ph: rnd(TAU),
     mood: 66, energy: rnd(70, 100), lowT: 0, warned: false, housed: true, state: 'work', room: null, breakCd: rnd(5, 20), lastBreak: S.time, chase: null, target: null, show: false, g: 'sleep', post: null, wake: 0, wakeT: 0, alertT: 0, tryCd: 0, hold: null, asleep: false, shake: 0, postB: null };
   if (type === 'sec') s.postB = freePost(s);
   if (type !== 'ent') { staffLook(s, type); s.fig = true; }
@@ -86,21 +86,21 @@ function quit(s) {
   if (s.state === 'quit') return;
   if (s.state === 'rest') endBreak(s);
   if (s.room) { s.room.res = Math.max(0, s.room.res - 1); s.room = null; }
-  s.state = 'quit'; s.route = []; s.busy = 0; s.job = null; s.chase = null; s.off = false; if (s.site) leaveSite(s);
+  s.state = 'quit'; s.route = []; s.busy = 0; s.job = null; s.chase = null; s.off = s.cross = false; s.sweep = -1; if (s.site) leaveSite(s);
   S.rep = Math.max(0, S.rep - 12);
   toast(s.name + ' (' + STAFF[s.type].name + ') hat gekündigt. Das spricht sich herum: Neues Personal wird teurer.', 'bad'); sfx('hmpf'); uiDirty = true;
 }
 function staffGo(s, n) { s.prev = s.tile; s.tile = n; setWP(s, n); s.going = true; }
 const breakFree = () => { for (const b of builds) if (b.def.rest && !b.removed && b.res < b.def.rest) return true; return false; };
 // tired, and there is a place to rest
-const needsBreak = (s) => s.energy < 25 && s.breakCd <= 0 && !s.chase && !s.hold && !s.asleep && breakFree();
+const needsBreak = (s) => s.energy < 25 && s.breakCd <= 0 && !s.chase && !s.hold && !s.asleep && breakFree() && breakTurn(s);
 function seekBreak(s) {
   const goals = new Map();
   for (const b of builds) if (b.def.rest && b.res < b.def.rest) for (const a of accessOf(b)) goals.set(a, b);
   if (!goals.size) return false;
   const route = bfsRoute(s.tile, (t) => goals.has(t)); if (!route) return false;
   s.room = goals.get(route.length ? route[route.length - 1] : s.tile); s.room.res++;
-  s.state = 'toBreak'; s.route = route; s.chase = null; s.target = null; s.asleep = false; s.off = false; if (s.site) leaveSite(s);
+  s.state = 'toBreak'; s.route = route; s.chase = null; s.target = null; s.asleep = false; s.off = s.cross = false; s.sweep = -1; if (s.site) leaveSite(s);
   if (s.cutT) { if (s.cutT.cutter === s) s.cutT.cutter = null; s.cutT = null; }
   if (s.fix) { if (s.fix.fixer === s) s.fix.fixer = null; s.fix = null; }
   staffArrive(s); return true;
@@ -114,7 +114,7 @@ function endBreak(s) {
   colorsDirty = true; sfxAt('ahh', s.x, s.z);
 }
 function staffArrive(s) {
-  if (s.type === 'jan' && s.state === 'work' && litter[s.tile]) { s.busy = 0.7; s.job = 'clean'; sfxAt('sweep', s.x, s.z); return; }
+  if (s.type === 'jan' && s.state === 'work' && litter[s.tile] && !sweptBy(s.tile, s)) { s.busy = 0.7; s.job = 'clean'; s.sweep = s.tile; sfxAt('sweep', s.x, s.z); return; }
   while (s.route.length) { const n = s.route.shift(); if (tType[n] === 1 || (s.off && walkable(n))) { staffGo(s, n); return; } s.route = []; }
   if (s.type === 'gard' && s.cutT && s.state === 'work') {
     const o = s.cutT, near = !o.removed && o.cut && Math.abs(tX(s.tile) - o.x) + Math.abs(tY(s.tile) - o.y) <= 1;
@@ -136,7 +136,7 @@ function staffArrive(s) {
   if (s.type === 'gard' && s.state === 'work' && beauty[s.tile] > 0.5 && Math.random() < 0.14) { s.busy = 2.8; s.job = 'water'; sfxAt('water', s.x, s.z); }
 }
 function staffDone(s) {
-  if (s.job === 'clean' && litter[s.tile]) { litterTotal -= litter[s.tile]; litter[s.tile] = 0; litterDirty = true; }
+  if (s.job === 'clean') { if (litter[s.tile]) { litterTotal -= litter[s.tile]; litter[s.tile] = 0; litterDirty = true; } s.sweep = -1; }
   else if (s.job === 'fix' && s.fix) { if (!s.fix.removed && s.fix.broken) repair(s.fix); s.fix = null; }
   else if (s.job === 'hold') { if (s.hold) throwThief(s.hold, false); }
   else if (s.job === 'cut') { const o = s.cutT; s.cutT = null; if (o && !o.removed && o.cut) { sfxAt('timber', s.x, s.z); finishCut(o); } }
@@ -150,11 +150,37 @@ function staffDone(s) {
   }
   s.job = null;
 }
+// Is another cleaner sweeping this tile right now?
+function sweptBy(t, me) { for (const o of staff) if (o !== me && o.type === 'jan' && o.job === 'clean' && o.busy > 0 && o.tile === t) return true; return false; }
+// the littered tiles that other cleaners are on their way to, or sweeping
+function sweepTaken(me) {
+  const taken = new Set();
+  for (const o of staff) if (o !== me && o.type === 'jan' && o.state === 'work' && o.sweep >= 0 && litter[o.sweep] > 0) taken.add(o.sweep);
+  return taken;
+}
+// Breaks are taken in turns: of several colleagues with the same job at most a third are away at once, so the work
+// never stops. For those who are completely worn out the limit is half.
+function breakTurn(s) {
+  let all = 0, away = 0;
+  for (const o of staff) if (o.type === s.type && o.state !== 'quit') { all++; if (o.state === 'rest' || o.state === 'toBreak') away++; }
+  return away < Math.max(1, Math.ceil(all / (s.energy < 8 ? 2 : 3)));
+}
 function staffPlan(s) {
-  let route = null;
+  let route = null; s.cross = false;
   if (s.state === 'quit') { route = bfsRoute(s.tile, (t) => t === ENT); if (!route) { removeStaff(s); return; } s.route = route; staffArrive(s); return; }
-  if (s.energy < 25 && s.breakCd <= 0 && !s.chase && !s.hold && !s.asleep) { if (seekBreak(s)) return; s.breakCd = 25; }
-  if (s.type === 'jan' && litterTotal > 0) route = bfsRoute(s.tile, (t) => litter[t] > 0);
+  if (s.energy < 25 && s.breakCd <= 0 && !s.chase && !s.hold && !s.asleep && breakTurn(s)) { if (seekBreak(s)) return; s.breakCd = 25; }
+  if (s.type === 'jan') {
+    // Every cleaner heads for a littered tile of his own, the nearest that no colleague has taken: so twelve cleaners
+    // clean twelve places at once instead of following each other from heap to heap.
+    s.sweep = -1;
+    if (litterTotal > 0) {
+      const taken = sweepTaken(s);
+      route = bfsRoute(s.tile, (t) => litter[t] > 0 && !taken.has(t));
+      // nothing left within reach along the paths: litter may lie on a stretch of path that has been cut off. Then across the lawn.
+      if (!route) { route = fieldRoute(s.tile, (t) => tType[t] === 1 && litter[t] > 0 && !taken.has(t)); if (route) s.off = s.cross = true; }
+      if (route) s.sweep = route.length ? route[route.length - 1] : s.tile;
+    }
+  }
   else if (s.type === 'mech') {
     const goals = new Map();
     for (const b of builds) if (b.broken && (!b.fixer || b.fixer.fix !== b || staff.indexOf(b.fixer) < 0)) for (const a of accessOf(b)) goals.set(a, b);
@@ -172,6 +198,11 @@ function staffPlan(s) {
     let best = null, n = 2;
     for (const b of builds) if (b.def.cat === 'ride' && b.queue.length > n) { n = b.queue.length; best = b; }
     if (best) { const acc = accessOf(best); route = bfsRoute(s.tile, (t) => acc.indexOf(t) >= 0); if (route) s.target = best; }
+  }
+  // Standing on a piece of path that no longer leads to the gate, with nothing to do there: back across the lawn.
+  if (!route && s.type !== 'sec' && entDist()[s.tile] < 0) {
+    const d = entDist(); route = fieldRoute(s.tile, (t) => d[t] >= 0);
+    if (route && route.length) s.off = s.cross = true; else route = null;
   }
   if (!route) {
     route = []; let c = s.tile, p = s.prev;
@@ -213,9 +244,9 @@ function stepStaff(s, dt) {
     const tired = needsBreak(s);
     if (!tired && s.type === 'gard' && s.state === 'work' && cuts.length) { const r = gardPlan(s); if (r === false) return; if (r) { s.route = r; staffArrive(s); return; } }
     if (!tired && s.type === 'build' && s.state === 'work' && (s.site || anySite())) { const r = buildPlan(s); if (r === false) return; if (r) { s.route = r; staffArrive(s); return; } }
-    s.off = false; s.route = []; staffGo(s, nearestPath(s.x, s.z)); return;
+    s.off = s.cross = false; s.route = []; staffGo(s, nearestPath(s.x, s.z)); return;
   }
-  staffPlan(s); if (s.off && !s.cutT && !s.site) s.off = false;
+  staffPlan(s); if (s.off && !s.cutT && !s.site && !s.cross) s.off = false;
 }
 // once per game second
 let warnAt = -999;

@@ -44,6 +44,11 @@ function advisor() {
   const sn = staffAll();
   if (sn > housing() && S.time - (adviceAt.house || -999) > 240) { adviceAt.house = S.time; toast('Nicht alle im Team haben ein Zuhause. Ein Personalhaus hebt die Stimmung.', 'bad'); return; }
   if (sn && !builds.some((b) => b.def.rest) && staff.some((s) => s.energy < 15) && S.time - (adviceAt.rest || -999) > 240) { adviceAt.rest = S.time; toast('Dein Personal ist erschöpft. Ein Pausenraum am Weg hilft.', 'bad'); return; }
+  // break rooms exist, but there are not enough places: several people are worn out and still at work
+  if (sn >= 4 && S.time - (adviceAt.rooms || -999) > 300 && builds.some((b) => b.def.rest)) {
+    let worn = 0; for (const s of staff) if (s.energy < 8 && s.state === 'work') worn++;
+    if (worn >= 3) { adviceAt.rooms = S.time; toast('Mehrere im Team sind erschöpft und finden keinen freien Platz zum Ausruhen. Baue weitere Pausenräume: einer reicht für etwa vier Leute.', 'bad'); return; }
+  }
   if (anySite() && !staffN('build') && S.time - (adviceAt.build || -999) > 120) { adviceAt.build = S.time; toast('Auf deiner Baustelle arbeitet niemand. Stelle einen Bauarbeiter ein (Personal).', 'bad'); return; }
   if (cuts.length && !staffN('gard') && S.time - (adviceAt.gard || -999) > 150) { adviceAt.gard = S.time; toast('Markierte Pflanzen warten auf einen Gärtner. Stelle einen ein (Personal).', 'bad'); return; }
   if (plotsOwned() < PN * PN && S.time - (adviceAt.land || -999) > 420) {

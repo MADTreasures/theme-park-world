@@ -19,7 +19,9 @@ function clearWorld() {
   for (const k in complaints) complaints[k] = 0;
 }
 function scatterStaff() {
-  const tiles = []; for (let i = 0; i < N * N; i++) if (tType[i] === 1) tiles.push(i);
+  // on paths that lead to the gate: a piece of path that is cut off would be a trap
+  const d = entDist(), tiles = []; for (let i = 0; i < N * N; i++) if (tType[i] === 1 && d[i] >= 0) tiles.push(i);
+  if (!tiles.length) tiles.push(ENT);
   for (const s of staff) { s.tile = pick(tiles); s.x = wX(tX(s.tile)) + s.ox; s.z = wZ(tY(s.tile)) + s.oz; }
 }
 function load(data) {

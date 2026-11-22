@@ -1,5 +1,5 @@
 /* ================= instanced rendering ================= */
-const FIGMAX = MAXG + 80;
+const FIGMAX = MAXG + 110;   // room for every guest, and for all staff (up to twelve of each of seven kinds) and thieves on top
 function inst(geo, mat, n, cast, receive) {
   const m = new T.InstancedMesh(geo, mat, n);
   m.instanceMatrix.setUsage(T.DynamicDrawUsage); m.frustumCulled = false; m.castShadow = !!cast; m.receiveShadow = receive === undefined ? !cast : receive;
@@ -258,7 +258,12 @@ function renderPeople(rdt) {
     const m = s.mesh;
     if (s.state === 'rest') continue;
     if (s.fig) {
+      // What a figure carries (broom, tools, juggling balls, helmet) is a set of meshes of its own that follow the
+      // figure. A figure outside the picture is not drawn, so its things must not stay behind where it was last seen.
+      const n0 = LO.nFig + HI.nFig;
       drawFigure(s, s.asleep && s.seat ? s.seat : null, null, rdt);
+      m.visible = LO.nFig + HI.nFig > n0;
+      if (!m.visible) continue;
       const balls = m.userData.balls;
       if (balls) for (let i = 0; i < 3; i++) {
         if (s.job === 'juggle') { const q = time * 1.5 + i / 3, u = q % 1, dir = Math.floor(q) % 2 ? 1 : -1; balls[i].position.set(dir * lerp(-0.07, 0.07, u), 0.385 + 0.36 * 4 * u * (1 - u), 0.135); }
