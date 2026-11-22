@@ -53,7 +53,7 @@ function staffStatue(type) {
   return g;
 }
 function hire(type, free, saved) {
-  if (!free) { const c = hireCost(type); if (S.money < c) return null; spend(c, 'wage'); }
+  if (!free) { const c = hireCost(type); if (S.money < c) return null; spend(c, 'wage'); if (S.vac && S.vac[type] > 0) S.vac[type]--; }   // a new hire fills an open position
   const m = mStaff(type); scene.add(m);
   const s = { type, mesh: m, name: pick(NAMES), x: wX(HALF) + rnd(-0.2, 0.2), z: wZ(N - 1), tile: ENT, prev: -1, wx: 0, wz: 0, ox: rnd(-0.25, 0.25), oz: rnd(-0.25, 0.25),
     sp0: type === 'ent' ? 0.8 : type === 'sec' ? 1.45 : type === 'jug' ? 1.0 : type === 'gard' ? 1.2 : 1.3, sp: 1.3, off: false, cross: false, sweep: -1, cutT: null, site: null, seat: null, rot: Math.PI, route: [], going: false, busy: 0, job: null, fix: null, moving: false, ph: rnd(TAU),
@@ -88,7 +88,13 @@ function quit(s) {
   if (s.room) { s.room.res = Math.max(0, s.room.res - 1); s.room = null; }
   s.state = 'quit'; s.route = []; s.busy = 0; s.job = null; s.chase = null; s.off = s.cross = false; s.sweep = -1; if (s.site) leaveSite(s);
   S.rep = Math.max(0, S.rep - 12);
-  toast(s.name + ' (' + STAFF[s.type].name + ') hat gekündigt. Das spricht sich herum: Neues Personal wird teurer.', 'bad'); sfx('hmpf'); uiDirty = true;
+  // Why: whatever pushed the mood down. The position stays marked as open until it is filled or given up.
+  const why = []; if (!s.housed) why.push('kein Wohnplatz'); if (s.energy < 8 || S.time - s.lastBreak >= 320) why.push('zu wenig Pausen'); if (S.wage === 0) why.push('knapper Lohn');
+  const reason = why.length ? why.join(' und ') : 'unzufrieden', k = s.type, job = STAFF[k].name;
+  if (!S.vac) S.vac = {}; S.vac[k] = (S.vac[k] || 0) + 1;
+  if (!S.left) S.left = []; S.left.push([k, s.name, Math.floor(S.time / DAY) + 1, reason]); if (S.left.length > 12) S.left.shift();
+  toast(s.name + ' hat gekündigt (' + reason + '). Stelle frei: ' + job + ', jetzt noch ' + staffN(k) + '. Antippen, um Ersatz einzustellen.', 'bad', () => showJob(k), true);
+  sfx('hmpf'); uiDirty = true;
 }
 function staffGo(s, n) { s.prev = s.tile; s.tile = n; setWP(s, n); s.going = true; }
 const breakFree = () => { for (const b of builds) if (b.def.rest && !b.removed && b.res < b.def.rest) return true; return false; };
@@ -114,7 +120,12 @@ function endBreak(s) {
   colorsDirty = true; sfxAt('ahh', s.x, s.z);
 }
 function staffArrive(s) {
-  if (s.type === 'jan' && s.state === 'work' && litter[s.tile] && !sweptBy(s.tile, s)) { s.busy = 0.7; s.job = 'clean'; s.sweep = s.tile; sfxAt('sweep', s.x, s.z); return; }
+  if (s.type === 'jan' && s.state === 'work' && litter[s.tile] && !sweptBy(s.tile, s)) {   // whoever is first on the spot sweeps; a colleague still on his way here turns to something else
+    for (const o of staff) if (o !== s && o.type === 'jan' && o.sweep === s.tile && !(o.job === 'clean' && o.busy > 0)) { o.sweep = -1; o.route = []; }
+    s.busy = 0.7; s.job = 'clean'; s.sweep = s.tile; sfxAt('sweep', s.x, s.z); return;
+  }
+  // a cleaner who is only strolling looks round at every step: as soon as litter lies somewhere, the stroll ends
+  if (s.type === 'jan' && s.state === 'work' && s.sweep < 0 && litterTotal > 0 && s.route.length && !s.cross) s.route = [];
   while (s.route.length) { const n = s.route.shift(); if (tType[n] === 1 || (s.off && walkable(n))) { staffGo(s, n); return; } s.route = []; }
   if (s.type === 'gard' && s.cutT && s.state === 'work') {
     const o = s.cutT, near = !o.removed && o.cut && Math.abs(tX(s.tile) - o.x) + Math.abs(tY(s.tile) - o.y) <= 1;
@@ -152,11 +163,31 @@ function staffDone(s) {
 }
 // Is another cleaner sweeping this tile right now?
 function sweptBy(t, me) { for (const o of staff) if (o !== me && o.type === 'jan' && o.job === 'clean' && o.busy > 0 && o.tile === t) return true; return false; }
-// the littered tiles that other cleaners are on their way to, or sweeping
+// the littered tiles that other cleaners are on their way to, or sweeping: tile -> that cleaner
 function sweepTaken(me) {
-  const taken = new Set();
-  for (const o of staff) if (o !== me && o.type === 'jan' && o.state === 'work' && o.sweep >= 0 && litter[o.sweep] > 0) taken.add(o.sweep);
+  const taken = new Map();
+  for (const o of staff) if (o !== me && o.type === 'jan' && o.state === 'work' && o.sweep >= 0 && litter[o.sweep] > 0) taken.set(o.sweep, o);
   return taken;
+}
+// The way to the nearest litter that is worth going for: litter nobody is heading for, or litter that a colleague is
+// heading for from much further away (he then looks for something else). Along paths; null if there is none.
+const _dep = new Int16Array(N * N);
+function sweepRoute(s, taken) {
+  const mine = (t, d) => { if (!(litter[t] > 0)) return false; const o = taken.get(t); if (!o) return true; if (o.job === 'clean' && o.busy > 0) return false; return d + 3 < o.route.length + (o.going ? 1 : 0); };
+  const done = (t) => { const o = taken.get(t); if (o) { o.sweep = -1; o.route = []; taken.delete(t); } };
+  if (mine(s.tile, 0)) { done(s.tile); return []; }
+  _par.fill(-2); _par[s.tile] = -1; _dep[s.tile] = 0; let h = 0, q = 0; _bq[q++] = s.tile;
+  while (h < q) {
+    const c = _bq[h++], cx = c % N, cy = (c / N) | 0, d = _dep[c] + 1;
+    for (let k = 0; k < 4; k++) {
+      const nx = cx + DIRS[k][0], ny = cy + DIRS[k][1]; if (!inB(nx, ny)) continue;
+      const n = idx(nx, ny); if (tType[n] !== 1 || _par[n] !== -2) continue;
+      _par[n] = c; _dep[n] = d;
+      if (mine(n, d)) { done(n); const r = []; let p = n; while (p !== s.tile) { r.push(p); p = _par[p]; } return r.reverse(); }
+      _bq[q++] = n;
+    }
+  }
+  return null;
 }
 // Breaks are taken in turns: of several colleagues with the same job at most a third are away at once, so the work
 // never stops. For those who are completely worn out the limit is half.
@@ -175,7 +206,7 @@ function staffPlan(s) {
     s.sweep = -1;
     if (litterTotal > 0) {
       const taken = sweepTaken(s);
-      route = bfsRoute(s.tile, (t) => litter[t] > 0 && !taken.has(t));
+      route = sweepRoute(s, taken);
       // nothing left within reach along the paths: litter may lie on a stretch of path that has been cut off. Then across the lawn.
       if (!route) { route = fieldRoute(s.tile, (t) => tType[t] === 1 && litter[t] > 0 && !taken.has(t)); if (route) s.off = s.cross = true; }
       if (route) s.sweep = route.length ? route[route.length - 1] : s.tile;

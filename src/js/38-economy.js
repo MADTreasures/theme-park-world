@@ -56,7 +56,7 @@ function advisor() {
     if (free < own * 0.22) { adviceAt.land = S.time; toast('Dein Park wird eng. Über «Land» kaufst du neue Flächen dazu, das nächste Stück kostet ' + eur(landPrice()) + '.'); return; }
   }
   // room for more visitors, money in the till and no advertising running: a reminder now and then
-  if (guests.length > 12 && guests.length < BASECAP * 0.8 && S.money > 1500 && adBoost() < 0.01 && !S.vip && S.time - (adviceAt.ads || -999) > 900 && S.time > DAY * 1.2) {
+  if (guests.length > 12 && guestCap() < landCap() - 20 && S.money > 1500 && adBoost() < 0.01 && !S.vip && S.time - (adviceAt.ads || -999) > 900 && S.time > DAY * 1.2) {
     adviceAt.ads = S.time; toast('Mehr Besucher? Mit Werbung in Zeitung, Radio, Internet oder Fernsehen kommen mehr Gäste. Tippe hier oder oben auf die Besucherzahl.', '', showAds); return;
   }
   const lost = builds.find((b) => !b.def.noPath && !connected(b));

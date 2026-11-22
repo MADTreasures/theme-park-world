@@ -18,8 +18,8 @@ function willing() {
 }
 function guestCap() {
   let c = 8; for (const b of builds) if (!b.site) c += b.def.cat === 'ride' ? b.def.cap * 2 + b.def.exc * 0.1 : b.def.cat === 'shop' ? 1.5 : 0;
-  // advertising raises what the park attracts, for big parks even beyond the usual ceiling
-  return Math.min(MAXG - 10, Math.min(BASECAP, c * (0.6 + S.rating / 250)) * (1 + adBoost()));
+  // what the attractions draw, with advertising on top; but never more than the park's land can hold
+  return Math.min(landCap(), c * (0.6 + S.rating / 250) * (1 + adBoost()));
 }
 const HAIR = [0x2b1b12, 0x3d2616, 0x5a3a1e, 0x7b4f28, 0xb8893f, 0xe0c57a, 0xa5441f, 0x9a9a9a, 0x1c1c1c], HAIR_FUN = [0xff7ac0, 0x4aa8ff, 0x55d6c2, 0xb07cff, 0xff8a3d, 0xf2f2f7];
 const EYES = [0x3f8fe0, 0x35a86a, 0x7a5230, 0x5b3a1e, 0x4fb3c4, 0x8a6fd1, 0x555a66, 0xd06aa8], SHOES = [0xffffff, 0xff4f64, 0x3d8bfd, 0xffd23f, 0x2b2b33, 0x3ddbb4, 0xff8fc7, 0xf08a24];
@@ -150,7 +150,8 @@ function onTile(g) {
   const t = g.tile;
   if (litter[t]) { g.happy -= litter[t]; if (Math.random() < 0.1) { think(g, 'litter'); complaints.litter++; } }
   if (beauty[t] > 0) g.happy += Math.min(beauty[t], 5) * 0.1;
-  if (g.trash > 0 && --g.trash === 0 && !binNear[t]) dropLitter(t);
+  // litter in hand goes into the first bin that is passed; without one it lands on the path after a while
+  if (g.trash > 0) { if (binNear[t]) g.trash = 0; else if (--g.trash === 0) dropLitter(t); }
   advance(g);
 }
 function arrive(g) {

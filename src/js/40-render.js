@@ -1,5 +1,5 @@
 /* ================= instanced rendering ================= */
-const FIGMAX = MAXG + 110;   // room for every guest, and for all staff (up to twelve of each of seven kinds) and thieves on top
+const FIGMAX = MAXG + 280;   // room for every guest, and for all staff (up to 36 of each of seven kinds) and thieves on top
 function inst(geo, mat, n, cast, receive) {
   const m = new T.InstancedMesh(geo, mat, n);
   m.instanceMatrix.setUsage(T.DynamicDrawUsage); m.frustumCulled = false; m.castShadow = !!cast; m.receiveShadow = receive === undefined ? !cast : receive;
@@ -51,7 +51,7 @@ function facePart(mesh, k, x, y, z, sx, sy, ry, rz) { _lq.setFromEuler(_eu.set(0
 // a part of one eye (sd = -1 left, 1 right); lx, ly shift it within the plane of the eye
 function eyePart(mesh, k, sd, lx, ly, sx, sy, rz) { facePart(mesh, k, sd * FIG.EX + lx * ECOS, FIG.EY + ly, FIG.EZ - sd * lx * ESIN, sx, sy, sd * FIG.EYAW, rz); }
 function follow(o, m) { o.matrix.copy(m); o.matrixWorldNeedsUpdate = true; }
-let nBall = 0, nBlob = 0, figT = 0, figFaces = true, figReach = 1, figR2 = 0, figNear = 0;
+let nBall = 0, nBlob = 0, figT = 0, figFaces = true, figFar = false, figReach = 1, figR2 = 0, figNear = 0;
 // Mouths: 0 smile, 1 open, 2 frown, 3 a round "o", 4 straight.
 // seat poses in which a person stands on the seat's spot instead of sitting on it
 const STANDING = { jump: 1, throw: 1, stand: 1, skate: 1, swim: 1 };
@@ -232,10 +232,12 @@ function drawFigure(f, seat, ride, rdt) {
   }
   M.iTorso.setColorAt(i, _gc.set(f.shirt)); _gc.set(f.trim === undefined ? 0xffffff : f.trim); M.iTrim.setColorAt(i, _gc); M.iZip.setColorAt(i, _gc); M.iPelvis.setColorAt(i, _gc.set(f.pants)); M.iHead.setColorAt(i, _gc.set(skin));
   // long trousers colour the whole leg; under shorts and skirts the legs are bare or in leggings
-  _gc.set(f.bottom === 0 ? f.pants : f.legs === undefined ? skin : f.legs); M.iThigh.setColorAt(j, _gc); M.iThigh.setColorAt(j + 1, _gc); M.iShin.setColorAt(j, _gc); M.iShin.setColorAt(j + 1, _gc);
+  // (seen from far the short trouser legs and sleeves are left out: then thigh and upper arm take their colour)
+  const far = figFar && M === LO, leg = f.bottom === 0 ? f.pants : f.legs === undefined ? skin : f.legs;
+  _gc.set(far && shorts ? f.pants : leg); M.iThigh.setColorAt(j, _gc); M.iThigh.setColorAt(j + 1, _gc); _gc.set(leg); M.iShin.setColorAt(j, _gc); M.iShin.setColorAt(j + 1, _gc);
   _gc.set(f.pants); M.iShort.setColorAt(j, _gc); M.iShort.setColorAt(j + 1, _gc);
   _gc.set(f.shoe === undefined ? 0xffffff : f.shoe); M.iShoe.setColorAt(j, _gc); M.iShoe.setColorAt(j + 1, _gc);
-  _gc.set(long ? f.shirt : skin); M.iUpper.setColorAt(j, _gc); M.iUpper.setColorAt(j + 1, _gc); M.iFore.setColorAt(j, _gc); M.iFore.setColorAt(j + 1, _gc);
+  _gc.set(long || (far && tee) ? f.shirt : skin); M.iUpper.setColorAt(j, _gc); M.iUpper.setColorAt(j + 1, _gc); _gc.set(long ? f.shirt : skin); M.iFore.setColorAt(j, _gc); M.iFore.setColorAt(j + 1, _gc);
   _gc.set(f.shirt); M.iCap.setColorAt(j, _gc); M.iCap.setColorAt(j + 1, _gc);
   _gc.set(f.trim === undefined ? 0xffffff : f.trim); M.iWrist.setColorAt(j, _gc); M.iWrist.setColorAt(j + 1, _gc); M.iStripe.setColorAt(j, _gc); M.iStripe.setColorAt(j + 1, _gc);
   _gc.set(skin); M.iHand.setColorAt(j, _gc); M.iHand.setColorAt(j + 1, _gc);
@@ -245,6 +247,7 @@ function renderPeople(rdt) {
   for (const M of FIGSETS) { M.nFig = M.nLimb = M.nSkirt = M.nPack = M.nShades = M.nMask = M.nHoops = M.nCape = M.nPlush = M.nUmb = M.nSun = M.nStick = 0; M.nHair.fill(0); M.nMouth.fill(0); }
   nBall = nBlob = figNear = 0;
   figT = performance.now() * 0.001; figFaces = !!(fp || pov) || cam.d < 30;
+  figFar = !(fp || pov) && cam.d > 36;   // the whole park in view: people are a few pixels tall, their smallest parts are left out
   // The smooth set is for people who appear large: within a reach that depends on the lens. When more people are
   // that near than the set can hold, the reach shrinks from frame to frame; with room to spare it grows again.
   const reach = 4.5 / Math.tan(camera.fov * Math.PI / 360) * figReach, time = S.time; figR2 = reach * reach;
@@ -280,14 +283,21 @@ function renderPeople(rdt) {
   const lv = clamp(hemi.intensity + sun.intensity * 0.9, 0.5, 1); MAT_EYE.color.setRGB(lv, lv, lv);
   for (const M of FIGSETS) {
     const nFace = figFaces ? M.nLimb : 0;
-    M.iTorso.count = M.iTrim.count = M.iZip.count = M.iPelvis.count = M.iHead.count = M.nFig;
-    M.iThigh.count = M.iShin.count = M.iShort.count = M.iShoe.count = M.iSole.count = M.iUpper.count = M.iCap.count = M.iStripe.count = M.iFore.count = M.iWrist.count = M.iHand.count = M.nLimb;
+    M.iTorso.count = M.iPelvis.count = M.iHead.count = M.nFig;
+    M.iThigh.count = M.iShin.count = M.iShoe.count = M.iUpper.count = M.iFore.count = M.iHand.count = M.nLimb;
+    const small = figFar && M === LO ? 0 : 1;   // soles, cuffs, stripes, sleeves, trouser legs, collar and zip
+    M.iShort.count = M.iSole.count = M.iCap.count = M.iStripe.count = M.iWrist.count = M.nLimb * small; M.iTrim.count = M.iZip.count = M.nFig * small;
     M.iSkirt.count = M.nSkirt; M.iPack.count = M.nPack; M.iShades.count = M.nShades; M.iMask.count = M.nMask; M.iHoops.count = M.nHoops; M.iCape.count = M.nCape; M.iPlush.count = M.nPlush; M.iUmb.count = M.nUmb; M.iSun.count = M.nSun; M.iStick.count = M.nStick; M.iEyes.count = M.iIris.count = M.iLid.count = M.iBrow.count = nFace;
     for (let h = 0; h < M.iHair.length; h++) M.iHair[h].count = M.nHair[h];
     for (let k = 0; k < M.iMouth.length; k++) M.iMouth[k].count = figFaces ? M.nMouth[k] : 0;
-    for (const m of M.all) { const on = m.count > 0; m.visible = on; if (on) { m.instanceMatrix.needsUpdate = true; m.instanceColor.needsUpdate = true; } }   // parts that nobody wears are not drawn at all
+    // parts that nobody wears are not drawn at all; of the others only the instances in use are sent to the graphics card
+    for (const m of M.all) {
+      const n = m.count, on = n > 0; m.visible = on; if (!on) continue;
+      m.instanceMatrix.updateRange.count = n * 16; m.instanceMatrix.needsUpdate = true; m.instanceColor.updateRange.count = n * 3; m.instanceColor.needsUpdate = true;
+    }
   }
   iBall.count = nBall; iBlob.count = nBlob; MAT_BLOB.opacity = 0.22 - night * 0.08;
+  iBall.instanceMatrix.updateRange.count = Math.max(1, nBall) * 16; iBall.instanceColor.updateRange.count = Math.max(1, nBall) * 3; iBlob.instanceMatrix.updateRange.count = Math.max(1, nBlob) * 16;
   iBall.instanceMatrix.needsUpdate = iBall.instanceColor.needsUpdate = iBlob.instanceMatrix.needsUpdate = true; colorsDirty = false;
 }
 

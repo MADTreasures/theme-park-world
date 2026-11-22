@@ -72,7 +72,7 @@ button.stat{cursor:pointer}
 #panel{position:absolute;right:var(--gr);top:8px;width:280px;max-height:calc(100% - 16px);overflow:auto;background:var(--ink-2);border:2px solid var(--ink-3);border-radius:16px;padding:12px 14px 14px;box-shadow:0 6px 0 var(--drop);z-index:2}
 #panel h2{font:400 16px/1.15 var(--font-display);color:var(--bulb);margin:0 36px 8px 0}
 #panel .x{position:absolute;right:8px;top:8px}
-.kv{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;font-size:13px;margin:8px 0 0}
+.kv{display:grid;grid-template-columns:minmax(38%,1fr) minmax(0,auto);gap:4px 10px;font-size:13px;margin:8px 0 0}
 .kv span{opacity:.82}.kv b{text-align:right;font-variant-numeric:tabular-nums}
 .note{font-size:13px;opacity:.85;margin:6px 0 0}
 .stepper{display:flex;align-items:center;gap:8px;margin:8px 0 2px}
@@ -363,3 +363,29 @@ table.fin.team .meter{min-width:64px}
 #st-guests.boost svg{color:var(--mint)}
 #st-guests.bust svg{color:var(--candy)}
 .kv + .note{margin-top:10px}
+/* important messages may be longer */
+.toast.prio{border:2px solid var(--candy)}
+.toast.prio .tx{-webkit-line-clamp:4}
+/* open positions: on the staff tab, on the cards and in the team overview */
+#tabs button{position:relative}
+#tabs button.badge::after{content:attr(data-n);position:absolute;top:1px;left:calc(50% + 6px);min-width:17px;height:17px;border-radius:9px;background:var(--candy);color:var(--paper);font:900 11px/17px var(--font-ui);text-align:center;padding:0 4px;box-shadow:0 0 0 2px var(--ink)}
+.card .vac{position:absolute;right:6px;top:8px;border-radius:9px;background:var(--candy);color:var(--paper);font:900 10.5px/1 var(--font-ui);padding:4px 6px}
+.card .vac[hidden]{display:none}
+.card.flash{animation:flash .65s ease-in-out 4}
+@keyframes flash{50%{box-shadow:0 0 0 4px var(--candy)}}
+.vacs{display:grid;gap:6px}
+.vacr{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 10px;border-radius:12px;background:var(--ink);border:2px solid var(--candy)}
+.vacr span{flex:1 1 130px;display:grid;gap:1px}
+.vacr small{opacity:.75;font-size:12px}
+.vacr .btn{padding:8px 10px;font-size:13px}
+.leftl,.logl{list-style:none;margin:4px 0 0;padding:0;display:grid;gap:6px;font-size:13px}
+.leftl small{display:block;opacity:.8}
+.logl li{display:grid;grid-template-columns:10px minmax(0,1fr);gap:8px;align-items:start}
+.logl i{width:10px;height:10px;border-radius:50%;background:var(--ink-3);margin-top:4px}
+.logl .good i{background:var(--mint)} .logl .bad i{background:var(--candy)} .logl .gold i{background:var(--bulb)}
+.logl small{display:block;opacity:.7;font-size:11.5px}
+.credl{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:10px;font-size:13px}
+.credl li{display:grid;gap:2px;padding:8px 10px;border-radius:12px;background:var(--ink)}
+.credl span{opacity:.85;font-size:12.5px}
+.credl a{color:var(--bulb);font-size:12px;overflow-wrap:anywhere}
+@media (prefers-reduced-motion:reduce){ .card.flash{animation:none;box-shadow:0 0 0 4px var(--candy)} }

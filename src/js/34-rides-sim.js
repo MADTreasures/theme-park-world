@@ -6,9 +6,9 @@ function serve(b, g) {
   b.income += b.price - d.goods; b.count++;
   const val = clamp(1.4 - 0.5 * b.price / d.fair, 0.3, 1.3);
   if (d.dine) { g.hunger = 0; g.thirst = Math.max(0, g.thirst - 45); g.wc += 8; g.happy += 9 * val; }   // a proper meal at a table
-  else if (d.sells === 'food') { g.hunger = Math.max(0, g.hunger - 75); g.thirst += 10; g.happy += 4 * val; if (Math.random() < 0.6) g.trash = rint(3, 9); }
-  else if (d.sells === 'drink') { g.thirst = Math.max(0, g.thirst - 80); g.wc += 16; g.happy += 3 * val; if (Math.random() < 0.35) g.trash = rint(3, 9); }
-  else if (d.sells === 'treat') { g.hunger = Math.max(0, g.hunger - 22); g.happy += 7 * val; if (Math.random() < 0.25) g.trash = rint(3, 9); }
+  else if (d.sells === 'food') { g.hunger = Math.max(0, g.hunger - 75); g.thirst += 10; g.happy += 4 * val; if (Math.random() < 0.6) g.trash = rint(4, 11); }
+  else if (d.sells === 'drink') { g.thirst = Math.max(0, g.thirst - 80); g.wc += 16; g.happy += 3 * val; if (Math.random() < 0.35) g.trash = rint(4, 11); }
+  else if (d.sells === 'treat') { g.hunger = Math.max(0, g.hunger - 22); g.happy += 7 * val; if (Math.random() < 0.25) g.trash = rint(4, 11); }
   else if (d.sells === 'balloon') { g.balloon = pick(SHIRT); g.happy += 9 * val; }
   else if (d.sells === 'game') {   // with luck there is a soft toy to take home
     g.happy += 8 * val; const win = !!d.prize && Math.random() < d.prize;
@@ -70,6 +70,7 @@ function endRide(b) {
     if (g.vip && g.log) g.log.rides.push([d.name, gain]);
     releaseGuest(g);
   }
+  if (d.grp === 'show' && b.riders.length) showApplause(b);
   b.riders = []; b.state = 'idle'; b.loadT = 0; b.wear++;
   if (!d.calm && Math.random() < (0.004 + b.wear * 0.0008) * (staffN('mech') ? 0.5 : 1)) breakDown(b);
 }

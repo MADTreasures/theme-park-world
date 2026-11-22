@@ -33,7 +33,7 @@ def('palm', { cat: 'deco', name: 'Palme', cost: 25, beauty: 1.2, rad: 2, plant: 
 def('bush', { cat: 'deco', name: 'Busch', cost: 12, beauty: 0.8, rad: 1, plant: true, cut: 10, model: deco1(addBush) });
 def('flowers', { cat: 'deco', name: 'Blumenbeet', cost: 20, beauty: 1.6, rad: 2, plant: true, cut: 8, model: deco1(addFlowers) });
 def('bench', { cat: 'deco', name: 'Parkbank', cost: 25, beauty: 0.6, rad: 1, model: deco1(addBench) });
-def('bin', { cat: 'deco', name: 'Abfalleimer', cost: 15, beauty: 0, rad: 0, bin: true, model: deco1(addBin), info: 'Gäste im Umkreis von 3 Feldern werfen nichts mehr auf den Weg.' });
+def('bin', { cat: 'deco', name: 'Abfalleimer', cost: 15, beauty: 0, rad: 0, bin: true, model: deco1(addBin), info: 'Wer mit Abfall in der Hand an einem Abfalleimer vorbeikommt (3 Felder Umkreis), wirft ihn hinein statt auf den Weg. Am meisten bringen Eimer an den Wegen bei Imbiss- und Getränkebuden.' });
 def('lamp', { cat: 'deco', name: 'Laterne', cost: 30, beauty: 0.8, rad: 2, model: mLamp });
 def('fountain', { cat: 'deco', name: 'Springbrunnen', w: 2, h: 2, cost: 260, beauty: 4, rad: 3, need: 3, model: mFountain });
 def('breakroom', { cat: 'fac', name: 'Pausenraum', w: 2, h: 1, cost: 320, upkeep: 16, rest: 3, model: mBreak, info: 'Müdes Personal ruht sich hier aus. Platz für drei gleichzeitig.' });

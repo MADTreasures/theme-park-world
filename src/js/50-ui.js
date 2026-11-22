@@ -45,12 +45,18 @@ function uiPref(k, v) {
 }
 let sel = null, tool = null, pending = null, ghost = null, ghostTile = null;
 
-const toastQ = [];
-function toast(text, kind, focus) {
+// Messages appear one or two at a time; the rest wait in a short queue. Every message also goes into a log that can be
+// read later (park office), so nothing is lost while the player looks elsewhere. Important ones (prio) jump the queue,
+// stay longer and are never dropped when the queue is full.
+const toastQ = [], msgLog = [];
+function toast(text, kind, focus, prio) {
   const box = $('#toasts');
   if (toastQ.some((t) => t.text === text) || Array.from(box.children).some((c) => c.dataset.t === text)) return;
-  if (toastQ.length >= 6) toastQ.shift();
-  toastQ.push({ text, kind, focus }); pumpToasts();
+  msgLog.push({ text, kind: kind || '', t: S.time }); if (msgLog.length > 60) msgLog.shift();
+  const t = { text, kind, focus, prio: !!prio };
+  if (prio) { let i = 0; while (i < toastQ.length && toastQ[i].prio) i++; toastQ.splice(i, 0, t); } else toastQ.push(t);
+  if (toastQ.length > 6) { const i = toastQ.findIndex((q) => !q.prio); toastQ.splice(i < 0 ? 0 : i, 1); }
+  pumpToasts();
 }
 function pumpToasts() {
   const box = $('#toasts'), max = window.innerWidth < 760 ? 1 : 2;
@@ -60,7 +66,7 @@ function pumpToasts() {
 }
 function showToast(t) {
   const box = $('#toasts'), b = document.createElement('button'); let dead = false;
-  b.className = 'toast ' + (t.kind || ''); b.dataset.t = t.text; b.innerHTML = '<i></i><span class="tx"></span><span class="more"></span>'; b.children[1].textContent = t.text;
+  b.className = 'toast ' + (t.kind || '') + (t.prio ? ' prio' : ''); b.dataset.t = t.text; b.innerHTML = '<i></i><span class="tx"></span><span class="more"></span>'; b.children[1].textContent = t.text;
   const kill = () => { if (dead) return; dead = true; b.classList.add('out'); setTimeout(() => { b.remove(); pumpToasts(); }, 220); };
   // a tap on a message goes to what it is about: a building, a person, or whatever the message itself wants to open
   b.onclick = () => {
@@ -71,7 +77,7 @@ function showToast(t) {
     kill();
   };
   box.appendChild(b);
-  setTimeout(kill, (2400 + t.text.length * 45) * (toastQ.length > 1 ? 0.6 : 1));
+  setTimeout(kill, t.prio ? 5200 + t.text.length * 60 : (2400 + t.text.length * 45) * (toastQ.length > 1 ? 0.6 : 1));
 }
 function modal(html) {
   const m = $('#modal');
@@ -112,7 +118,7 @@ function renderTray() {
     h += '<button class="card team" data-act="team" title="Stimmung, Pausen und Löhne"><span class="big" id="team-mood"></span><span class="nm">Team-Übersicht</span><span class="pr">Stimmung</span></button>';
     for (const k of ORDER.fac) h += card(k);
     for (const k in STAFF) { const d = STAFF[k], ok = S.goal >= (d.need || 0);
-      h += '<div class="card staff' + (ok ? '' : ' locked') + '" title="' + d.info + '"><span class="cnt" data-cnt="' + k + '">0</span>' + thumbImg('@' + k) + '<span class="nm">' + nm(d.name) + '</span>' +
+      h += '<div class="card staff' + (ok ? '' : ' locked') + '" data-job="' + k + '" title="' + d.info + '"><span class="cnt" data-cnt="' + k + '">0</span><span class="vac" data-vac="' + k + '" hidden></span>' + thumbImg('@' + k) + '<span class="nm">' + nm(d.name) + '</span>' +
         (ok ? '<span class="pr" data-hire="' + k + '"></span><span class="pm"><button data-act="fire" data-k="' + k + '" aria-label="' + d.name + ' entlassen">' + IC.minus + '</button><button data-act="hire" data-k="' + k + '" aria-label="' + d.name + ' einstellen">' + IC.plus + '</button></span>' : '<span class="pr">nach Ziel ' + d.need + '</span>') + '</div>'; }
   } else {
     const g = ui.grp[ui.tab] || '', keys = ORDER[ui.tab].filter((k) => !g || DEFS[k].grp === g);
@@ -132,6 +138,7 @@ function refreshTray() {
     c.setAttribute('aria-pressed', !!tool && ((tool.type === 'build' && tool.k === d.k) || (tool.type === 'path' && d.k === 'path') || (tool.type === 'track' && d.k === 'custom')));
   });
   document.querySelectorAll('#tray [data-cnt]').forEach((c) => { c.textContent = staffN(c.dataset.cnt); });
+  document.querySelectorAll('#tray [data-vac]').forEach((c) => { const n = (S.vac && S.vac[c.dataset.vac]) || 0; c.hidden = !n; const v = n + ' frei'; if (c.textContent !== v) { c.textContent = v; c.title = n === 1 ? 'Eine Stelle ist frei: jemand hat gekündigt' : n + ' Stellen sind frei: es wurde gekündigt'; } });
   document.querySelectorAll('#tray [data-hire]').forEach((c) => { const v = eur(hireCost(c.dataset.hire)); if (c.textContent !== v) c.textContent = v; });
   if (document.getElementById('team-mood')) { let m = 0, n = 0; for (const s of staff) if (s.state !== 'quit') { m += s.mood; n++; } setTxt('team-mood', n ? Math.round(m / n) + ' %' : '–'); }
 }
@@ -416,15 +423,18 @@ function refreshPanel() {
 function showTeam() {
   const list = staff.filter((s) => s.state !== 'quit');
   const rows = list.map((s) => '<tr><td>' + s.name + '<small> · ' + STAFF[s.type].name + '</small></td><td><div class="meter"><i style="width:' + Math.round(s.mood) + '%"></i></div></td><td><div class="meter need"><i style="width:' + Math.round(s.energy) + '%"></i></div></td><td>' + (s.state === 'rest' ? 'Pause' : s.housed ? '' : 'ohne Bett') + '</td></tr>').join('');
-  modal('<h2>Dein Team</h2><p class="note">Zufriedenes Personal bleibt und arbeitet schneller. Es braucht einen Wohnplatz, regelmässige Pausen und fairen Lohn. Wer unzufrieden kündigt, schadet deinem Ruf, und neue Leute werden teurer.</p>' +
-    '<div class="kv"><span>Ruf als Arbeitgeber</span><b id="t-rep"></b><span>Wohnplätze (2 im Torhaus)</span><b>' + Math.min(list.length, housing()) + ' von ' + housing() + '</b><span>Plätze in Pausenräumen</span><b>' + builds.reduce((n, b) => n + (b.def.rest || 0), 0) + '</b><span>Löhne pro Tag</span><b id="t-sum"></b><span>Wachleute</span><b id="t-sec"></b></div><p class="note" id="t-secinfo"></p>' +
+  const vac = Object.keys(S.vac || {}).filter((k) => S.vac[k] > 0 && STAFF[k]), left = (S.left || []).slice().reverse();
+  const vacH = vac.length ? '<h3>Offene Stellen</h3><div class="vacs">' + vac.map((k) => '<div class="vacr"><span><b>' + S.vac[k] + ' × ' + STAFF[k].name + '</b><small>jetzt ' + staffN(k) + ' im Dienst</small></span><button class="btn" data-act="vacHire" data-k="' + k + '">Einstellen · ' + eur(hireCost(k)) + '</button><button class="btn line" data-act="vacDrop" data-k="' + k + '">Nicht ersetzen</button></div>').join('') + '</div>' : '';
+  const leftH = left.length ? '<h3>Zuletzt gekündigt</h3><ul class="leftl">' + left.slice(0, 6).map((e) => '<li><b>' + e[1] + '</b> · ' + (STAFF[e[0]] ? STAFF[e[0]].name : e[0]) + ' · Tag ' + e[2] + '<small>' + e[3] + '</small></li>').join('') + '</ul>' : '';
+  modal('<h2>Dein Team</h2><p class="note">Zufriedenes Personal bleibt und arbeitet schneller. Es braucht einen Wohnplatz, regelmässige Pausen und fairen Lohn. Wer unzufrieden kündigt, schadet deinem Ruf, und neue Leute werden teurer.</p>' + vacH +
+    '<div class="kv"><span>Ruf als Arbeitgeber</span><b id="t-rep"></b><span>Wohnplätze (2 im Torhaus)</span><b>' + Math.min(list.length, housing()) + ' von ' + housing() + '</b><span>Plätze in Pausenräumen</span><b>' + builds.reduce((n, b) => n + (b.def.rest || 0), 0) + '</b><span>Löhne pro Tag</span><b id="t-sum"></b><span>Höchstens pro Beruf</span><b>' + staffMax() + '</b><span>Wachleute</span><b id="t-sec"></b></div><p class="note" id="t-secinfo"></p>' +
     '<h3>Lohnniveau</h3><div class="stepper"><span class="lbl">Alle Löhne</span><button class="sq" data-act="wage" data-d="-1" aria-label="Löhne senken">' + IC.minus + '</button><output id="t-wage"></output><button class="sq" data-act="wage" data-d="1" aria-label="Löhne erhöhen">' + IC.plus + '</button></div>' +
-    (rows ? '<h3>Mitarbeitende</h3><table class="fin team"><thead><tr><th>Name</th><th>Stimmung</th><th>Energie</th><th></th></tr></thead><tbody>' + rows + '</tbody></table>' : '<p class="note">Noch niemand eingestellt.</p>'));
+    (rows ? '<h3>Mitarbeitende</h3><table class="fin team"><thead><tr><th>Name</th><th>Stimmung</th><th>Energie</th><th></th></tr></thead><tbody>' + rows + '</tbody></table>' : '<p class="note">Noch niemand eingestellt.</p>') + leftH);
   fillTeam();
 }
 function fillTeam() {
-  setTxt('t-sec', 'Stufe ' + S.secLvl + ' · ' + SEC_NAME[S.secLvl - 1] + (S.secLvl < 5 ? ' · noch ' + Math.max(0, SEC_XP[S.secLvl] - S.secXp) + ' Punkte' : ''));
-  setTxt('t-secinfo', 'Wachleute: ' + SEC_INFO[S.secLvl - 1] + ' Fangchance pro Versuch: ' + Math.round(catchChance() * 100) + ' %. Jeder weitere Wachmann erhöht sie. Wachposten: ' + staffN('sec') + ' von ' + postPlaces() + ' Plätzen besetzt.');
+  setTxt('t-sec', 'Stufe ' + S.secLvl + ' · ' + SEC_NAME[S.secLvl - 1]);
+  setTxt('t-secinfo', 'Wachleute: ' + SEC_INFO[S.secLvl - 1] + (S.secLvl < 5 ? ' Bis zur nächsten Stufe fehlen ' + Math.max(0, SEC_XP[S.secLvl] - S.secXp) + ' Punkte.' : '') + ' Fangchance pro Versuch: ' + Math.round(catchChance() * 100) + ' %. Jeder weitere Wachmann erhöht sie. Wachposten: ' + staffN('sec') + ' von ' + postPlaces() + ' Plätzen besetzt. Von jedem Beruf kannst du höchstens ' + staffMax() + ' Leute einstellen' + (plotsOwned() < PN * PN ? '; mit jedem Stück Land werden es mehr (36 auf der ganzen Insel).' : '.'));
   setTxt('t-rep', repWord() + ' (' + Math.round(S.rep) + ' von 100)'); setTxt('t-wage', WAGE_NAME[S.wage]);
   setTxt('t-sum', eur(staff.reduce((n, s) => n + (s.state === 'quit' ? 0 : STAFF[s.type].wage), 0) * WAGE[S.wage]));
 }
@@ -446,6 +456,7 @@ function refreshUI() {
   if (g) { setTxt('goal-tag', 'Ziel ' + (S.goal + 1) + '/' + GOALS.length); setTxt('goal-txt', g.t); setTxt('goal-rew', '+' + eur(g.r)); $('#goal-bar').style.width = clamp(g.p() * 100, 0, 100) + '%'; }
   else { setTxt('goal-tag', 'Geschafft'); setTxt('goal-txt', 'Alle Ziele erreicht. Bau einfach weiter.'); setTxt('goal-rew', ''); $('#goal-bar').style.width = '100%'; }
   refreshTray(); refreshPanel(); refreshAlert();
+  { let n = 0; if (S.vac) for (const k in S.vac) n += S.vac[k] || 0; const tb = document.querySelector('#tabs [data-k=staff]'); if (tb && tb.dataset.n !== String(n)) { tb.dataset.n = n; tb.classList.toggle('badge', n > 0); } }
   if (ui.modal && document.getElementById('m-ticket')) fillMenu();
   if (ui.modal && document.getElementById('a-now')) fillAds();
   { const b = adBoost(), e = $('#st-guests'); e.classList.toggle('boost', b > 0.005); e.classList.toggle('bust', b < -0.005); }
@@ -466,15 +477,45 @@ function showFinance() {
     '<tr class="sum"><td>Ergebnis</td><td>' + signed(net(fin.today)) + '</td><td>' + signed(net(fin.yest)) + '</td></tr></tbody></table>' +
     '<div class="kv"><span>Kontostand</span><b>' + eur(S.money) + '</b><span>Schulden</span><b>' + eur(S.loan) + '</b><span>Laufende Kosten pro Tag</span><b>' + eur(builds.reduce((n, b) => n + b.def.upkeep, 0) + staff.reduce((n, s) => n + STAFF[s.type].wage, 0)) + '</b></div>');
 }
+const clockOf = (t) => { const d = (t % DAY) / DAY * 24; return 'Tag ' + (Math.floor(t / DAY) + 1) + ' · ' + String(Math.floor(d)).padStart(2, '0') + ':' + String(Math.floor((d % 1) * 6) * 10).padStart(2, '0'); };
+function showLog() {
+  const rows = msgLog.slice().reverse().map((m) => '<li class="' + m.kind + '"><i></i><span><small>' + clockOf(m.t) + '</small>' + m.text.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</span></li>').join('');
+  modal('<h2>Letzte Meldungen</h2>' + (rows ? '<ul class="logl">' + rows + '</ul>' : '<p class="note">Noch keine Meldungen.</p>'));
+}
+// Hiring from the tray or from the team overview: checks the places and the limit, and says why when it does not work.
+function hireClick(k) {
+  if (k === 'build' && staffN('build') >= builderPlaces()) { sfx('error'); toast('Alle Plätze für Bauarbeiter sind belegt. Baue einen Bauhof (unter Personal): jeder bietet Platz für drei weitere.', 'bad'); return null; }
+  if (k === 'sec' && !freePost(null)) { sfx('error'); toast(postPlaces() ? 'Alle Wachposten sind besetzt. Baue einen weiteren (unter Personal), jeder bietet Platz für zwei.' : 'Baue zuerst einen Wachposten (unter Personal). Dort haben zwei Wachleute ihren Platz.', 'bad'); return null; }
+  const mx = staffMax();
+  if (staffN(k) >= mx) { sfx('error'); toast('Mehr als ' + mx + ' pro Beruf passen zurzeit nicht in den Park.' + (plotsOwned() < PN * PN ? ' Mit jedem Stück Land dürfen es mehr sein (bis 36 auf der ganzen Insel).' : ''), 'bad'); return null; }
+  const s = hire(k);
+  if (s) { sfx('build'); toast(s.name + ' fängt als ' + STAFF[k].name + ' an.', 'good'); } else { sfx('error'); toast('Dafür reicht das Geld nicht.', 'bad'); }
+  uiDirty = true; return s;
+}
+// opens the staff tab and shows the card of one job
+function showJob(k) {
+  if (ui.modal) closeModal(); select(null);
+  if (ui.tab !== 'staff') openTab('staff');
+  const c = document.querySelector('#tray .card.staff[data-job="' + k + '"]'); if (!c) return;
+  try { c.scrollIntoView({ inline: 'center', block: 'nearest' }); } catch (e) { /* old browsers */ }
+  c.classList.add('flash'); setTimeout(() => c.classList.remove('flash'), 2600);
+}
 function showGoals() {
   modal('<h2>Ziele</h2><ol class="goals">' + GOALS.map((g, i) => '<li class="' + (i < S.goal ? 'done' : i === S.goal ? 'now' : '') + '"><span class="n">' + (i < S.goal ? '✓' : i + 1) + '</span><span>' + g.t + '</span><span class="r">+' + eur(g.r) + '</span></li>').join('') + '</ol>');
 }
 function showMenu() {
-  modal('<h2>Parkbüro</h2><div class="kv"><span>Parkwertung</span><b id="m-rate"></b><span>Gäste im Park</span><b id="m-now"></b><span>Gäste insgesamt</span><b id="m-all"></b><span>Wetter</span><b id="m-wx"></b></div><div class="row"><button class="btn" data-act="ads">Besucher und Werbung</button></div>' +
+  modal('<h2>Parkbüro</h2><div class="kv"><span>Parkwertung</span><b id="m-rate"></b><span>Gäste im Park</span><b id="m-now"></b><span>Gäste insgesamt</span><b id="m-all"></b><span>Wetter</span><b id="m-wx"></b></div><div class="row"><button class="btn" data-act="ads">Besucher und Werbung</button><button class="btn line" data-act="log">Letzte Meldungen</button></div>' +
     '<h3>Eintritt</h3><div class="stepper"><span class="lbl">Ticketpreis</span><button class="sq" data-act="ticket" data-d="-1" aria-label="Eintritt senken">' + IC.minus + '</button><output id="m-ticket"></output><button class="sq" data-act="ticket" data-d="1" aria-label="Eintritt erhöhen">' + IC.plus + '</button></div><p class="note">Gäste finden den Eintritt <b id="m-op"></b>. Mehr und aufregendere Attraktionen und mehr Land erlauben höhere Preise.</p>' +
     '<h3>Kredit</h3><div class="stepper"><span class="lbl">Schulden · 1,2 % Zinsen pro Tag</span><button class="sq" data-act="loan" data-d="-1" aria-label="Kredit tilgen">' + IC.minus + '</button><output id="m-loan"></output><button class="sq" data-act="loan" data-d="1" aria-label="Kredit aufnehmen">' + IC.plus + '</button></div>' +
-    '<h3>Einstellungen</h3><div class="row"><button class="btn line" data-act="mute" id="m-mute"></button><button class="btn line" data-act="music" id="m-music"></button><button class="btn line" data-act="shadows" id="m-shadow"></button><button class="btn line" data-act="outline" id="m-outline"></button><button class="btn line" data-act="currency">Währung gestalten</button><button class="btn line" data-act="help">Steuerung zeigen</button><button class="btn red" data-act="askNew">Neues Spiel</button></div>');
+    '<h3>Einstellungen</h3><div class="row"><button class="btn line" data-act="mute" id="m-mute"></button><button class="btn line" data-act="music" id="m-music"></button><button class="btn line" data-act="shadows" id="m-shadow"></button><button class="btn line" data-act="outline" id="m-outline"></button><button class="btn line" data-act="currency">Währung gestalten</button><button class="btn line" data-act="help">Steuerung zeigen</button>' + (audioCredits().length ? '<button class="btn line" data-act="credits">Musik und Geräusche: Quellen</button>' : '') + '<button class="btn red" data-act="askNew">Neues Spiel</button></div>');
   fillMenu();
+}
+// the recordings used for music, crowd and voices, with author, licence and where they come from
+const audioCredits = () => (window.RUMMEL_AUDIO && window.RUMMEL_AUDIO.credits) || [];
+function showCredits() {
+  const esc = (t) => String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  const rows = audioCredits().map((c) => '<li><b>' + esc(c.t) + '</b><span>' + esc(c.a) + ' · ' + esc(c.l) + '</span><span>Im Spiel: ' + esc(c.n) + '</span>' + (c.u ? '<a href="' + esc(c.u) + '" target="_blank" rel="noopener noreferrer">' + esc(c.u) + '</a>' : '') + '</li>').join('');
+  modal('<h2>Musik und Geräusche</h2><p class="note">Musik, Stimmengewirr, Lachen und Jubel sind echte Aufnahmen. Alle sind gemeinfrei oder von ihren Urhebern ohne Bedingungen freigegeben; für das Spiel wurden sie gekürzt, in der Lautstärke angeglichen und in Mono umgewandelt. Die übrigen Geräusche erzeugt das Spiel selbst.</p><ul class="credl">' + rows + '</ul>');
 }
 function fillMenu() {
   setTxt('m-rate', Math.round(S.rating) + ' von 100'); setTxt('m-now', guests.length); setTxt('m-all', S.visitors);
@@ -510,15 +551,11 @@ const ACT = {
     else if (tool && tool.type === 'build' && tool.k === d.k) setTool(null);
     else setTool({ type: 'build', k: d.k, rot: 0 });
   },
-  hire: (el) => {
-    const k = el.dataset.k;
-    if (k === 'build' && staffN('build') >= builderPlaces()) { sfx('error'); toast('Alle Plätze für Bauarbeiter sind belegt. Baue einen Bauhof (unter Personal): jeder bietet Platz für drei weitere.', 'bad'); return; }
-    if (k === 'sec' && !freePost(null)) { sfx('error'); toast(postPlaces() ? 'Alle Wachposten sind besetzt. Baue einen weiteren (unter Personal), jeder bietet Platz für zwei.' : 'Baue zuerst einen Wachposten (unter Personal). Dort haben zwei Wachleute ihren Platz.', 'bad'); return; }
-    if (staffN(k) >= 12) { toast('Mehr als 12 pro Beruf passen nicht in den Park.', 'bad'); return; }
-    const s = hire(k);
-    if (s) { sfx('build'); toast(s.name + ' fängt als ' + STAFF[k].name + ' an.', 'good'); } else { sfx('error'); toast('Dafür reicht das Geld nicht.', 'bad'); }
-    uiDirty = true;
-  },
+  hire: (el) => { hireClick(el.dataset.k); },
+  vacHire: (el) => { hireClick(el.dataset.k); showTeam(); },
+  vacDrop: (el) => { if (S.vac) S.vac[el.dataset.k] = 0; sfx('click'); uiDirty = true; showTeam(); },
+  log: () => { sfx('click'); showLog(); },
+  credits: () => { sfx('click'); showCredits(); },
   fire: (el) => { if (fire(el.dataset.k)) sfx('doze'); uiDirty = true; },
   fireOne: () => { const s = sel && sel.staff; if (s && fire(s.type, s)) sfx('doze'); },
   team: showTeam,

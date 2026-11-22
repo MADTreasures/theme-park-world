@@ -27,6 +27,11 @@ function buyPlot(p) {
   toast('Das Land gehört jetzt dir: 10 × 10 Felder mehr Platz. Wo du bauen willst, lässt du Bäume und Büsche vom Gärtner roden.', 'gold');
   return true;
 }
+// The park's land sets two limits. How many guests fit: 222 on the four plots a park starts with, 438 on sixteen (the
+// size of the whole island in the game's first version) and 798 on all thirty-six. And how many people of each
+// job the park may employ: 12 to begin with, 3 more for every 4 plots bought, 36 on the whole island.
+const landCap = () => Math.min(MAXG - 2, 150 + 18 * plotsOwned());
+const staffMax = () => 12 + Math.floor((plotsOwned() - START_PLOTS.length) * 0.75);
 function landHint() { if (S.time - landHintAt < 6) return; landHintAt = S.time; sfx('error'); toast('Dieses Land gehört dir noch nicht. Über «Land» kannst du es kaufen.', 'bad'); }
 
 /* ----- plants ----- */

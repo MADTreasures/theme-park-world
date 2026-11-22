@@ -27,7 +27,7 @@ function scatterStaff() {
 function load(data) {
   clearWorld();
   const keep = { speed: S.speed };
-  S.ads = {}; S.vip = null; S.vipLast = null; S.adsN = 0;   // a park saved before there was advertising has none
+  S.ads = {}; S.vip = null; S.vipLast = null; S.adsN = 0; S.vac = {}; S.left = [];   // a park saved before there was advertising has none
   Object.assign(S, data.S, keep);
   if (data.fin && data.fin.today && data.fin.yest) fin = { today: Object.assign(newFin(), data.fin.today), yest: Object.assign(newFin(), data.fin.yest) };
   curDay = Math.floor(S.time / DAY);
@@ -58,7 +58,7 @@ function load(data) {
 }
 function newGame() {
   clearWorld();
-  Object.assign(S, { money: 4000, loan: 0, time: DAY * 0.1, ticket: 5, rating: 55, goal: 0, exitAvg: 62, visitors: 0, rep: 70, wage: 1, secLvl: 1, secXp: 0, ads: {}, vip: null, vipLast: null, adsN: 0, plush: 0 });
+  Object.assign(S, { money: 4000, loan: 0, time: DAY * 0.1, ticket: 5, rating: 55, goal: 0, exitAvg: 62, visitors: 0, rep: 70, wage: 1, secLvl: 1, secXp: 0, ads: {}, vip: null, vipLast: null, adsN: 0, plush: 0, vac: {}, left: [] });
   wxSet('sun', true); WX.bonus = 0; WX.wasRain = false;
   fin = { today: newFin(), yest: newFin() }; curDay = 0;
   landSet(START_PLOTS);

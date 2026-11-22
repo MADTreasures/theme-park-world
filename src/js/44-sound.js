@@ -1,19 +1,25 @@
 /* ================= sound and music ================= */
-// Everything is synthesised with Web Audio: effects, voices for guests and staff, ambience, weather and a fairground waltz.
-let actx = null, master = null, musicBus = null, crowdGain = null, seaGain = null, rainGain = null, noiseBuf = null;
-let voiceAt = 0, gullAt = 8, ambAt = 0, snoreAt = 0, stepAt = 0, cashAt = 0, cricketAt = 0, thunderAt = 0, alarmAt = 0;
+// Effects, weather and a few cartoon voices are synthesised with Web Audio. Music, the crowd, laughter and screams come from
+// real recordings when the build has them (44b-recorded.js); otherwise the synthesised versions below are used.
+let actx = null, master = null, limiter = null, musicBus = null, voiceBus = null, crowdBus = null, crowdGain = null, seaGain = null, rainGain = null, noiseBuf = null;
+let audioTick = 0, voiceAt = 0, gullAt = 8, ambAt = 0, snoreAt = 0, stepAt = 0, cashAt = 0, cricketAt = 0, thunderAt = 0, alarmAt = 0;
 const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
 function audioReady() {
   if (S.muted) return false;
   try {
     if (!actx) {
       const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return false;
-      actx = new AC(); master = actx.createGain(); master.gain.value = 0.9; master.connect(actx.destination);
-      musicBus = actx.createGain(); musicBus.gain.value = 0.5; musicBus.connect(master);
+      actx = new AC(); master = actx.createGain(); master.gain.value = 0.9;
+      // a gentle limiter at the end, so a scream on top of music and a crowd never clips on a small loudspeaker
+      limiter = actx.createDynamicsCompressor(); limiter.threshold.value = -9; limiter.knee.value = 8; limiter.ratio.value = 8; limiter.attack.value = 0.004; limiter.release.value = 0.22;
+      master.connect(limiter); limiter.connect(actx.destination);
+      musicBus = actx.createGain(); musicBus.gain.value = 0; musicBus.connect(master);
+      voiceBus = actx.createGain(); voiceBus.connect(master); crowdBus = actx.createGain(); crowdBus.connect(master);
       noiseBuf = actx.createBuffer(1, actx.sampleRate * 2, actx.sampleRate);
       const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
       const bed = (type, freq, q) => { const src = actx.createBufferSource(), f = actx.createBiquadFilter(), g = actx.createGain(); src.buffer = noiseBuf; src.loop = true; f.type = type; f.frequency.value = freq; f.Q.value = q; g.gain.value = 0; src.connect(f); f.connect(g); g.connect(master); src.start(); return g; };
       crowdGain = bed('bandpass', 620, 0.7); seaGain = bed('lowpass', 420, 0.3); rainGain = bed('highpass', 2400, 0.4);
+      recInit();
     }
     if (actx.state === 'suspended') actx.resume();
     return actx.state === 'running';
@@ -52,6 +58,7 @@ const SFX = {
   thief: (v) => { [196, 185, 175].forEach((f, i) => tone(f, i * 0.2, 0.18, 'sawtooth', 0.07 * v)); tone(233, 0.62, 0.7, 'sawtooth', 0.08 * v); tone(117, 0.62, 0.7, 'triangle', 0.1 * v); hiss(0.6, 0.5, 0.025 * v, 'highpass', 5000); },
   whistle: (v) => { for (let i = 0; i < 7; i++) tone(i % 2 ? 2500 : 2300, i * 0.055, 0.06, 'sine', 0.07 * v); },
   whoosh: (v) => hiss(0, 0.5, 0.14 * v, 'bandpass', 300, 2600, 1.2),
+  rush: (v) => { hiss(0, 1.0, 0.1 * v, 'bandpass', 260, 1500, 0.9); hiss(0, 1.1, 0.09 * v, 'lowpass', 190, 90, 0.7); },   // a car racing down its track
   splash: (v) => { hiss(0, 0.55, 0.16 * v, 'lowpass', 2200, 300); tone(90, 0, 0.2, 'sine', 0.1 * v, 50); },
   slip: (v) => tone(900, 0, 0.3, 'sine', 0.07 * v, 260),
   poke: (v) => { tone(320, 0, 0.05, 'square', 0.04 * v); vox(190, 250, 0.16, 0.05 * v, 500, 0.03); },
@@ -104,17 +111,22 @@ function speak(what, p, v) {
 }
 const VOICE = { great: ['woo', 0.8], happy: ['laugh', 0.4], bye: ['laugh', 0.3], sick: ['bleh', 0.9], angry: ['aww', 0.7], queue: ['aww', 0.5], money: ['aww', 0.3], litter: ['aww', 0.15], thief: ['hey', 1], food: ['aww', 0.2], drink: ['aww', 0.2], wc: ['aww', 0.2], nom: ['nom', 0.45], scream: ['scream', 1] };
 // Guests and staff comment on what happens to them. Voices are rate limited and fade with distance.
+const VOICE_REC = { laugh: 'laugh', woo: 'cheer', scream: 'scream' };
 function personVoice(g, kind) {
   const e = VOICE[kind]; if (!e || Math.random() > e[1] || !audioReady()) return;
   const now = actx.currentTime; if (now - voiceAt < 0.2) return;
   const v = hearing(g.x, g.z); if (v < 0.08) return;
+  // laughter, cheers and screams are real recordings when the build has them
+  const role = VOICE_REC[e[0]];
+  if (role && recHas(role)) { if (now - voiceAt > 0.55) { voiceAt = now; recVoice(role, g, role === 'laugh' ? rnd(0.45, 0.8) : 0.75); } return; }
   voiceAt = now;
   try { speak(e[0], (g.kid ? 1.5 : 1) * (0.85 + (g.ph % 1) * 0.4), v * 0.085); } catch (err) { /* audio is optional */ }
 }
 const RIDE_SFX = { carousel: 'organ', cups: 'organ', bouncy: 'boing', swing: 'bell', ship: 'bell', bumper: 'honk', wheel: 'bell', tower: 'climb', tower2: 'climb', flume: 'bell', coaster: 'climb', custom: 'climb', mini: 'climb', ghost: 'spook', kart: 'vroom', dunk: 'bell',
   train: 'honk', tramp: 'boing', ponyc: 'climb', cable: 'climb', castle: 'organ', splash: 'splash', slide: 'splash', pool: 'splash', wcoaster: 'climb', octo: 'organ', ufo: 'spook', bungee: 'climb', magic: 'organ', animals: 'clap', freak: 'spook',
   dolphin: 'splash', circus: 'organ', orca: 'splash' };
-function rideSound(b) { const p = b.group.position; sfxAt(RIDE_SFX[b.k] || 'bell', p.x, p.z, 0.8); if (actx && actx.currentTime - cashAt > 1.5 && hearing(p.x, p.z) > 0.3) { cashAt = actx.currentTime; sfx('coin', 0.5); } }
+function rideSound(b) { const p = b.group.position; let k = RIDE_SFX[b.k] || 'bell'; if (k === 'organ' && recMusic()) k = 'bell';   // no synthetic organ on top of the recorded one
+  sfxAt(k, p.x, p.z, 0.8); if (actx && actx.currentTime - cashAt > 1.5 && hearing(p.x, p.z) > 0.3) { cashAt = actx.currentTime; sfx('coin', 0.5); } }
 
 /* ----- a waltz for the fairground organ: 32 bars in C, three beats each ----- */
 const TUNE = [[76, 79, 84], [83, 81, 79], [77, 74, 71], [74, 0, 0], [77, 79, 83], [81, 79, 77], [76, 72, 76], [79, 0, 0], [76, 79, 84], [88, 86, 84], [81, 84, 81], [81, 0, 77], [83, 86, 83], [79, 81, 83], [84, 0, 79], [84, 0, 0],
@@ -123,7 +135,7 @@ const CHORD = { C: [48, [60, 64, 67]], G: [43, [59, 62, 65]], F: [41, [57, 60, 6
 const BARS = 'CCGGGGCCCCFFGGCCFFCCDDGGCCFFGGCC';
 const MUS = { bar: 0, beat: 0, next: 0, len: 60 / 152 };
 function musicFrame() {
-  if (!actx || actx.state !== 'running') return;
+  if (!actx || actx.state !== 'running' || recMusic()) return;   // the synthesised waltz only plays when there is no recorded music
   musicBus.gain.value = S.music && !S.muted ? 0.5 * (1 - night * 0.35) * (ui.mini ? 0.5 : 1) : 0;
   if (!S.music || S.muted) { MUS.next = 0; return; }
   const now = actx.currentTime; if (MUS.next < now) MUS.next = now + 0.06;
@@ -142,18 +154,22 @@ function musicFrame() {
 // ambience: crowd murmur, sea, rain, gulls, crickets, chatter, snoring guards and screams from the wild rides
 function audioFrame(rdt) {
   if (!actx || actx.state !== 'running') return;
-  musicFrame();
-  ambAt -= rdt; if (ambAt > 0) return; ambAt = 0.5;
-  const now = actx.currentTime, on = S.muted ? 0 : 1; master.gain.value = on * 0.9;
-  let near = 0; const loud = [];
-  for (let i = 0; i < guests.length; i += 2) { const g = guests[i]; if (hearing(g.x, g.z) > 0.25) { near += 2; if (loud.length < 12) loud.push(g); } }
-  crowdGain.gain.setTargetAtTime(clamp(near * 0.0011, 0, 0.045), now, 0.5);
+  musicFrame(); dropFrame(rdt);
+  const now = actx.currentTime, on = S.muted ? 0 : 1;
+  if (now < ambAt) return; ambAt = now + 0.5;   // twice a second by the audio clock, however slowly the picture is drawn
+  master.gain.value = on * 0.9;
+  // how many people are around the place the player is looking at: every second guest is counted twice, weighted by how well it is heard
+  let near = 0, heard = 0; const loud = [];
+  for (let i = (audioTick++ & 1); i < guests.length; i += 2) { const g = guests[i], h = hearing(g.x, g.z); if (h > 0.05) { heard += 2 * h; if (h > 0.25) { near += 2; if (loud.length < 16) loud.push(g); } } }
+  crowdFrame(now, 1 - Math.exp(-heard / 24), loud);
+  crowdGain.gain.setTargetAtTime(bedsReady() ? 0 : clamp(near * 0.0011, 0, 0.045), now, 0.5);
+  if (recMusic()) recMusicFrame(now);
   seaGain.gain.setTargetAtTime(fp ? 0.012 : 0.01 + 0.03 * clamp((cam.d - 18) / 50, 0, 1) * (0.7 + 0.3 * Math.sin(now * 0.6)), now, 0.6);
   rainGain.gain.setTargetAtTime(WX.wet * 0.07, now, 0.6);
   if (now > gullAt && night < 0.5 && WX.wet < 0.3) { gullAt = now + rnd(10, 26); const v = 0.02 + 0.03 * clamp((cam.d - 12) / 40, 0, 1); for (let i = 0; i < rint(2, 4); i++) tone(1900, i * 0.22, 0.16, 'sine', v, 1250); }
   if (night > 0.7 && now > cricketAt && WX.wet < 0.3) { cricketAt = now + rnd(0.9, 2.2); for (let i = 0; i < 3; i++) tone(4300, i * 0.07, 0.04, 'sine', 0.012); }
-  if (loud.length && Math.random() < Math.min(0.3, loud.length * 0.03)) personVoice(pick(loud), 'happy');
-  for (const b of builds) if (b.state === 'run' && b.riders.length && b.def.exc >= 54 && b.spin > 0.5 && Math.random() < 0.3) { const g = b.riders[0], p = b.group.position, v = hearing(p.x, p.z); if (v > 0.1 && now - voiceAt > 0.25) { voiceAt = now; speak(Math.random() < 0.6 ? 'scream' : 'woo', rnd(0.9, 1.6) * (g.kid ? 1.3 : 1), v * 0.07); } }
+  if (!recHas('laugh') && loud.length && Math.random() < Math.min(0.3, loud.length * 0.03)) personVoice(pick(loud), 'happy');
+  whoopFrame(now);
   if (now > alarmAt && thieves.some((f) => f.state === 'held')) { alarmAt = now + 2.4; sfx('alarm', 0.75); }
   if (now > snoreAt) { snoreAt = now + 2.3; for (const s of staff) if (s.asleep) { sfxAt('snore', s.x, s.z, 1.3); break; } }
   if (WX.k === 'storm' && now > thunderAt) { thunderAt = now + rnd(6, 16); WX.flash = 1; setTimeout(() => sfx('thunder', 0.9), rnd(250, 1100)); }
