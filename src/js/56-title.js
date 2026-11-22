@@ -35,10 +35,10 @@ function showTitle(fromGame) {
   if (fromGame) save();   // the park that was open keeps its progress
   select(null); if (ui.modal) closeModal(); if (tool) ACT.cancel(); if (pov || fp) exitMode();
   TT.from = !!fromGame && curSlot >= 0; TT.view = 'main';
-  ui.title = true; $('#hud').setAttribute('aria-hidden', 'true');
+  ui.title = true; $('#hud').setAttribute('aria-hidden', 'true'); audioSync(false);   // the park falls silent at once
   const t = $('#title'); t.hidden = false; renderTitle();
 }
-function hideTitle() { ui.title = false; $('#title').hidden = true; $('#hud').removeAttribute('aria-hidden'); uiDirty = true; }
+function hideTitle() { ui.title = false; $('#title').hidden = true; $('#hud').removeAttribute('aria-hidden'); uiDirty = true; audioSync(true); }   // called from a tap: the sound may start right away
 function titleSkyline() {
   // bunting across the top, and the dark outline of a fairground along the bottom: big wheel, circus tent, roller coaster
   let flags = '';

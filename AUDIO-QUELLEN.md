@@ -1,6 +1,6 @@
 # Musik und Geräusche: Quellen und Lizenzen
 
-Musik, Stimmengewirr, Lachen, Jubel und Applaus im Spiel sind echte Aufnahmen. Sie stammen alle von Wikimedia Commons und sind gemeinfrei oder von ihren Urhebern ohne Bedingungen freigegeben (CC0 1.0 oder gleichwertige Erklärung): Bearbeiten, Weitergeben und kommerzielle Nutzung sind ohne Namensnennung erlaubt. Die Lizenz wurde bei jeder Datei auf ihrer Seite bei Wikimedia Commons geprüft. Bei Musik ist zusätzlich angegeben, warum auch die Komposition frei ist. Die Liste wird aus audio/manifest.json erzeugt (node build.js) und steht auch im Spiel: Parkbüro → «Musik und Geräusche: Quellen».
+Musik, Stimmengewirr, Jubel, Schreie und Applaus im Spiel sind echte Aufnahmen. Sie stammen alle von Wikimedia Commons und sind gemeinfrei oder von ihren Urhebern ohne Bedingungen freigegeben (CC0 1.0 oder gleichwertige Erklärung): Bearbeiten, Weitergeben und kommerzielle Nutzung sind ohne Namensnennung erlaubt. Die Lizenz wurde bei jeder Datei auf ihrer Seite bei Wikimedia Commons geprüft. Bei Musik ist zusätzlich angegeben, warum auch die Komposition frei ist. Die Liste wird aus audio/manifest.json erzeugt (node build.js) und steht auch im Spiel: Parkbüro → «Musik und Geräusche: Quellen».
 
 ## Drehorgel spielt den Schlittschuhläufer-Walzer («Street organ playing a waltz»)
 
@@ -37,62 +37,6 @@ Musik, Stimmengewirr, Lachen, Jubel und Applaus im Spiel sind echte Aufnahmen. S
 - Im Spiel: Musik am Karussell und an den ruhigen Fahrgeschäften
 - Bearbeitung: Ausschnitt 0:00,8–0:34,2; in Mono umgewandelt, tiefes Rumpeln herausgefiltert, ein- und ausgeblendet, Lautstärke angeglichen, als MP3 gespeichert.
 - Dateien im Spiel: spieluhr-kreuz.mp3
-
-## Mehrere Lacher, Kichern und Glucksen («Laughter(s)»)
-
-- Urheber: sagetyrtle (Freesound Nr. 33658), nach Wikimedia Commons übertragen von Racconish
-- Lizenz: CC0 1.0 (Verzicht auf alle Rechte, Public Domain Dedication) (https://creativecommons.org/publicdomain/zero/1.0/deed.de)
-- Originalseite: https://commons.wikimedia.org/wiki/File:Laughter(s).ogg
-- Originaldatei: https://upload.wikimedia.org/wikipedia/commons/c/cb/Laughter%28s%29.ogg – verwendet wurde die von Wikimedia Commons bereitgestellte MP3-Fassung dieser Datei (SHA-256 c23f0c43ec6a7c057127f593da5f9f709ed87318a54f70dfee391428dd7c224a)
-- Lizenz auf der Originalseite geprüft am: 22. November 2026
-- Im Spiel: einzelne Lacher von Besucherinnen und Besuchern (16 verschiedene, im Wechsel)
-- Bearbeitung: Ausschnitte 0:00,6–0:02,5, 0:03,8–0:05,1, 0:06,0–0:07,3, 0:08,1–0:09,2, 0:09,9–0:11,1, 0:14,7–0:16,8, 0:22,0–0:23,1, 0:28,3–0:29,8, 0:31,8–0:32,9, 0:37,1–0:39,1, 0:42,6–0:44,0, 0:44,9–0:47,2, 0:49,3–0:50,8, 0:51,7–0:54,3, 0:56,0–0:58,0, 1:00,1–1:01,7; in Mono umgewandelt, tiefes Rumpeln herausgefiltert, ein- und ausgeblendet, Lautstärke angeglichen, als MP3 gespeichert.
-- Dateien im Spiel: lachen-01.mp3, lachen-02.mp3, lachen-03.mp3, lachen-04.mp3, lachen-05.mp3, lachen-06.mp3, lachen-07.mp3, lachen-08.mp3, lachen-09.mp3, lachen-10.mp3, lachen-11.mp3, lachen-12.mp3, lachen-13.mp3, lachen-14.mp3, lachen-15.mp3, lachen-16.mp3
-- Hinweis: Die Lizenz steht so auf der Dateiseite bei Wikimedia Commons. Die ursprüngliche Seite bei Freesound (https://freesound.org/people/sagetyrtle/sounds/33658/) sperrt automatische Abrufe und konnte deshalb nicht zusätzlich geprüft werden.
-
-## Losprusten («Bursting out laughing»)
-
-- Urheber: ezwa (pdsounds.org Nr. 138), nach Wikimedia Commons übertragen von Fæ
-- Lizenz: Gemeinfrei: vom Urheber über pdsounds.org ohne Bedingungen freigegeben («released into the public domain by its author»)
-- Originalseite: https://commons.wikimedia.org/wiki/File:Bursting_out_laughing.ogg
-- Originaldatei: https://upload.wikimedia.org/wikipedia/commons/5/51/Bursting_out_laughing.ogg – verwendet wurde die von Wikimedia Commons bereitgestellte MP3-Fassung dieser Datei (SHA-256 727ae08a5267df57733ac9630048dea69b4f79da8f693c9210e96cf2aa9f41fe)
-- Lizenz auf der Originalseite geprüft am: 22. November 2026
-- Im Spiel: einzelne Lacher von Besuchern
-- Bearbeitung: Ausschnitte 0:00,1–0:03,5, 0:04,2–0:07,2, 0:09,4–0:12,1; in Mono umgewandelt, tiefes Rumpeln herausgefiltert, ein- und ausgeblendet, Lautstärke angeglichen, als MP3 gespeichert.
-- Dateien im Spiel: lachen-17.mp3, lachen-18.mp3, lachen-19.mp3
-
-## Gelächter («Laughter»)
-
-- Urheber: ezwa (pdsounds.org Nr. 137), nach Wikimedia Commons übertragen von Fæ
-- Lizenz: Gemeinfrei: vom Urheber über pdsounds.org ohne Bedingungen freigegeben («released into the public domain by its author»)
-- Originalseite: https://commons.wikimedia.org/wiki/File:Laughter.ogg
-- Originaldatei: https://upload.wikimedia.org/wikipedia/commons/c/c6/Laughter.ogg – verwendet wurde die von Wikimedia Commons bereitgestellte MP3-Fassung dieser Datei (SHA-256 b36d005871af49c57e544674513aae400dba7b89fc1fc9142ef5b8ae91797c36)
-- Lizenz auf der Originalseite geprüft am: 22. November 2026
-- Im Spiel: einzelne Lacher von Besuchern
-- Bearbeitung: Ausschnitte 0:00,0–0:04,8, 0:05,2–0:06,5, 0:06,8–0:08,6, 0:10,9–0:12,6, 0:14,2–0:15,9; in Mono umgewandelt, tiefes Rumpeln herausgefiltert, ein- und ausgeblendet, Lautstärke angeglichen, als MP3 gespeichert.
-- Dateien im Spiel: lachen-20.mp3, lachen-21.mp3, lachen-22.mp3, lachen-23.mp3, lachen-24.mp3
-
-## Kurzes Lachen einer Frau («Short clip of girl laughing»)
-
-- Urheber: lmbubec (Freesound), nach Wikimedia Commons übertragen von Mx. Granger; Lizenz dort von einem Prüfer bestätigt
-- Lizenz: CC0 1.0 (Verzicht auf alle Rechte, Public Domain Dedication) (https://creativecommons.org/publicdomain/zero/1.0/deed.de)
-- Originalseite: https://commons.wikimedia.org/wiki/File:Short_clip_of_girl_laughing.wav
-- Originaldatei: https://upload.wikimedia.org/wikipedia/commons/f/f4/Short_clip_of_girl_laughing.wav – verwendet wurde die von Wikimedia Commons bereitgestellte MP3-Fassung dieser Datei (SHA-256 73b42a68598de74e0859407194adf444e1d751400fb1cc2773a551cfebbc6066)
-- Lizenz auf der Originalseite geprüft am: 22. November 2026
-- Im Spiel: einzelne Lacher von Besucherinnen
-- Bearbeitung: Ausschnitt 0:00,0–0:01,3; in Mono umgewandelt, tiefes Rumpeln herausgefiltert, ein- und ausgeblendet, Lautstärke angeglichen, als MP3 gespeichert.
-- Dateien im Spiel: lachen-25.mp3
-
-## Gelächter von Publikum («Lachkonserve 1»)
-
-- Urheber: Sleepytomcat (Jens Kraglund), von der deutschsprachigen Wikipedia nach Wikimedia Commons übertragen
-- Lizenz: Gemeinfrei: vom Urheber ohne Bedingungen freigegeben («released into the public domain by its author»)
-- Originalseite: https://commons.wikimedia.org/wiki/File:Lachkonserve_1.ogg
-- Originaldatei: https://upload.wikimedia.org/wikipedia/commons/f/f9/Lachkonserve_1.ogg – verwendet wurde die von Wikimedia Commons bereitgestellte MP3-Fassung dieser Datei (SHA-256 4edda830188dade2ebaf5c12112f6a993a1024c2638994e53da407b8d6019421)
-- Lizenz auf der Originalseite geprüft am: 22. November 2026
-- Im Spiel: gemeinsames Lachen einer Gruppe auf belebten Wegen
-- Bearbeitung: Ausschnitt 0:00,0–0:05,3; in Mono umgewandelt, tiefes Rumpeln herausgefiltert, ein- und ausgeblendet, Lautstärke angeglichen, als MP3 gespeichert.
-- Dateien im Spiel: gruppe-lachen.mp3
 
 ## Hurra-Rufe («Hurray»)
 

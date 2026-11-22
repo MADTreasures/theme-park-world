@@ -1,11 +1,12 @@
 /* ================= sound and music ================= */
-// Effects, weather and a few cartoon voices are synthesised with Web Audio. Music, the crowd, laughter and screams come from
+// Effects, weather and a few cartoon voices are synthesised with Web Audio. Music, the crowd, cheers and screams come from
 // real recordings when the build has them (44b-recorded.js); otherwise the synthesised versions below are used.
+// Sound only runs inside a park that is being played: on the title screen, during a pause and when muted the audio context
+// is suspended. That silences everything at once, and on resuming every piece of music continues from the same moment.
 let actx = null, master = null, limiter = null, musicBus = null, voiceBus = null, crowdBus = null, crowdGain = null, seaGain = null, rainGain = null, noiseBuf = null;
 let audioTick = 0, voiceAt = 0, gullAt = 8, ambAt = 0, snoreAt = 0, stepAt = 0, cashAt = 0, cricketAt = 0, thunderAt = 0, alarmAt = 0;
 const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
-function audioReady() {
-  if (S.muted) return false;
+function audioCreate() {
   try {
     if (!actx) {
       const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return false;
@@ -19,13 +20,30 @@ function audioReady() {
       const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
       const bed = (type, freq, q) => { const src = actx.createBufferSource(), f = actx.createBiquadFilter(), g = actx.createGain(); src.buffer = noiseBuf; src.loop = true; f.type = type; f.frequency.value = freq; f.Q.value = q; g.gain.value = 0; src.connect(f); f.connect(g); g.connect(master); src.start(); return g; };
       crowdGain = bed('bandpass', 620, 0.7); seaGain = bed('lowpass', 420, 0.3); rainGain = bed('highpass', 2400, 0.4);
-      recInit();
+      recInit();   // the recordings are unpacked at once, while the title screen is still up, so the park sounds from the first moment
     }
-    if (actx.state === 'suspended') actx.resume();
-    return actx.state === 'running';
-  } catch (e) { return false; }
+  } catch (e) { actx = null; }
+  return actx;
 }
-window.addEventListener('pointerdown', audioReady, true); window.addEventListener('keydown', audioReady, true);
+const audioWanted = () => !S.muted && !ui.title && !document.hidden && (S.speed > 0 || !!ui.mini);
+let audioTry = 0, audioUnlocked = false;
+// Starts or stops the sound to match the game. Called right inside taps and clicks (gesture), where browsers on tablets and
+// phones allow sound to start, and once a frame to catch everything else.
+function audioSync(gesture) {
+  if (!actx && !audioCreate()) return;
+  const st = actx.state, want = audioWanted();
+  try {
+    if (want && st !== 'running' && st !== 'closed') {
+      if (!gesture && performance.now() < audioTry) return; audioTry = performance.now() + 1000;
+      const p = actx.resume(); if (p && p.catch) p.catch(() => { /* waits for the next tap */ });
+      if (gesture && !audioUnlocked) { audioUnlocked = true; const b = actx.createBuffer(1, 1, 22050), s = actx.createBufferSource(); s.buffer = b; s.connect(actx.destination); s.start(0); }   // older iPads need a sound started within the tap
+      ambAt = 0;   // music and crowd at once, not at the next half second
+    } else if (!want && st === 'running') actx.suspend();
+  } catch (e) { /* sound is optional */ }
+}
+const audioReady = () => !!actx && actx.state === 'running' && audioWanted();
+for (const ev of ['pointerup', 'touchend', 'click', 'keydown']) window.addEventListener(ev, () => audioSync(true), true);
+document.addEventListener('visibilitychange', () => audioSync(false));
 function tone(f, t0, dur, type, vol, f1, dest) {
   const o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime + t0;
   o.type = type || 'triangle'; o.frequency.setValueAtTime(f, t); if (f1) o.frequency.exponentialRampToValueAtTime(f1, t + dur);
@@ -100,8 +118,7 @@ function hearing(x, z) {
 }
 function sfxAt(k, x, z, vol) { const v = hearing(x, z) * (vol || 1); if (v > 0.06) sfx(k, v); }
 function speak(what, p, v) {
-  if (what === 'laugh') for (let i = 0; i < 3 + ((p * 10) & 1); i++) vox(420 * p, 330 * p, 0.09, v, 950, i * 0.12);
-  else if (what === 'woo') { vox(330 * p, 720 * p, 0.28, v, 800); vox(720 * p, 520 * p, 0.3, v * 0.8, 800, 0.26); }
+  if (what === 'woo') { vox(330 * p, 720 * p, 0.28, v, 800); vox(720 * p, 520 * p, 0.3, v * 0.8, 800, 0.26); }
   else if (what === 'scream') vox(620 * p, 900 * p, 0.5, v, 1150);
   else if (what === 'bleh') vox(210 * p, 150 * p, 0.4, v, 420);
   else if (what === 'hey') { vox(480 * p, 620 * p, 0.13, v * 1.3, 1050); vox(600 * p, 400 * p, 0.28, v * 1.3, 1050, 0.15); }
@@ -109,16 +126,16 @@ function speak(what, p, v) {
   else if (what === 'stop') { vox(300 * p, 360 * p, 0.12, v * 1.4, 900); vox(340 * p, 260 * p, 0.3, v * 1.4, 700, 0.16); }
   else vox(270 * p, 180 * p, 0.42, v, 600);
 }
-const VOICE = { great: ['woo', 0.8], happy: ['laugh', 0.4], bye: ['laugh', 0.3], sick: ['bleh', 0.9], angry: ['aww', 0.7], queue: ['aww', 0.5], money: ['aww', 0.3], litter: ['aww', 0.15], thief: ['hey', 1], food: ['aww', 0.2], drink: ['aww', 0.2], wc: ['aww', 0.2], nom: ['nom', 0.45], scream: ['scream', 1] };
+const VOICE = { great: ['woo', 0.8], sick: ['bleh', 0.9], angry: ['aww', 0.7], queue: ['aww', 0.5], money: ['aww', 0.3], litter: ['aww', 0.15], thief: ['hey', 1], food: ['aww', 0.2], drink: ['aww', 0.2], wc: ['aww', 0.2], nom: ['nom', 0.45], scream: ['scream', 1] };
 // Guests and staff comment on what happens to them. Voices are rate limited and fade with distance.
-const VOICE_REC = { laugh: 'laugh', woo: 'cheer', scream: 'scream' };
+const VOICE_REC = { woo: 'cheer', scream: 'scream' };
 function personVoice(g, kind) {
   const e = VOICE[kind]; if (!e || Math.random() > e[1] || !audioReady()) return;
   const now = actx.currentTime; if (now - voiceAt < 0.2) return;
   const v = hearing(g.x, g.z); if (v < 0.08) return;
   // laughter, cheers and screams are real recordings when the build has them
   const role = VOICE_REC[e[0]];
-  if (role && recHas(role)) { if (now - voiceAt > 0.55) { voiceAt = now; recVoice(role, g, role === 'laugh' ? rnd(0.45, 0.8) : 0.75); } return; }
+  if (role && recHas(role)) { if (now - voiceAt > 0.55) { voiceAt = now; recVoice(role, g, 0.75); } return; }
   voiceAt = now;
   try { speak(e[0], (g.kid ? 1.5 : 1) * (0.85 + (g.ph % 1) * 0.4), v * 0.085); } catch (err) { /* audio is optional */ }
 }
@@ -168,7 +185,6 @@ function audioFrame(rdt) {
   rainGain.gain.setTargetAtTime(WX.wet * 0.07, now, 0.6);
   if (now > gullAt && night < 0.5 && WX.wet < 0.3) { gullAt = now + rnd(10, 26); const v = 0.02 + 0.03 * clamp((cam.d - 12) / 40, 0, 1); for (let i = 0; i < rint(2, 4); i++) tone(1900, i * 0.22, 0.16, 'sine', v, 1250); }
   if (night > 0.7 && now > cricketAt && WX.wet < 0.3) { cricketAt = now + rnd(0.9, 2.2); for (let i = 0; i < 3; i++) tone(4300, i * 0.07, 0.04, 'sine', 0.012); }
-  if (!recHas('laugh') && loud.length && Math.random() < Math.min(0.3, loud.length * 0.03)) personVoice(pick(loud), 'happy');
   whoopFrame(now);
   if (now > alarmAt && thieves.some((f) => f.state === 'held')) { alarmAt = now + 2.4; sfx('alarm', 0.75); }
   if (now > snoreAt) { snoreAt = now + 2.3; for (const s of staff) if (s.asleep) { sfxAt('snore', s.x, s.z, 1.3); break; } }

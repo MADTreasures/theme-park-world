@@ -13,12 +13,10 @@ function recInit() {
   const A = window.RUMMEL_AUDIO; if (!A || !A.clips) return;
   // Music is long: only the piece that plays (and the next one) is kept unpacked, so its packed form stays (keep). Everything else is unpacked once.
   for (const id in A.clips) { const c = A.clips[id]; REC.clips[id] = { id, role: c.role, gain: c.gain || 1, loop: c.loop || 0, data: c.data, buf: null, st: 0, keep: c.role.indexOf('music') === 0 }; (REC.roles[c.role] = REC.roles[c.role] || []).push(id); c.data = null; }
-  // the crowd and one piece of organ music first, then the voices and a lively piece; the rest is decoded when it is first wanted
+  // the crowd and the first piece of each kind of music first, then the voices; later pieces of music are unpacked when their turn comes
   const first = (r) => { const bag = recBag(r); if (bag) recNeed(bag[bag.length - 1]); };
-  first('bedLow'); first('bedHigh'); first('musicOrgan');
-  for (const r of ['laugh', 'laughKid', 'laughGroup', 'scream', 'cheer']) for (const id of REC.roles[r] || []) recNeed(id);
-  first('musicLively');
-  for (const r of ['screamKid', 'applause']) for (const id of REC.roles[r] || []) recNeed(id);
+  first('bedLow'); first('bedHigh'); first('musicOrgan'); first('musicLively');
+  for (const r of ['scream', 'cheer', 'screamKid', 'applause']) for (const id of REC.roles[r] || []) recNeed(id);
 }
 function recNeed(id) { const c = REC.clips[id]; if (c && !c.st) { c.st = 1; REC.q.push(c); recPump(); } return c; }
 // unpacks two recordings at a time, so a phone is never asked to unpack everything at once
@@ -73,8 +71,7 @@ function recPlay(id, vol, rate, pan, bus) {
 // a voice at a place in the park; false when there is no recording for it (the caller may then use the synthesised voice)
 function recAt(role, x, z, vol, spread, rate) {
   if (!actx || actx.state !== 'running' || S.muted || !recHas(role)) return false;
-  // not too many voices at once; laughter gives way first, so a scream or the applause after a show is never crowded out
-  const h = hearing(x, z); if (h < 0.06 || REC.live >= (role.indexOf('laugh') === 0 ? 5 : 9)) return true;
+  const h = hearing(x, z); if (h < 0.06 || REC.live >= 9) return true;   // not too many voices at once
   const id = recPick(role); if (!id) return true;   // still being decoded: stay silent rather than mix in the synthetic voice
   recPlay(id, h * vol, (rate || 1) * (1 + rnd(-1, 1) * (spread === undefined ? 0.05 : spread)), panOf(x, z), voiceBus); return true;
 }
@@ -103,13 +100,7 @@ function crowdFrame(now, dens, loud) {
   const few = Math.sin(Math.min(1, dens / 0.45) * Math.PI / 2) * (1 - 0.5 * smooth(0.45, 1, dens));
   if (lo) lo.g.gain.setTargetAtTime((hi ? Math.max(few, dens * (1 - close) * 0.9) : Math.pow(dens, 0.7)) * 0.5 * lo.c.gain, now, 0.6);
   if (hi) hi.g.gain.setTargetAtTime((lo ? smooth(0.28, 0.95, dens) * close : Math.pow(dens, 0.7)) * 0.6 * hi.c.gain, now, 0.6);
-  if (loud.length && now > REC.laughAt) {
-    REC.laughAt = now + rnd(0.7, 1.4) * (2.4 + 13 * (1 - dens) * (1 - dens));   // every two to three seconds in a crowd, rarely where few people are
-    const g = pick(loud);
-    // in a real crowd a whole group bursts out laughing now and then
-    if (dens > 0.55 && recHas('laughGroup') && Math.random() < 0.22) recAt('laughGroup', g.x, g.z, rnd(0.5, 0.75), 0.04);
-    else if (!recVoice('laugh', g, rnd(0.45, 0.8))) personVoice(g, 'happy');
-  }
+  // no single laughs: they stood out too much above the murmur
 }
 const bedsReady = () => !!(BED.low || BED.high);
 // Riders cheer and scream when their car drops. The fall is read from the seat itself, so it fits every ride and every

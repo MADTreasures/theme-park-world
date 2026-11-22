@@ -1,5 +1,5 @@
 # the sources of the sound set (read by build_set.py). Every licence was read on the file's own page on Wikimedia Commons.
-INTRO = ('Musik, Stimmengewirr, Lachen, Jubel und Applaus im Spiel sind echte Aufnahmen. Sie stammen alle von Wikimedia Commons und sind '
+INTRO = ('Musik, Stimmengewirr, Jubel, Schreie und Applaus im Spiel sind echte Aufnahmen. Sie stammen alle von Wikimedia Commons und sind '
          'gemeinfrei oder von ihren Urhebern ohne Bedingungen freigegeben (CC0 1.0 oder gleichwertige Erklärung): Bearbeiten, Weitergeben und '
          'kommerzielle Nutzung sind ohne Namensnennung erlaubt. Die Lizenz wurde bei jeder Datei auf ihrer Seite bei Wikimedia Commons geprüft. '
          'Bei Musik ist zusätzlich angegeben, warum auch die Komposition frei ist. Die Liste wird aus audio/manifest.json erzeugt (node build.js) '
@@ -39,34 +39,6 @@ source('blumen', 'wm-polyphon-blumen',
     composition='Blumen-Polka; Lochplatte der Polyphon-Musikwerke Leipzig um 1890 (Urheber laut Dateiseite unbekannt und seit über 70 Jahren tot) – gemeinfrei',
     url=wm('Polyphon_-_Blumen-Polka.ogg'), file='https://upload.wikimedia.org/wikipedia/commons/0/0a/Polyphon_-_Blumen-Polka.ogg',
     use='Musik am Karussell und an den ruhigen Fahrgeschäften')
-source('lachen', 'wm-laughters',
-    title='Mehrere Lacher, Kichern und Glucksen («Laughter(s)»)',
-    author='sagetyrtle (Freesound Nr. 33658), nach Wikimedia Commons übertragen von Racconish',
-    licence=CC0, licenceUrl=CC0_URL,
-    url=wm('Laughter(s).ogg'), file='https://upload.wikimedia.org/wikipedia/commons/c/cb/Laughter%28s%29.ogg',
-    use='einzelne Lacher von Besucherinnen und Besuchern (16 verschiedene, im Wechsel)',
-    note='Die Lizenz steht so auf der Dateiseite bei Wikimedia Commons. Die ursprüngliche Seite bei Freesound (https://freesound.org/people/sagetyrtle/sounds/33658/) sperrt automatische Abrufe und konnte deshalb nicht zusätzlich geprüft werden.')
-source('prusten', 'wm-bursting-out',
-    title='Losprusten («Bursting out laughing»)', author='ezwa (pdsounds.org Nr. 138), nach Wikimedia Commons übertragen von Fæ',
-    licence=PD_PDSOUNDS, url=wm('Bursting_out_laughing.ogg'), file='https://upload.wikimedia.org/wikipedia/commons/5/51/Bursting_out_laughing.ogg',
-    use='einzelne Lacher von Besuchern')
-source('gelaechter', 'wm-laughter-ezwa',
-    title='Gelächter («Laughter»)', author='ezwa (pdsounds.org Nr. 137), nach Wikimedia Commons übertragen von Fæ',
-    licence=PD_PDSOUNDS, url=wm('Laughter.ogg'), file='https://upload.wikimedia.org/wikipedia/commons/c/c6/Laughter.ogg',
-    use='einzelne Lacher von Besuchern')
-source('raeuspern', 'wm-laughter-clearing',
-    title='Lachen und Räuspern («Laughter and clearing voice»)', author='ezwa (pdsounds.org Nr. 448), nach Wikimedia Commons übertragen von Fæ',
-    licence=PD_PDSOUNDS, url=wm('Laughter_and_clearing_voice.ogg'), file='https://upload.wikimedia.org/wikipedia/commons/e/ef/Laughter_and_clearing_voice.ogg',
-    use='einzelne Lacher von Besuchern')
-source('maedchen', 'wm-girl-laughing',
-    title='Kurzes Lachen einer Frau («Short clip of girl laughing»)', author='lmbubec (Freesound), nach Wikimedia Commons übertragen von Mx. Granger; Lizenz dort von einem Prüfer bestätigt',
-    licence=CC0, licenceUrl=CC0_URL, url=wm('Short_clip_of_girl_laughing.wav'), file='https://upload.wikimedia.org/wikipedia/commons/f/f4/Short_clip_of_girl_laughing.wav',
-    use='einzelne Lacher von Besucherinnen')
-source('publikum', 'wm-lachkonserve',
-    title='Gelächter von Publikum («Lachkonserve 1»)', author='Sleepytomcat (Jens Kraglund), von der deutschsprachigen Wikipedia nach Wikimedia Commons übertragen',
-    licence='Gemeinfrei: vom Urheber ohne Bedingungen freigegeben («released into the public domain by its author»)',
-    url=wm('Lachkonserve_1.ogg'), file='https://upload.wikimedia.org/wikipedia/commons/f/f9/Lachkonserve_1.ogg',
-    use='gemeinsames Lachen einer Gruppe auf belebten Wegen')
 source('hurra', 'wm-hurray',
     title='Hurra-Rufe («Hurray»)', author='starlite (pdsounds.org Nr. 44), nach Wikimedia Commons übertragen von Fæ',
     licence=PD_PDSOUNDS, url=wm('Hurray.ogg'), file='https://upload.wikimedia.org/wikipedia/commons/e/e8/Hurray.ogg',

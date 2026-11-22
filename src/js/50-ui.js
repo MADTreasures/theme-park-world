@@ -578,7 +578,7 @@ function renderCoach() {
 }
 
 const ACT = {
-  speed: (el) => { S.speed = +el.dataset.v; if (S.speed) ui.lastSpeed = S.speed; uiDirty = true; sfx('click'); },
+  speed: (el) => { S.speed = +el.dataset.v; if (S.speed) ui.lastSpeed = S.speed; uiDirty = true; audioSync(true); sfx('click'); },
   finance: showFinance, menu: showMenu, goals: showGoals, closeModal,
   ads: () => { sfx('click'); showAds(); },
   ad: (el) => { buyAd(el.dataset.k); fillAds(); },
@@ -648,7 +648,7 @@ const ACT = {
     else { const pay = Math.min(1000, S.loan); if (!pay) return; if (S.money < pay) { toast('Dafür reicht das Geld nicht.', 'bad'); return; } S.loan -= pay; S.money -= pay; }
     fillMenu(); uiDirty = true; sfx('click');
   },
-  mute: () => { S.muted = !S.muted; fillMenu(); sfx('click'); },
+  mute: () => { S.muted = !S.muted; fillMenu(); audioSync(true); sfx('click'); },
   music: () => { S.music = !S.music; fillMenu(); sfx('click'); },
   dev: (el) => devAct(el.dataset.k),
   shadows: () => { S.shadows = !S.shadows; sun.castShadow = S.shadows; fillMenu(); },

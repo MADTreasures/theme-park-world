@@ -147,8 +147,8 @@ window.addEventListener('keydown', (e) => {
   keys[k] = true;
   if (fp && (k === 'q' || k === 'e')) { fp.yaw += k === 'q' ? 0.4 : -0.4; return; }
   if (k === 'r') rotateTool();
-  else if (k === ' ' && tag !== 'BUTTON') { S.speed = S.speed ? 0 : ui.lastSpeed; e.preventDefault(); }
-  else if (k === '1' || k === '2' || k === '3') { S.speed = ui.lastSpeed = k === '3' ? 4 : +k; }
+  else if (k === ' ' && tag !== 'BUTTON') { S.speed = S.speed ? 0 : ui.lastSpeed; e.preventDefault(); audioSync(true); }
+  else if (k === '1' || k === '2' || k === '3') { S.speed = ui.lastSpeed = k === '3' ? 4 : +k; audioSync(true); }
   else if (k === 'q') cam.az += Math.PI / 8; else if (k === 'e') cam.az -= Math.PI / 8;
   else if (k.startsWith('arrow') && tag !== 'BUTTON') e.preventDefault();
   uiDirty = true;
