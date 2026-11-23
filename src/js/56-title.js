@@ -30,7 +30,9 @@ function savedWhen(at) {
   return diff === 0 ? 'heute ' + hm : diff === 1 ? 'gestern ' + hm : d.getDate() + '.' + (d.getMonth() + 1) + '.' + d.getFullYear() + ' ' + hm;
 }
 
-const TT = { view: 'main', mode: '', i: -1, from: false, shown: false };
+// The title screen shows the logo and one or two buttons: «Neues Spiel», and «Spiel fortsetzen» once a park has been saved.
+// The three parks have a view of their own, «Deine Parks», which opens from «Neues Spiel».
+const TT = { view: 'main', i: -1, from: false };
 function showTitle(fromGame) {
   if (fromGame) save();   // the park that was open keeps its progress
   select(null); if (ui.modal) closeModal(); if (tool) ACT.cancel(); if (pov || fp) exitMode();
@@ -66,49 +68,50 @@ function titleSkyline() {
     '<path d="M222 300 Q258 236 294 300Z" fill="#160f3c"/><line x1="258" y1="132" x2="258" y2="96" stroke="#241c5c" stroke-width="4"/><path d="M258 96 L292 106 L258 116Z" fill="#ff4f64"/><g fill="#ffd23f">' + tentB + '</g></g>' +
     '<g fill="#1d1650"><circle cx="70" cy="262" r="34"/><circle cx="1110" cy="258" r="40"/><circle cx="1160" cy="270" r="30"/><rect x="0" y="282" width="1200" height="18"/></g></svg>';
 }
-function slotCard(i, info, mode, last, allFull) {
-  const free = !info, on = mode === 'main' || (mode === 'load' ? !free : free || allFull);
-  const sub = free ? (mode === 'new' ? 'Hier einen neuen Park anlegen' : mode === 'main' ? 'Antippen für einen neuen Park' : '') : 'Tag ' + (info.day || 1) + ' · gespeichert ' + savedWhen(info.at);
-  return '<button class="tt-slot' + (free ? ' free' : '') + (!free && last === i ? ' last' : '') + '" data-act="ttSlot" data-i="' + i + '"' + (on ? '' : ' disabled') + '>' +
-    '<span class="tt-n">Platz ' + (i + 1) + (!free && last === i ? '<em>Zuletzt gespielt</em>' : '') + '</span>' +
-    '<b>' + (free ? 'Freier Speicherplatz' : esc(info.name || 'Mein Park')) + '</b><small>' + sub + '</small>' +
-    (mode === 'new' && allFull && !free ? '<span class="tt-rep">Ersetzen</span>' : '') + '</button>';
+// the park that «Spiel fortsetzen» opens: the one played last, otherwise the one saved last; -1 without any park
+function lastSlot(m) {
+  if (m.last >= 0 && m.slots[m.last]) return m.last;
+  let best = -1; for (let i = 0; i < 3; i++) if (m.slots[i] && (best < 0 || (m.slots[i].at || 0) > (m.slots[best].at || 0))) best = i;
+  return best;
+}
+function slotCard(i, info, last, allFull) {
+  if (!info) return '<div class="tt-slot free"><button class="tt-open" data-act="ttSlot" data-i="' + i + '"><span class="tt-n">Platz ' + (i + 1) + '</span><b>Freier Speicherplatz</b><small>Hier einen neuen Park anlegen</small></button></div>';
+  return '<div class="tt-slot' + (last === i ? ' last' : '') + '"><button class="tt-open" data-act="ttSlot" data-i="' + i + '"><span class="tt-n">Platz ' + (i + 1) + (last === i ? '<em>Zuletzt gespielt</em>' : '') + '</span>' +
+    '<b>' + esc(info.name || 'Mein Park') + '</b><small>Tag ' + (info.day || 1) + ' · gespeichert ' + savedWhen(info.at) + '</small><span class="tt-go">Park öffnen</span></button>' +
+    (allFull ? '<button class="tt-repb" data-act="ttAskReplace" data-i="' + i + '">Durch neuen Park ersetzen</button>' : '') + '</div>';
+}
+// builds the frame of the title screen once; the animated logo is already in the page (put there by build.js) and moves into it
+function titleBuild() {
+  const t = $('#title'); if (t.querySelector('.tt-main')) return;
+  const logo = document.getElementById('tt-logo'); if (logo) logo.remove();
+  t.innerHTML = '<div class="tt-bg" aria-hidden="true">' + titleSkyline() + '</div><div class="tt-main"><h1 class="tt-logow" id="tt-logow"></h1><div class="tt-view" id="tt-view"></div><small class="tt-ver"></small></div>';
+  if (logo) $('#tt-logow').appendChild(logo);
+  else $('#tt-logow').innerHTML = '<span class="logo3d" aria-label="Rummelinsel"><span data-t="RUMMEL">RUMMEL</span><span data-t="INSEL">INSEL</span></span>';   // a build without the logo file
 }
 function renderTitle() {
-  const t = $('#title'), m = readMeta(), any = m.slots.some(Boolean), allFull = m.slots.every(Boolean);
-  if (!t.firstChild) t.innerHTML = '<div class="tt-bg" aria-hidden="true">' + titleSkyline() + '</div><div class="tt-main"><h1 class="logo3d" aria-label="Rummelinsel"><span data-t="RUMMEL">RUMMEL</span><span data-t="INSEL">INSEL</span></h1><div class="tt-view" id="tt-view"></div><small class="tt-ver"></small></div>';
+  titleBuild();
+  const t = $('#title'), m = readMeta(), any = m.slots.some(Boolean), allFull = m.slots.every(Boolean), last = lastSlot(m);
   t.querySelector('.tt-ver').textContent = 'Version ' + BUILD + (DEV ? ' · Entwicklermodus' : '');
   let h = '';
   if (TT.view === 'main') {
-    h = '<div class="tt-menu">' + (TT.from ? '<button class="btn tt-b" data-act="ttResume">Zurück zu «' + esc(S.park || 'Mein Park') + '»</button>' : '') +
-      (any ? '<button class="btn tt-b' + (TT.from ? ' line' : '') + '" data-act="ttPick" data-m="load">Spiel fortsetzen</button><button class="btn tt-b line" data-act="ttPick" data-m="new">Neues Spiel</button>'
-        : '<button class="btn tt-b" data-act="ttPick" data-m="new">Spiel starten</button>') +
-      '<button class="btn tt-b line" data-act="ttCredits">Mitwirkende</button></div>' +
-      '<h2 class="tt-h">Deine Parks</h2><div class="tt-slots">' + m.slots.map((s, i) => slotCard(i, s, 'main', m.last, allFull)).join('') + '</div>';
-  } else if (TT.view === 'pick') {
-    const q = TT.mode === 'load' ? 'Welchen Park möchtest du weiterspielen?' : allFull ? 'Alle drei Plätze sind belegt. Welchen Park möchtest du durch einen neuen ersetzen?' : any ? 'Wähle einen freien Platz für deinen neuen Park.' : 'Wähle einen Platz für deinen ersten Park.';
-    h = '<h2 class="tt-h big">' + q + '</h2><div class="tt-slots">' + m.slots.map((s, i) => slotCard(i, s, TT.mode, m.last, allFull)).join('') + '</div><div class="tt-row"><button class="btn line" data-act="ttBack">Zurück</button></div>';
+    const li = last >= 0 ? m.slots[last] : null;
+    h = '<div class="tt-menu">' + (li ? '<button class="btn tt-b" data-act="ttContinue">Spiel fortsetzen<small>' + esc(li.name || 'Mein Park') + ' · Tag ' + (li.day || 1) + '</small></button>' : '') +
+      '<button class="btn tt-b' + (li ? ' line' : '') + '" data-act="ttParks">Neues Spiel</button></div>';
+  } else if (TT.view === 'parks') {
+    h = '<h2 class="tt-h big">Deine Parks</h2><p class="tt-sub">' + (allFull ? 'Alle drei Plätze sind belegt. Öffne einen deiner Parks, oder ersetze einen durch einen neuen.' : any ? 'Lege auf einem freien Platz einen neuen Park an, oder öffne einen deiner Parks.' : 'Wähle einen Platz für deinen ersten Park.') + '</p>' +
+      '<div class="tt-slots">' + m.slots.map((s, i) => slotCard(i, s, last, allFull)).join('') + '</div><div class="tt-row"><button class="btn line" data-act="ttBack">Zurück</button></div>';
   } else if (TT.view === 'confirm') {
     const s = m.slots[TT.i] || {};
     h = '<div class="tt-card"><h2 class="tt-h big">«' + esc(s.name || 'Mein Park') + '» ersetzen?</h2><p>Der Park «' + esc(s.name || 'Mein Park') + '» auf Platz ' + (TT.i + 1) + ' (Tag ' + (s.day || 1) + ') wird gelöscht und durch einen neuen Park ersetzt. Das lässt sich nicht rückgängig machen.</p>' +
       '<div class="tt-row"><button class="btn red" data-act="ttReplace">Ja, ersetzen</button><button class="btn line" data-act="ttBack">Abbrechen</button></div></div>';
   } else if (TT.view === 'name') {
     const used = m.slots.filter(Boolean).map((s) => s.name), def = !used.length ? 'Mein Park' : ['Sonnenpark', 'Glückspark', 'Rummelplatz', 'Wunderpark'].find((n) => used.indexOf(n) < 0) || 'Park ' + (TT.i + 1);
-    h = '<div class="tt-card"><h2 class="tt-h big">Wie soll dein Park heissen?</h2><p>Platz ' + (TT.i + 1) + '. Den Namen siehst du später im Parkbüro und hier auf dem Titelbildschirm.</p>' +
+    h = '<div class="tt-card"><h2 class="tt-h big">Wie soll dein Park heissen?</h2><p>Platz ' + (TT.i + 1) + '. Den Namen siehst du später im Parkbüro und bei deinen Parks.</p>' +
       '<input id="tt-name" class="tt-in" maxlength="24" autocomplete="off" spellcheck="false" value="' + esc(def) + '" aria-label="Name des Parks">' +
       '<div class="tt-row"><button class="btn" data-act="ttCreate">Park eröffnen</button><button class="btn line" data-act="ttBack">Zurück</button></div></div>';
-  } else if (TT.view === 'credits') {
-    const au = audioCredits();
-    h = '<div class="tt-card tt-cred"><h2 class="tt-h big">Mitwirkende</h2><dl>' +
-      '<dt>Spielidee, Gestaltung und Spielleitung</dt><dd>Das Rummelinsel-Team</dd>' +
-      '<dt>Spieltest</dt><dd>Unser Testspieler. Danke für die vielen genauen Hinweise!</dd>' +
-      '<dt>Programmierung, Figuren und Grafik</dt><dd>Entwickelt mit Claude Code (Anthropic)</dd>' +
-      (au.length ? '<dt>Musik und Geräusche</dt><dd><ul>' + au.map((c) => '<li><b>' + esc(c.t) + '</b><span>' + esc(c.a) + ' · ' + esc(c.l) + '</span></li>').join('') + '</ul></dd>' : '') +
-      '<dt>Schriften</dt><dd>Bungee von David Jonathan Ross und Nunito von Vernon Adams, beide unter der SIL Open Font License 1.1</dd>' +
-      '<dt>3D-Grafik</dt><dd>three.js (r128), MIT-Lizenz</dd></dl>' +
-      '<div class="tt-row"><button class="btn" data-act="ttBack">Zurück zum Titel</button></div></div>';
   }
   const v = $('#tt-view'); v.innerHTML = h; v.className = 'tt-view ' + TT.view;
+  t.classList.toggle('sub', TT.view !== 'main');   // in the other views the logo steps back
   if (TT.view === 'name') { const inp = $('#tt-name'); inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); ACT.ttCreate(); } }); setTimeout(() => { try { inp.focus(); inp.select(); } catch (e) { /* not everywhere */ } }, 60); }
   t.scrollTop = 0;
 }
@@ -129,19 +132,15 @@ function parkOpened() {
   cam.tx = cam.tx0; cam.tz = cam.tz0; cam.dist = cam.d = cam.dist0; ui.goalAt = 0;
   uiDirty = true; sfx('goal');
 }
+// opens a saved park; the one that is still loaded behind the title screen simply carries on
+function openSlot(i) { if (TT.from && curSlot === i) hideTitle(); else loadSlot(i); }
 Object.assign(ACT, {
-  ttPick: (el) => { sfx('click'); TT.mode = el.dataset.m; TT.view = 'pick'; renderTitle(); },
-  ttBack: () => { sfx('click'); TT.view = TT.view === 'confirm' || TT.view === 'name' ? (TT.mode ? 'pick' : 'main') : 'main'; if (TT.view === 'main') TT.mode = ''; renderTitle(); },
-  ttCredits: () => { sfx('click'); TT.view = 'credits'; renderTitle(); },
-  ttResume: () => { sfx('click'); hideTitle(); },
-  ttSlot: (el) => {
-    const i = +el.dataset.i, m = readMeta(), info = m.slots[i], allFull = m.slots.every(Boolean), mode = TT.view === 'pick' ? TT.mode : 'main';
-    sfx('click'); TT.i = i;
-    if (info && (mode === 'main' || mode === 'load')) { loadSlot(i); return; }
-    if (!info) { if (mode === 'main') TT.mode = 'new'; TT.view = 'name'; renderTitle(); return; }
-    if (mode === 'new' && allFull) { TT.view = 'confirm'; renderTitle(); }
-  },
-  ttReplace: () => { sfx('click'); TT.view = 'name'; renderTitle(); },
+  ttParks: () => { TT.view = 'parks'; renderTitle(); },
+  ttContinue: () => { const i = lastSlot(readMeta()); if (i >= 0) openSlot(i); },
+  ttBack: () => { TT.view = TT.view === 'parks' ? 'main' : 'parks'; renderTitle(); },
+  ttSlot: (el) => { const i = +el.dataset.i; TT.i = i; if (readMeta().slots[i]) openSlot(i); else { TT.view = 'name'; renderTitle(); } },
+  ttAskReplace: (el) => { TT.i = +el.dataset.i; TT.view = 'confirm'; renderTitle(); },
+  ttReplace: () => { TT.view = 'name'; renderTitle(); },
   ttCreate: () => {
     const inp = $('#tt-name'), name = ((inp && inp.value) || '').replace(/\s+/g, ' ').trim().slice(0, 24) || 'Mein Park';
     try { localStorage.removeItem(SKEY.slot(TT.i)); } catch (e) { /* storage is optional */ }

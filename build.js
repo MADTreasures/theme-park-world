@@ -37,21 +37,30 @@ if (fs.existsSync(path.join(audioDir, 'manifest.json'))) {
 // Every published version gets its own build mark, made from its date and the content of the whole game. When the game
 // sees a mark it has not seen before, it deletes all saved parks of earlier versions, so every new version starts afresh.
 const crypto = require('crypto');
+// The animated logo of the title screen: assets/logo.gif is embedded exactly as it is (the original file, byte for byte),
+// so the game stays one single file. Its size is read from the file, so the page keeps the logo's proportions.
+let logoTag = '', logoHash = '';
+if (fs.existsSync(path.join(__dirname, 'assets/logo.gif'))) {
+  const buf = fs.readFileSync(path.join(__dirname, 'assets/logo.gif'));
+  logoHash = crypto.createHash('sha256').update(buf).digest('hex');
+  logoTag = '<img id="tt-logo" class="tt-logo" alt="Rummelinsel" width="' + buf.readUInt16LE(6) + '" height="' + buf.readUInt16LE(8) + '" draggable="false" src="data:image/gif;base64,' + buf.toString('base64') + '">';
+}
+const body = read('src/body.html').replace('<!--LOGO-->', () => logoTag);
 const stamp = new Date().toISOString().slice(0, 10);
-const buildId = 'v' + stamp + '-' + crypto.createHash('sha256').update(game + read('src/style.css') + read('src/body.html') + audio).digest('hex').slice(0, 8);
+const buildId = 'v' + stamp + '-' + crypto.createHash('sha256').update(game + read('src/style.css') + read('src/body.html') + audio + logoHash).digest('hex').slice(0, 8);
 const buildTag = '<script>window.RUMMEL_BUILD = ' + JSON.stringify(buildId) + ';</script>\n';
 const head = '<title>Rummelinsel 3D</title>\n<meta name="claude:viewport-fit-sides" content="cover">\n';
 const style = '<style>\n' + read('src/style.css') + '</style>\n';
 const script = '<script>\n(function () {\n' + game + '})();\n</script>\n';
 if (online > -1) {
   const out = head + '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Nunito:wght@700;800;900&display=swap">\n' + style +
-    read('src/body.html').replace('<div id="app">', '<div id="app" lang="de">') +
+    body.replace('<div id="app">', '<div id="app" lang="de">') +
     '<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>\n' + audio + buildTag + script;
   fs.writeFileSync(process.argv[online + 1], out);
 } else {
   const out = '<!DOCTYPE html>\n<html lang="de">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n' + head + style +
     '<!-- Fonts Bungee and Nunito (SIL Open Font License 1.1), embedded so the page needs no network. -->\n<style>\n' + read('vendor/fonts.css') + '</style>\n</head>\n<body>\n' +
-    read('src/body.html') +
+    body +
     '<!-- three.js r128 (MIT licence), embedded so the page needs no network. The game code follows in the last script block. -->\n<script>\n' + read('vendor/three.min.js') + '</script>\n' +
     audio + buildTag + script + '</body>\n</html>\n';
   fs.writeFileSync(path.join(outDir, 'index.html'), out);
