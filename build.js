@@ -46,8 +46,10 @@ if (fs.existsSync(path.join(__dirname, 'assets/logo.gif'))) {
   logoTag = '<img id="tt-logo" class="tt-logo" alt="Rummelinsel" width="' + buf.readUInt16LE(6) + '" height="' + buf.readUInt16LE(8) + '" draggable="false" src="data:image/gif;base64,' + buf.toString('base64') + '">';
 }
 const body = read('src/body.html').replace('<!--LOGO-->', () => logoTag);
-const stamp = new Date().toISOString().slice(0, 10);
-const buildId = 'v' + stamp + '-' + crypto.createHash('sha256').update(game + read('src/style.css') + read('src/body.html') + audio + logoHash).digest('hex').slice(0, 8);
+// The mark holds the day, the time of the build and a hash of the content: a file that is issued again with the same
+// content (after taking a change back, for instance) still counts as a new version and starts afresh.
+const now = new Date().toISOString(), stamp = now.slice(0, 10), clock = now.slice(11, 16).replace(':', '');
+const buildId = 'v' + stamp + '-' + clock + '-' + crypto.createHash('sha256').update(game + read('src/style.css') + read('src/body.html') + audio + logoHash).digest('hex').slice(0, 8);
 const buildTag = '<script>window.RUMMEL_BUILD = ' + JSON.stringify(buildId) + ';</script>\n';
 const head = '<title>Rummelinsel 3D</title>\n<meta name="claude:viewport-fit-sides" content="cover">\n';
 const style = '<style>\n' + read('src/style.css') + '</style>\n';
