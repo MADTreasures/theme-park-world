@@ -31,8 +31,9 @@ function savedWhen(at) {
 }
 
 // The title screen shows the logo and one or two buttons: «Neues Spiel», and «Spiel fortsetzen» once a park has been saved.
-// The three parks have a view of their own, «Deine Parks», which opens from «Neues Spiel».
-const TT = { view: 'main', i: -1, from: false };
+// Neither starts a park by itself: both open the view «Deine Parks» with the three places, where the player picks the park
+// to carry on with or a free place for a new one. Only the line under the heading differs («cont»: came to carry on).
+const TT = { view: 'main', i: -1, from: false, cont: false };
 function showTitle(fromGame) {
   if (fromGame) save();   // the park that was open keeps its progress
   select(null); if (ui.modal) closeModal(); if (tool) ACT.cancel(); if (pov || fp) exitMode();
@@ -41,7 +42,7 @@ function showTitle(fromGame) {
   const t = $('#title'); t.hidden = false; document.documentElement.classList.add('tt'); renderTitle();
 }
 function hideTitle() { ui.title = false; $('#title').hidden = true; document.documentElement.classList.remove('tt'); $('#hud').removeAttribute('aria-hidden'); uiDirty = true; audioSync(true); }   // called from a tap: the sound may start right away
-// the park that «Spiel fortsetzen» opens: the one played last, otherwise the one saved last; -1 without any park
+// the park marked «Zuletzt gespielt»: the one played last, otherwise the one saved last; -1 without any park
 function lastSlot(m) {
   if (m.last >= 0 && m.slots[m.last]) return m.last;
   let best = -1; for (let i = 0; i < 3; i++) if (m.slots[i] && (best < 0 || (m.slots[i].at || 0) > (m.slots[best].at || 0))) best = i;
@@ -64,11 +65,10 @@ function renderTitle() {
   t.querySelector('.tt-ver').textContent = 'Version ' + BUILD + (DEV ? ' · Entwicklermodus' : '');
   let h = '';
   if (TT.view === 'main') {
-    const li = last >= 0 ? m.slots[last] : null;
-    h = '<div class="tt-menu">' + (li ? '<button class="btn tt-b" data-act="ttContinue">Spiel fortsetzen<small>' + esc(li.name || 'Mein Park') + ' · Tag ' + (li.day || 1) + '</small></button>' : '') +
-      '<button class="btn tt-b' + (li ? ' line' : '') + '" data-act="ttParks">Neues Spiel</button></div>';
+    h = '<div class="tt-menu">' + (any ? '<button class="btn tt-b" data-act="ttContinue">Spiel fortsetzen</button>' : '') +
+      '<button class="btn tt-b' + (any ? ' line' : '') + '" data-act="ttParks">Neues Spiel</button></div>';
   } else if (TT.view === 'parks') {
-    h = '<h2 class="tt-h big">Deine Parks</h2><p class="tt-sub">' + (allFull ? 'Alle drei Plätze sind belegt. Öffne einen deiner Parks, oder ersetze einen durch einen neuen.' : any ? 'Lege auf einem freien Platz einen neuen Park an, oder öffne einen deiner Parks.' : 'Wähle einen Platz für deinen ersten Park.') + '</p>' +
+    h = '<h2 class="tt-h big">Deine Parks</h2><p class="tt-sub">' + (TT.cont && any ? 'Öffne den Park, den du weiterspielen möchtest.' : allFull ? 'Alle drei Plätze sind belegt. Öffne einen deiner Parks, oder ersetze einen durch einen neuen.' : any ? 'Lege auf einem freien Platz einen neuen Park an, oder öffne einen deiner Parks.' : 'Wähle einen Platz für deinen ersten Park.') + '</p>' +
       '<div class="tt-slots">' + m.slots.map((s, i) => slotCard(i, s, last, allFull)).join('') + '</div><div class="tt-row"><button class="btn line" data-act="ttBack">Zurück</button></div>';
   } else if (TT.view === 'confirm') {
     const s = m.slots[TT.i] || {};
@@ -105,8 +105,8 @@ function parkOpened() {
 // opens a saved park; the one that is still loaded behind the title screen simply carries on
 function openSlot(i) { if (TT.from && curSlot === i) hideTitle(); else loadSlot(i); }
 Object.assign(ACT, {
-  ttParks: () => { TT.view = 'parks'; renderTitle(); },
-  ttContinue: () => { const i = lastSlot(readMeta()); if (i >= 0) openSlot(i); },
+  ttParks: () => { TT.cont = false; TT.view = 'parks'; renderTitle(); },
+  ttContinue: () => { TT.cont = true; TT.view = 'parks'; renderTitle(); },
   ttBack: () => { TT.view = TT.view === 'parks' ? 'main' : 'parks'; renderTitle(); },
   ttSlot: (el) => { const i = +el.dataset.i; TT.i = i; if (readMeta().slots[i]) openSlot(i); else { TT.view = 'name'; renderTitle(); } },
   ttAskReplace: (el) => { TT.i = +el.dataset.i; TT.view = 'confirm'; renderTitle(); },
