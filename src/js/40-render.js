@@ -251,7 +251,7 @@ function drawFigure(f, seat, ride, rdt) {
 function renderPeople(rdt) {
   for (const M of FIGSETS) { M.nFig = M.nLimb = M.nSkirt = M.nPack = M.nShades = M.nMask = M.nHoops = M.nCape = M.nPlush = M.nUmb = M.nSun = M.nStick = M.nTorch = 0; M.nHair.fill(0); M.nMouth.fill(0); }
   nBall = nBlob = figNear = 0;
-  figT = performance.now() * 0.001; figFaces = !!(fp || pov) || cam.d < 30;
+  figT = worldT; figFaces = !!(fp || pov) || cam.d < 30;
   figFar = !(fp || pov) && cam.d > 36;   // the whole park in view: people are a few pixels tall, their smallest parts are left out
   // The smooth set is for people who appear large: within a reach that depends on the lens. When more people are
   // that near than the set can hold, the reach shrinks from frame to frame; with room to spare it grows again.
@@ -358,7 +358,7 @@ const catchFx = [0, 1, 2].map(() => {
   beam.position.y = 5; ring.rotation.x = -Math.PI / 2; ring.position.y = 0.045; ring.renderOrder = 3; g.add(beam, ring); g.visible = false; scene.add(g); return g;
 });
 function renderIcons() {
-  let n = 0, cf = 0; const sz = clamp(cam.d * 0.034, 0.5, 1.7), now = performance.now();
+  let n = 0, cf = 0; const sz = clamp(cam.d * 0.034, 0.5, 1.7), now = worldT * 1000;
   for (const f of thieves) if (f.state === 'held' && cf < 3) { const g = catchFx[cf++], k = 1 + 0.3 * Math.sin(now * 0.008); g.visible = true; g.position.set(f.x, 0, f.z); g.children[1].scale.set(k, k, 1); }
   for (; cf < 3; cf++) catchFx[cf].visible = false;
   MAT_BEAM.opacity = 0.16 + 0.08 * Math.sin(now * 0.006);
@@ -368,9 +368,9 @@ function renderIcons() {
     if (b.broken) put(ICON.fix, b.group.position.x, b.top + 0.3 + Math.sin(S.time * 3) * 0.08, b.group.position.z, 1.5);
     else if (!b.def.noPath && !connected(b)) put(ICON.nopath, b.group.position.x, b.top + (b.site ? 0.95 : 0.3), b.group.position.z, 1.5);   // above the progress bar of a building site
   }
-  for (const f of thieves) { if (n >= 18) break; if (f.state === 'held') put(ICON.hand, f.x, 0.86, f.z, 1.25 + Math.sin(performance.now() * 0.01) * 0.18); else if (f.spotted && f.state !== 'thrown') put(ICON.alert, f.x, 0.8, f.z, 0.9); }
-  for (const s of staff) { if (n >= 26) break; if (s.asleep) put(ICON.zzz, s.x + 0.08, (s.seat ? 1.7 : 0.56) + Math.sin(performance.now() * 0.003) * 0.04, s.z, 1 + (s.wake || 0) * 0.12); else if (s.type === 'sec' && s.g === 'awake' && s.alertT > 71) put(ICON.alert, s.x, 0.78, s.z, 1); else if (s.mood < 30 && s.state !== 'rest') put(ICON.angry, s.x, 0.78, s.z, 0.8); }
-  for (const sp of splashes) { sp.t += 0.03; if (n < sprites.length) put(SPLASH, sp.x, 0.1, sp.z, (0.9 + sp.t * 3.2) / sz); }
+  for (const f of thieves) { if (n >= 18) break; if (f.state === 'held') put(ICON.hand, f.x, 0.86, f.z, 1.25 + Math.sin(now * 0.01) * 0.18); else if (f.spotted && f.state !== 'thrown') put(ICON.alert, f.x, 0.8, f.z, 0.9); }
+  for (const s of staff) { if (n >= 26) break; if (s.asleep) put(ICON.zzz, s.x + 0.08, (s.seat ? 1.7 : 0.56) + Math.sin(now * 0.003) * 0.04, s.z, 1 + (s.wake || 0) * 0.12); else if (s.type === 'sec' && s.g === 'awake' && s.alertT > 71) put(ICON.alert, s.x, 0.78, s.z, 1); else if (s.mood < 30 && s.state !== 'rest') put(ICON.angry, s.x, 0.78, s.z, 0.8); }
+  for (const sp of splashes) { sp.t += worldDt * 1.8; if (n < sprites.length) put(SPLASH, sp.x, 0.1, sp.z, (0.9 + sp.t * 3.2) / sz); }
   if (splashes.length) { SPLASH.opacity = Math.max(0, 1 - splashes[0].t); if (splashes[0].t >= 1) splashes.shift(); }
   // the influencer is easy to find: a camera floats above the head for the whole visit
   if (vipG && !vipG.gone && vipG.state !== 'ride' && n < sprites.length) put(ICON.cam, vipG.x, 0.92 * vipG.sc + Math.sin(now * 0.004) * 0.03, vipG.z, 1.05);
@@ -378,7 +378,7 @@ function renderIcons() {
   for (const g of guests) { if (n >= cap) break; if (g.think > 0 && g.state !== 'ride' && !g.vip) put(ICON[g.tk] || ICON.happy, g.x, (g.kid ? 0.77 : 0.73) * g.sc, g.z, 0.85 * Math.min(1, g.think * 4, (2.8 - g.think) * 6 + 0.2)); }
   for (let i = n; i < sprites.length; i++) sprites[i].visible = false;
   const sg = sel && (sel.guest || (sel.staff && sel.staff.state !== 'rest' ? sel.staff : null));
-  if (sg && sg.state !== 'ride') { selMark.visible = true; selMark.position.set(sg.x, 0.76 * (sg.sc || 1.2) + 0.2 + Math.sin(performance.now() * 0.006) * 0.06, sg.z); selMark.rotation.y += 0.05; } else selMark.visible = false;
+  if (sg && sg.state !== 'ride') { selMark.visible = true; selMark.position.set(sg.x, 0.76 * (sg.sc || 1.2) + 0.2 + Math.sin(now * 0.006) * 0.06, sg.z); selMark.rotation.y += worldDt * 3; } else selMark.visible = false;
 }
 
 /* ----- build helpers in the scene ----- */

@@ -117,7 +117,7 @@ function rebuildTufts() {
   iTuft.instanceMatrix.needsUpdate = iBloom.instanceMatrix.needsUpdate = iTuft.instanceColor.needsUpdate = iBloom.instanceColor.needsUpdate = true;
 }
 function updateWorldExtras(rdt) {
-  const t = performance.now() / 1000;
+  const t = worldT;
   if (tuftV !== pathVersion) rebuildTufts();
   updateLampLights();
   waterTex.offset.x += rdt * 0.012; waterTex.offset.y += rdt * 0.007;

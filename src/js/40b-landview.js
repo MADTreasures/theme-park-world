@@ -56,7 +56,7 @@ function rebuildLand() {
 function landFrame() {
   if (landDirty) rebuildLand();
   rebuildPlots();
-  const t = performance.now() * 0.001, n = Math.min(cuts.length, 300), k = clamp(cam.d / 22, 0.9, 2.4);
+  const t = worldT, n = Math.min(cuts.length, 300), k = clamp(cam.d / 22, 0.9, 2.4);
   for (let i = 0; i < n; i++) {
     const o = cuts[i];
     _gq.setFromAxisAngle(UP, t * 2 + i); _gp.set(wX(o.x), PLANT_TOP[o.k] + 0.2 + Math.sin(t * 3 + i) * 0.06, wZ(o.y));

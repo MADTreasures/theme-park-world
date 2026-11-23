@@ -5,6 +5,10 @@ let fin = { today: newFin(), yest: newFin() }, curDay = 0;
 const tType = new Uint8Array(N * N), tObj = new Array(N * N).fill(null), litter = new Uint8Array(N * N), beauty = new Float32Array(N * N), binNear = new Uint8Array(N * N);
 let pathVersion = 1, pathDirty = true, litterDirty = true, litterTotal = 0, pathCount = 0, uid = 1;
 let builds = [], decos = [], animDecos = [], guests = [], staff = [];
+// The clock of everything that only moves for show (eyes, gulls, boats, water, clouds, rain, floating signs): seconds of
+// running game, and how much of them the current frame adds. Both stand still while the game is paused, so that then
+// really nothing moves; only the camera stays free.
+let worldT = 0, worldDt = 0;
 let colorsDirty = true, anyGone = false, uiDirty = true, hintT = 0, secAcc = 0, spawnAcc = 0;
 const complaints = { wc: 0, food: 0, drink: 0, money: 0, queue: 0, litter: 0, thief: 0 };
 function earn(n, key) { S.money += n; fin.today[key] += n; }

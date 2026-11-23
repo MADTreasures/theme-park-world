@@ -26,7 +26,25 @@ function exitMode() {
   if (pov) { cam.tx = pov.b.group.position.x; cam.tz = pov.b.group.position.z; }
   clampCam(); pov = null; fp = null; setImmersive(false); select(null);
 }
-function fpBlocked(x, z) { const gx = Math.floor(x + HALF), gy = Math.floor(z + HALF); return !inB(gx, gy) || tType[idx(gx, gy)] === 2; }
+// What stops someone who walks through the park. Whole tiles: buildings, building sites and large decorations, and the
+// edge of the island's ground. The fence: from the park's own land there is no way out onto land that is not owned.
+function fpBlocked(x, z) {
+  const gx = Math.floor(x + HALF), gy = Math.floor(z + HALF); if (!inB(gx, gy)) return true;
+  const t = idx(gx, gy), ob = tObj[t];
+  if (tType[t] === 2 || (tType[t] === 3 && ob && (ob.w > 1 || ob.h > 1))) return true;
+  return !owned[t] && ownedAt(Math.floor(fp.x + HALF), Math.floor(fp.z + HALF));
+}
+// Plants and small decorations are round obstacles in the middle of their tile: whoever walks into one is set back to
+// its edge and so slides around it. The numbers say how close the walker gets to the middle of each kind (always less
+// than half a tile, so being set back never crosses into the next tile).
+const FP_RAD = { tree: 0.45, pine: 0.4, palm: 0.26, bush: 0.42, flowers: 0.46, bench: 0.4, bin: 0.28, lamp: 0.24 };
+function fpPush() {
+  const gx = Math.floor(fp.x + HALF), gy = Math.floor(fp.z + HALF); if (!inB(gx, gy)) return;
+  const t = idx(gx, gy), ob = tObj[t]; if (tType[t] !== 3 || !ob || ob.removed || ob.w > 1 || ob.h > 1) return;
+  const r = FP_RAD[ob.k] || 0.34, ox = wX(ob.x), oz = wZ(ob.y), dx = fp.x - ox, dz = fp.z - oz, d = Math.hypot(dx, dz);
+  if (d >= r) return;
+  if (d < 1e-4) fp.x = ox + r; else { fp.x = ox + dx / d * r; fp.z = oz + dz / d * r; }
+}
 function modeLook(dx, dy) { const o = fp || pov; if (!o) return; o.yaw -= dx * 0.005; o.pitch = clamp(o.pitch - dy * 0.004, -1.1, 1.1); }
 // Returns true while one of the two modes drives the camera.
 function modeCamera(dt) {
@@ -45,6 +63,7 @@ function modeCamera(dt) {
     const sp = 2.4 * dt, sn = Math.sin(fp.yaw), cs = Math.cos(fp.yaw), dx = (cs * kx - sn * ky) * sp, dz = (-sn * kx - cs * ky) * sp;
     if (dx && !fpBlocked(fp.x + dx + Math.sign(dx) * 0.2, fp.z)) fp.x += dx;
     if (dz && !fpBlocked(fp.x, fp.z + dz + Math.sign(dz) * 0.2)) fp.z += dz;
+    fpPush();
     camera.position.set(fp.x, 0.56 + (kx || ky ? Math.abs(Math.sin(performance.now() * 0.009)) * 0.014 : 0), fp.z);
     _pe.set(fp.pitch, fp.yaw, 0); camera.quaternion.setFromEuler(_pe);
     cam.tx = fp.x; cam.tz = fp.z;
