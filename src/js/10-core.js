@@ -1,7 +1,8 @@
 'use strict';
 const $ = (s) => document.querySelector(s);
 const DEV = !!window.RUMMEL_DEV || window.location.hash === '#dev';   // developer mode: own save game, test panel
-if (!window.THREE) { $('#nogl').hidden = false; return; }
+const noStart = () => { $('#nogl').hidden = false; $('#title').hidden = true; document.documentElement.classList.remove('tt'); };   // the game cannot run here: say so instead of the title screen
+if (!window.THREE) { noStart(); return; }
 const T = window.THREE;
 
 /* ================= helpers ================= */
@@ -26,7 +27,7 @@ const TAU = Math.PI * 2;
 const canvas = $('#stage');
 let renderer;
 try { renderer = new T.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' }); }
-catch (e) { $('#nogl').hidden = false; return; }
+catch (e) { noStart(); return; }
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = T.PCFSoftShadowMap;

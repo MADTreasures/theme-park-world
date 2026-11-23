@@ -60,7 +60,7 @@ if (online > -1) {
     '<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>\n' + audio + buildTag + script;
   fs.writeFileSync(process.argv[online + 1], out);
 } else {
-  const out = '<!DOCTYPE html>\n<html lang="de">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n' + head + style +
+  const out = '<!DOCTYPE html>\n<html lang="de" class="tt">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n' + head + style +
     '<!-- Fonts Bungee and Nunito (SIL Open Font License 1.1), embedded so the page needs no network. -->\n<style>\n' + read('vendor/fonts.css') + '</style>\n</head>\n<body>\n' +
     body +
     '<!-- three.js r128 (MIT licence), embedded so the page needs no network. The game code follows in the last script block. -->\n<script>\n' + read('vendor/three.min.js') + '</script>\n' +

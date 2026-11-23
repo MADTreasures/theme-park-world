@@ -76,11 +76,19 @@ function rufInfo() {
   const r = S.rating, sl = rufSlope(), tr = sl > 1 ? 1 : sl < -1 ? -1 : 0, word = rufWord(r);
   return { r, word, good: r >= 65, trend: tr, arrow: tr > 0 ? '↑' : tr < 0 ? '↓' : '→', text: word + ' ' + (tr > 0 ? '↑ steigend' : tr < 0 ? '↓ sinkend' : '→ stabil') };
 }
-// Prices may only go up while the park's reputation is good and not falling. Lowering a price is always possible.
-function priceLock() {
-  const f = rufInfo();
-  if (f.trend < 0) return 'Dein Parkruf sinkt. Preiserhöhungen sind momentan gesperrt.';
-  if (!f.good) return 'Dein Parkruf ist «' + f.word + '». Preise erhöhen kannst du erst ab «Gut».';
+// Up to the usual price, a price can always be raised, so a price that was set too low (even to nothing) never traps the
+// park: for the entrance that is what guests find fair, at least the price a new park starts with; for a ride or stall
+// its fair price, at least its catalogue price. Beyond that, prices may only go up while the park's reputation is good
+// and not falling. Lowering a price is always possible.
+const START_TICKET = 5;
+const freeTicket = () => Math.max(START_TICKET, Math.floor(0.8 * willing()));
+const freePrice = (b) => Math.max(b.def.price || 0, Math.floor((fairB(b) || 0) * 2) / 2, 0.5);
+// why the price cannot go up to «next» right now ('' when it can); «free» is the price that is always allowed
+function priceLock(next, free, freeTxt) {
+  if (next <= free + 1e-6) return '';
+  const f = rufInfo(), upTo = freeTxt ? ' Bis ' + freeTxt + ' geht es immer.' : '';
+  if (f.trend < 0) return 'Dein Parkruf sinkt. Höhere Preise sind momentan gesperrt.' + upTo;
+  if (!f.good) return 'Dein Parkruf ist «' + f.word + '». Höhere Preise gehen erst ab «Gut».' + upTo;
   return '';
 }
 function secondTick() {

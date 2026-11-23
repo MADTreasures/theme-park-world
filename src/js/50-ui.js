@@ -35,7 +35,7 @@ const IC = {
   plus: svg(stroke('M12 5v14M5 12h14', 2.8)), minus: svg(stroke('M5 12h14', 2.8)), x: svg(stroke('M6 6l12 12M18 6L6 18', 2.8)), check: svg(stroke('M5 12.5l4.5 4.5L19 7.5', 3)),
 };
 document.querySelectorAll('[data-ic]').forEach((e) => { e.innerHTML = IC[e.dataset.ic]; });
-const ui = { grp: { ride: '', shop: '' }, tab: null, modal: false, ask: null, lastSpeed: 1, nightIcon: false, onClose: null, mini: false, panelMin: false };
+const ui = { title: true, grp: { ride: '', shop: '' }, tab: null, modal: false, ask: null, lastSpeed: 1, nightIcon: false, onClose: null, mini: false, panelMin: false };
 // which boxes are folded away is remembered on this device
 const UI_KEY = 'rummelinsel.ui.v1';
 function uiPref(k, v) {
@@ -405,7 +405,7 @@ function refreshPanel() {
     if (b.broken) { txt = 'Defekt'; cls = 'bad'; } else if (!connected(b)) { txt = 'Kein Weg zum Eingang'; cls = 'warn'; } else if (!b.open) { txt = d.cat === 'ride' ? 'Angehalten' : 'Geschlossen'; cls = 'warn'; }
     else if (d.cat !== 'ride') txt = 'Geöffnet'; else if (b.state === 'run') txt = 'Fährt'; else if (b.queue.length) txt = 'Einstieg'; else { txt = 'Wartet auf Gäste'; cls = ''; }
     st.textContent = txt; st.className = 'pill ' + cls;
-    setTxt('p-price', eur2(b.price)); setTxt('p-op', opinion(b.price / fairB(b))); lockShow('p'); setTxt('p-q', b.queue.length); setTxt('p-n', b.count); setTxt('p-inc', eur(b.income));
+    setTxt('p-price', eur2(b.price)); setTxt('p-op', opinion(b.price / fairB(b))); lockShow('p', priceLock(b.price + 0.5, freePrice(b), eur2(freePrice(b)))); setTxt('p-q', b.queue.length); setTxt('p-n', b.count); setTxt('p-inc', eur(b.income));
     if (d.cat === 'ride') { const lv = lvlOf(b); setTxt('p-lvl', 'Stufe ' + lv); setTxt('p-exc', d.cap + ' · ' + Math.round(excOf(b))); setTxt('p-next', lv > LVL.length ? 'höchste Stufe' : 'noch ' + (LVL[lv - 1] - b.count) + ' Fahrgäste'); }
     setTxt('p-toggle', b.open ? (d.cat === 'ride' ? 'Anhalten' : 'Zumachen') : 'Wieder öffnen');
     const rp = $('#p-repair'); if (rp) rp.hidden = !b.broken;
@@ -468,8 +468,8 @@ function fillTeam() {
   setTxt('t-sum', eur(staff.reduce((n, s) => n + (s.state === 'quit' ? 0 : STAFF[s.type].wage), 0) * WAGE[S.wage]));
 }
 // next to a price: the park's reputation, and why raising the price does not work right now
-function lockShow(pre) {
-  const f = rufInfo(), lk = priceLock(), up = document.getElementById(pre + '-up'), n = document.getElementById(pre + '-lock');
+function lockShow(pre, lk) {
+  const f = rufInfo(), up = document.getElementById(pre + '-up'), n = document.getElementById(pre + '-lock');
   setTxt(pre + '-ruf', f.text + ' (' + Math.round(f.r) + ')');
   if (up) { up.classList.toggle('off', !!lk); up.setAttribute('aria-disabled', lk ? 'true' : 'false'); }
   if (n) { n.hidden = !lk; setTxt(pre + '-lock', lk); }
@@ -547,7 +547,7 @@ function showGoals() {
 }
 function showMenu() {
   modal('<h2>Parkbüro' + (S.park ? ' · ' + esc(S.park) : '') + '</h2><div class="kv"><span>Parkruf</span><b id="m-rate"></b><span>Gäste im Park</span><b id="m-now"></b><span>Gäste insgesamt</span><b id="m-all"></b><span>Wetter</span><b id="m-wx"></b></div><div class="row"><button class="btn" data-act="ads">Besucher und Werbung</button><button class="btn line" data-act="goals">Ziele</button><button class="btn line" data-act="log">Letzte Meldungen</button></div>' +
-    '<h3>Eintritt</h3><div class="stepper"><span class="lbl">Ticketpreis</span><button class="sq" data-act="ticket" data-d="-1" aria-label="Eintritt senken">' + IC.minus + '</button><output id="m-ticket"></output><button class="sq" id="m-up" data-act="ticket" data-d="1" aria-label="Eintritt erhöhen">' + IC.plus + '</button></div><p class="note">Gäste finden den Eintritt <b id="m-op"></b>. Parkruf: <b id="m-ruf"></b></p><p class="note lock" id="m-lock" hidden></p><p class="note">Jede Attraktion, die Gäste nutzen können, und mehr Land erlauben einen höheren Eintritt. Ist der Parkruf gut, zählt jede weitere Attraktion noch mehr. Erhöhen kannst du Preise nur, solange der Parkruf gut ist und nicht sinkt; senken geht immer.</p>' +
+    '<h3>Eintritt</h3><div class="stepper"><span class="lbl">Ticketpreis</span><button class="sq" data-act="ticket" data-d="-1" aria-label="Eintritt senken">' + IC.minus + '</button><output id="m-ticket"></output><button class="sq" id="m-up" data-act="ticket" data-d="1" aria-label="Eintritt erhöhen">' + IC.plus + '</button></div><p class="note">Gäste finden den Eintritt <b id="m-op"></b>. Parkruf: <b id="m-ruf"></b></p><p class="note lock" id="m-lock" hidden></p><p class="note">Jede Attraktion, die Gäste nutzen können, und mehr Land erlauben einen höheren Eintritt. Ist der Parkruf gut, zählt jede weitere Attraktion noch mehr. Bis zum üblichen Preis kannst du jederzeit erhöhen, auch wenn der Eintritt auf null steht. Darüber hinaus geht es nur, solange der Parkruf gut ist und nicht sinkt. Senken geht immer.</p>' +
     '<h3>Kredit</h3><div class="stepper"><span class="lbl">Schulden · 1,2 % Zinsen pro Tag</span><button class="sq" data-act="loan" data-d="-1" aria-label="Kredit tilgen">' + IC.minus + '</button><output id="m-loan"></output><button class="sq" data-act="loan" data-d="1" aria-label="Kredit aufnehmen">' + IC.plus + '</button></div>' +
     '<h3>Einstellungen</h3><div class="row"><button class="btn line" data-act="mute" id="m-mute"></button><button class="btn line" data-act="music" id="m-music"></button><button class="btn line" data-act="shadows" id="m-shadow"></button><button class="btn line" data-act="outline" id="m-outline"></button><button class="btn line" data-act="currency">Währung gestalten</button><button class="btn line" data-act="help">Steuerung zeigen</button><button class="btn line" data-act="credits">Mitwirkende</button><button class="btn" data-act="toTitle">Zum Titelbildschirm</button></div><p class="note">Auf dem Titelbildschirm wechselst du zwischen deinen drei Parks oder legst einen neuen an. Dein Park wird vorher gespeichert.</p>');
   fillMenu();
@@ -564,7 +564,7 @@ function showCredits() {
     (rows ? '<h3>Musik und Geräusche</h3><p class="note">Musik, Stimmengewirr, Jubel und Applaus sind echte Aufnahmen. Alle sind gemeinfrei oder von ihren Urhebern ohne Bedingungen freigegeben; für das Spiel wurden sie gekürzt, in der Lautstärke angeglichen und in Mono umgewandelt. Die übrigen Geräusche erzeugt das Spiel selbst.</p><ul class="credl">' + rows + '</ul>' : ''), 'wide');
 }
 function fillMenu() {
-  setTxt('m-rate', rufInfo().text + ' · ' + Math.round(S.rating) + ' von 100'); setTxt('m-now', guests.length); setTxt('m-all', S.visitors); lockShow('m');
+  setTxt('m-rate', rufInfo().text + ' · ' + Math.round(S.rating) + ' von 100'); setTxt('m-now', guests.length); setTxt('m-all', S.visitors); lockShow('m', priceLock(S.ticket + 1, freeTicket(), eur(freeTicket())));
   setTxt('m-ticket', eur(S.ticket)); setTxt('m-op', opinion(S.ticket / willing() / 0.8)); setTxt('m-loan', eur(S.loan));
   setTxt('m-music', S.music ? 'Musik ausschalten' : 'Musik einschalten'); setTxt('m-wx', WX_NAME[WX.k] + (WX.bonus > 0 && WX.k !== 'rain' && WX.k !== 'storm' ? ' mit Regenbogen' : ''));
   setTxt('m-mute', S.muted ? 'Ton einschalten' : 'Ton ausschalten'); setTxt('m-shadow', S.shadows ? 'Schatten ausschalten' : 'Schatten einschalten'); setTxt('m-outline', S.outline === true ? 'Comic-Linien ausschalten' : 'Comic-Linien einschalten');
@@ -629,7 +629,7 @@ const ACT = {
   tundo: () => { const t = tool; if (!t || t.type !== 'track') return; if (t.sel != null && t.nodes[t.sel]) t.nodes.splice(t.sel, 1); else if (t.nodes.length) t.nodes.pop(); else t.station = null; t.sel = null; sfx('click'); trackChanged(); },
   cancel: () => { setTool(null); if (ui.tab === 'path' || ui.tab === 'doze' || ui.tab === 'land') { ui.tab = null; renderTray(); } },
   unselect: () => select(null),
-  price: (el) => { const b = sel && sel.obj; if (!b) return; if (+el.dataset.d > 0 && priceLock()) { sfx('error'); toast(priceLock(), 'bad'); return; } b.price = clamp(Math.round((b.price + el.dataset.d * 0.5) * 2) / 2, 0, 25); uiDirty = true; sfx('click'); },
+  price: (el) => { const b = sel && sel.obj; if (!b) return; const lk = +el.dataset.d > 0 ? priceLock(b.price + 0.5, freePrice(b), eur2(freePrice(b))) : ''; if (lk) { sfx('error'); toast(lk, 'bad'); return; } b.price = clamp(Math.round((b.price + el.dataset.d * 0.5) * 2) / 2, 0, 25); uiDirty = true; sfx('click'); },
   toggle: () => {
     const b = sel && sel.obj; if (!b) return;
     b.open = !b.open;
@@ -646,7 +646,7 @@ const ACT = {
   crew: (el) => { const b = sel && sel.obj; if (b && b.site) { setCrew(b, b.site.want + +el.dataset.d); sfx('click'); refreshPanel(); } },
   buyLand: () => { const t = tool; if (!t || t.type !== 'land' || t.plot < 0) return; if (buyPlot(t.plot)) { t.plot = -1; hl.visible = false; } renderToolbar(); },
   yesDemolish: () => { const b = ui.ask; closeModal(); if (b && !b.removed) demolish(b); },
-  ticket: (el) => { if (+el.dataset.d > 0 && priceLock()) { sfx('error'); toast(priceLock(), 'bad'); fillMenu(); return; } S.ticket = clamp(S.ticket + +el.dataset.d, 0, 90); fillMenu(); sfx('click'); },
+  ticket: (el) => { const lk = +el.dataset.d > 0 ? priceLock(S.ticket + 1, freeTicket(), eur(freeTicket())) : ''; if (lk) { sfx('error'); toast(lk, 'bad'); fillMenu(); return; } S.ticket = clamp(S.ticket + +el.dataset.d, 0, 90); fillMenu(); sfx('click'); },
   loan: (el) => {
     if (+el.dataset.d > 0) { if (S.loan >= 10000) { toast('Mehr als ' + eur(10000) + ' leiht dir die Bank nicht.', 'bad'); return; } S.loan += 1000; S.money += 1000; }
     else { const pay = Math.min(1000, S.loan); if (!pay) return; if (S.money < pay) { toast('Dafür reicht das Geld nicht.', 'bad'); return; } S.loan -= pay; S.money -= pay; }

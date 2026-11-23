@@ -38,36 +38,9 @@ function showTitle(fromGame) {
   select(null); if (ui.modal) closeModal(); if (tool) ACT.cancel(); if (pov || fp) exitMode();
   TT.from = !!fromGame && curSlot >= 0; TT.view = 'main';
   ui.title = true; $('#hud').setAttribute('aria-hidden', 'true'); audioSync(false);   // the park falls silent at once
-  const t = $('#title'); t.hidden = false; renderTitle();
+  const t = $('#title'); t.hidden = false; document.documentElement.classList.add('tt'); renderTitle();
 }
-function hideTitle() { ui.title = false; $('#title').hidden = true; $('#hud').removeAttribute('aria-hidden'); uiDirty = true; audioSync(true); }   // called from a tap: the sound may start right away
-function titleSkyline() {
-  // bunting across the top, and the dark outline of a fairground along the bottom: big wheel, circus tent, roller coaster
-  let flags = '';
-  for (let k = 0; k < 15; k++) {
-    const t = (k + 0.5) / 15, x = 1200 * t, y = (1 - t) * (1 - t) * 6 + 2 * t * (1 - t) * 58 + t * t * 6, c = ['#ff4f64', '#ffd23f', '#3ddbb4', '#3d8bfd', '#ff8fc7'][k % 5];
-    flags += '<path d="M' + (x - 26).toFixed(1) + ' ' + (y - 3).toFixed(1) + ' L' + (x + 26).toFixed(1) + ' ' + (y - 3).toFixed(1) + ' L' + x.toFixed(1) + ' ' + (y + 44).toFixed(1) + 'Z" fill="' + c + '"/>';
-  }
-  let spokes = '', cabins = '', bulbs = '';
-  for (let k = 0; k < 12; k++) {
-    const a = k / 12 * Math.PI * 2, cx = 930 + Math.cos(a) * 112, cy = 150 + Math.sin(a) * 112;
-    spokes += '<line x1="930" y1="150" x2="' + cx.toFixed(1) + '" y2="' + cy.toFixed(1) + '"/>';
-    cabins += '<rect x="' + (cx - 11).toFixed(1) + '" y="' + (cy - 2).toFixed(1) + '" width="22" height="18" rx="5"/>';
-    bulbs += '<circle cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" r="3.2"/>';
-  }
-  let tentB = ''; for (let k = 0; k < 9; k++) tentB += '<circle cx="' + (150 + k * 27.5) + '" cy="' + (214 - Math.abs(k - 4) * 2) + '" r="3"/>';
-  return '<div class="tt-rays"></div>' +
-    '<svg class="tt-bunting" viewBox="0 0 1200 70" preserveAspectRatio="none" aria-hidden="true"><path d="M0 6 Q600 58 1200 6" fill="none" stroke="#fff6dc" stroke-width="3"/>' + flags + '</svg>' +
-    '<svg class="tt-sky" viewBox="0 0 1200 300" preserveAspectRatio="xMidYMax slice" aria-hidden="true">' +
-    '<g fill="#2a2168"><path d="M470 300 C520 160 560 120 600 190 C640 260 680 70 730 120 C770 160 790 230 820 300Z" opacity=".55"/></g>' +
-    '<g stroke="#2a2168" stroke-width="5" fill="none" opacity=".9"><path d="M470 296 C520 160 560 120 600 190 C640 260 680 70 730 120 C770 160 790 230 820 296"/>' +
-    '<line x1="560" y1="140" x2="560" y2="300"/><line x1="600" y1="190" x2="600" y2="300"/><line x1="690" y1="98" x2="690" y2="300"/><line x1="730" y1="120" x2="730" y2="300"/></g>' +
-    '<g class="tt-wheel"><g stroke="#2a2168" stroke-width="4">' + spokes + '</g><circle cx="930" cy="150" r="112" fill="none" stroke="#2a2168" stroke-width="9"/><circle cx="930" cy="150" r="16" fill="#2a2168"/><g fill="#2a2168">' + cabins + '</g><g fill="#ffd23f">' + bulbs + '</g></g>' +
-    '<path d="M930 150 L880 300 M930 150 L980 300" stroke="#211a54" stroke-width="12"/>' +
-    '<g><path d="M130 300 L130 222 L258 132 L386 222 L386 300Z" fill="#241c5c"/><path d="M258 132 L178 222 L210 222Z M258 132 L242 222 L274 222Z M258 132 L306 222 L338 222Z" fill="#3a2b86"/>' +
-    '<path d="M222 300 Q258 236 294 300Z" fill="#160f3c"/><line x1="258" y1="132" x2="258" y2="96" stroke="#241c5c" stroke-width="4"/><path d="M258 96 L292 106 L258 116Z" fill="#ff4f64"/><g fill="#ffd23f">' + tentB + '</g></g>' +
-    '<g fill="#1d1650"><circle cx="70" cy="262" r="34"/><circle cx="1110" cy="258" r="40"/><circle cx="1160" cy="270" r="30"/><rect x="0" y="282" width="1200" height="18"/></g></svg>';
-}
+function hideTitle() { ui.title = false; $('#title').hidden = true; document.documentElement.classList.remove('tt'); $('#hud').removeAttribute('aria-hidden'); uiDirty = true; audioSync(true); }   // called from a tap: the sound may start right away
 // the park that «Spiel fortsetzen» opens: the one played last, otherwise the one saved last; -1 without any park
 function lastSlot(m) {
   if (m.last >= 0 && m.slots[m.last]) return m.last;
@@ -80,13 +53,10 @@ function slotCard(i, info, last, allFull) {
     '<b>' + esc(info.name || 'Mein Park') + '</b><small>Tag ' + (info.day || 1) + ' · gespeichert ' + savedWhen(info.at) + '</small><span class="tt-go">Park öffnen</span></button>' +
     (allFull ? '<button class="tt-repb" data-act="ttAskReplace" data-i="' + i + '">Durch neuen Park ersetzen</button>' : '') + '</div>';
 }
-// builds the frame of the title screen once; the animated logo is already in the page (put there by build.js) and moves into it
+// The frame of the title screen (logo and a «Lädt» note on the backdrop) is part of the page and visible from the first moment;
+// here it only gets a lettered logo if the build has no logo file.
 function titleBuild() {
-  const t = $('#title'); if (t.querySelector('.tt-main')) return;
-  const logo = document.getElementById('tt-logo'); if (logo) logo.remove();
-  t.innerHTML = '<div class="tt-bg" aria-hidden="true">' + titleSkyline() + '</div><div class="tt-main"><h1 class="tt-logow" id="tt-logow"></h1><div class="tt-view" id="tt-view"></div><small class="tt-ver"></small></div>';
-  if (logo) $('#tt-logow').appendChild(logo);
-  else $('#tt-logow').innerHTML = '<span class="logo3d" aria-label="Rummelinsel"><span data-t="RUMMEL">RUMMEL</span><span data-t="INSEL">INSEL</span></span>';   // a build without the logo file
+  const w = $('#tt-logow'); if (w && !w.firstElementChild) w.innerHTML = '<span class="logo3d" aria-label="Rummelinsel"><span data-t="RUMMEL">RUMMEL</span><span data-t="INSEL">INSEL</span></span>';
 }
 function renderTitle() {
   titleBuild();
