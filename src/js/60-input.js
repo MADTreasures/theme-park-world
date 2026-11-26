@@ -5,22 +5,49 @@ function tileAt(cx, cy) {
   setRay(cx, cy); if (!ray.ray.intersectPlane(GROUND, gHit)) return null;
   const x = Math.floor(gHit.x + HALF), y = Math.floor(gHit.z + HALF); return inB(x, y) ? [x, y] : null;
 }
-function objAt(cx, cy) {
+// The building, ride, decoration or wild plant that the ray from the eye meets first, with the distance from the eye.
+// Only what is drawn counts: hidden parts and the glow of lamps are passed through.
+const shown = (o) => { for (; o; o = o.parent) if (!o.visible) return false; return true; };
+function objPick(cx, cy) {
   setRay(cx, cy);
   const list = []; for (const o of builds) list.push(o.group); for (const o of decos) if (!o.nat) list.push(o.group); for (const m of plotMesh) if (m) list.push(m);
   const hits = ray.intersectObjects(list, true);
   for (const h of hits) {
-    if (h.object.material === MAT_LAMP) continue;
+    if (h.object.material === MAT_LAMP || !shown(h.object)) continue;
     let o = h.object; while (o && !o.userData.obj) o = o.parent;
-    if (o) return o.userData.obj;
+    if (o) return { ob: o.userData.obj, dist: h.distance };
     // a wild plant: they share one mesh per plot, so the tile under the hit tells which one it is
     const x = Math.floor(h.point.x + HALF), y = Math.floor(h.point.z + HALF), ob = inB(x, y) ? tObj[idx(x, y)] : null;
-    if (ob && ob.nat) return ob;
+    if (ob && ob.nat) return { ob, dist: h.distance };
   }
   return null;
 }
+function objAt(cx, cy) { const p = objPick(cx, cy); return p ? p.ob : null; }
 function groundPt(cx, cy) { setRay(cx, cy); return ray.ray.intersectPlane(GROUND, gHit) ? [gHit.x, gHit.z] : null; }
-// Picks the person under the pointer: the click has to land on the line from feet to head, the nearest one wins.
+// A person under the pointer, for taps on the drawn body. The body is a band from the feet to the top of the head, as
+// wide as the figure is drawn at its distance from the eye, so the hit area grows and shrinks with the zoom and follows
+// every turn of the view. On a touch screen the band gets a few pixels more. Among several people the one nearest to
+// the eye wins. Returns the person, how far the tap is from the middle line of the body and the body's own half width
+// (both in pixels), and the distance from the eye.
+const _pa = new T.Vector3(), _pb = new T.Vector3();
+function figPick(list, cx, cy, touch) {
+  const r = canvas.getBoundingClientRect(), f = r.height / 2 / Math.tan(camera.fov * Math.PI / 360); let best = null;
+  for (const g of list) {
+    if (g.state === 'ride' || g.state === 'rest') continue;   // riding, or resting out of sight
+    const sc = g.sc || 1;
+    _pa.set(g.x, 0.37 * sc, g.z).applyMatrix4(camera.matrixWorldInverse); const depth = -_pa.z; if (depth < camera.near) continue;
+    const body = 0.15 * sc * f / depth, pad = touch ? clamp(12 - body, 4, 8) : 1;
+    _pa.set(g.x, 0.02, g.z).project(camera); const x0 = (_pa.x * 0.5 + 0.5) * r.width + r.left, y0 = (-_pa.y * 0.5 + 0.5) * r.height + r.top;
+    _pb.set(g.x, 0.74 * sc, g.z).project(camera); const x1 = (_pb.x * 0.5 + 0.5) * r.width + r.left, y1 = (-_pb.y * 0.5 + 0.5) * r.height + r.top;
+    const len2 = (x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0), t = clamp(((cx - x0) * (x1 - x0) + (cy - y0) * (y1 - y0)) / (len2 || 1), 0, 1);
+    const d = Math.hypot(cx - (x0 + (x1 - x0) * t), cy - (y0 + (y1 - y0) * t)); if (d > body + pad) continue;
+    const dist = camera.position.distanceTo(_pa.set(g.x, 0.37 * sc, g.z));
+    if (!best || dist < best.dist) best = { g, d, body, dist };
+  }
+  return best;
+}
+// The person under the pointer for the hand: the knock on a guard's hut and the grab of a caught thief may land a bit
+// beside the figure.
 function figAt(list, cx, cy) {
   const r = canvas.getBoundingClientRect(); let best = null, bd = 9;
   for (const g of list) {
@@ -62,10 +89,19 @@ function click(cx, cy, ptype) {
   if (pov) return;
   const ht = handTarget(cx, cy);
   if (ht) { handPress(cx, cy, ptype !== 'mouse', ht.guard ? 'knock' : 'grab'); if (ht.thief) throwThief(ht.thief, true); else pokeGuard(ht.guard); return; }
-  const th = figAt(thieves.filter(thiefActive), cx, cy); if (th) { markThief(th); return; }
-  const g = figAt(guests, cx, cy); if (g) { select({ guest: g }); sfx('click'); return; }
-  const sf = figAt(staff, cx, cy); if (sf) { select({ staff: sf }); sfx('click'); return; }
-  const ob = objAt(cx, cy) || (t && tObj[idx(t[0], t[1])]);
+  // A building, ride or booth is chosen where the tap meets its model, or the ground it stands on. A person only wins
+  // with a tap on the drawn body and when nothing stands between the person and the eye: people walking behind a booth
+  // or standing at its counter no longer take the tap meant for the booth. Where a tap only touches the margin of a
+  // body that is added on touch screens, the building wins.
+  const touch = ptype !== 'mouse', gp = groundPt(cx, cy);
+  let op = objPick(cx, cy);
+  if (!op && t && tObj[idx(t[0], t[1])] && gp) op = { ob: tObj[idx(t[0], t[1])], dist: camera.position.distanceTo(_v.set(gp[0], 0, gp[1])) };
+  const wins = (f) => !!f && (!op || (f.d <= f.body + (touch ? 2 : 0) && f.dist <= op.dist + 0.12));
+  const th = figPick(thieves.filter(thiefActive), cx, cy, touch); if (wins(th)) { markThief(th.g); return; }
+  const g = figPick(guests, cx, cy, touch), sf = figPick(staff, cx, cy, touch), fg = wins(g) ? g : null, fs = wins(sf) ? sf : null;
+  if (fg && (!fs || fg.dist <= fs.dist)) { select({ guest: fg.g }); sfx('click'); return; }
+  if (fs) { select({ staff: fs.g }); sfx('click'); return; }
+  const ob = op && op.ob;
   if (ob) { select({ obj: ob }); sfx('click'); }
   else if (t && !owned[idx(t[0], t[1])] && plotForSale(plotOf(t[0], t[1]))) { select(null); ui.tab = null; openTab('land'); landClick(t); }   // a tap on land for sale opens the land office
   else select(null);
