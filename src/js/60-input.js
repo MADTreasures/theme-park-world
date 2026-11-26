@@ -25,24 +25,25 @@ function objPick(cx, cy) {
 function objAt(cx, cy) { const p = objPick(cx, cy); return p ? p.ob : null; }
 function groundPt(cx, cy) { setRay(cx, cy); return ray.ray.intersectPlane(GROUND, gHit) ? [gHit.x, gHit.z] : null; }
 // A person under the pointer, for taps on the drawn body. The body is a band from the feet to the top of the head, as
-// wide as the figure is drawn at its distance from the eye, so the hit area grows and shrinks with the zoom and follows
-// every turn of the view. On a touch screen the band gets a few pixels more. Among several people the one nearest to
-// the eye wins. Returns the person, how far the tap is from the middle line of the body and the body's own half width
-// (both in pixels), and the distance from the eye.
+// wide as the figure is drawn at its distance from the eye (head and shoulders), so the hit area grows and shrinks with
+// the zoom and follows every turn of the view. On a touch screen the band gets a few pixels more. A tap right on a body
+// beats a tap on the extra margin of another; among equals the person nearest to the eye wins. Returns the person, how
+// far the tap is from the middle line of the body and the body's own half width (both in pixels), and the distance
+// from the eye.
 const _pa = new T.Vector3(), _pb = new T.Vector3();
 function figPick(list, cx, cy, touch) {
   const r = canvas.getBoundingClientRect(), f = r.height / 2 / Math.tan(camera.fov * Math.PI / 360); let best = null;
   for (const g of list) {
     if (g.state === 'ride' || g.state === 'rest') continue;   // riding, or resting out of sight
     const sc = g.sc || 1;
-    _pa.set(g.x, 0.37 * sc, g.z).applyMatrix4(camera.matrixWorldInverse); const depth = -_pa.z; if (depth < camera.near) continue;
-    const body = 0.15 * sc * f / depth, pad = touch ? clamp(12 - body, 4, 8) : 1;
+    _pa.set(g.x, 0.35 * sc, g.z).applyMatrix4(camera.matrixWorldInverse); const depth = -_pa.z; if (depth < camera.near) continue;
+    const body = 0.11 * sc * f / depth, pad = touch ? clamp(12 - body, 4, 8) : 1;
     _pa.set(g.x, 0.02, g.z).project(camera); const x0 = (_pa.x * 0.5 + 0.5) * r.width + r.left, y0 = (-_pa.y * 0.5 + 0.5) * r.height + r.top;
-    _pb.set(g.x, 0.74 * sc, g.z).project(camera); const x1 = (_pb.x * 0.5 + 0.5) * r.width + r.left, y1 = (-_pb.y * 0.5 + 0.5) * r.height + r.top;
+    _pb.set(g.x, 0.7 * sc, g.z).project(camera); const x1 = (_pb.x * 0.5 + 0.5) * r.width + r.left, y1 = (-_pb.y * 0.5 + 0.5) * r.height + r.top;
     const len2 = (x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0), t = clamp(((cx - x0) * (x1 - x0) + (cy - y0) * (y1 - y0)) / (len2 || 1), 0, 1);
     const d = Math.hypot(cx - (x0 + (x1 - x0) * t), cy - (y0 + (y1 - y0) * t)); if (d > body + pad) continue;
-    const dist = camera.position.distanceTo(_pa.set(g.x, 0.37 * sc, g.z));
-    if (!best || dist < best.dist) best = { g, d, body, dist };
+    const dist = camera.position.distanceTo(_pa.set(g.x, 0.35 * sc, g.z)), on = d <= body;
+    if (!best || (on && !best.on) || (on === best.on && dist < best.dist)) best = { g, d, body, dist, on };
   }
   return best;
 }
@@ -96,11 +97,10 @@ function click(cx, cy, ptype) {
   const touch = ptype !== 'mouse', gp = groundPt(cx, cy);
   let op = objPick(cx, cy);
   if (!op && t && tObj[idx(t[0], t[1])] && gp) op = { ob: tObj[idx(t[0], t[1])], dist: camera.position.distanceTo(_v.set(gp[0], 0, gp[1])) };
-  const wins = (f) => !!f && (!op || (f.d <= f.body + (touch ? 2 : 0) && f.dist <= op.dist + 0.12));
+  const wins = (f) => !!f && (!op || (f.on && f.dist <= op.dist + 0.05));
   const th = figPick(thieves.filter(thiefActive), cx, cy, touch); if (wins(th)) { markThief(th.g); return; }
-  const g = figPick(guests, cx, cy, touch), sf = figPick(staff, cx, cy, touch), fg = wins(g) ? g : null, fs = wins(sf) ? sf : null;
-  if (fg && (!fs || fg.dist <= fs.dist)) { select({ guest: fg.g }); sfx('click'); return; }
-  if (fs) { select({ staff: fs.g }); sfx('click'); return; }
+  const fp = figPick(guests.concat(staff), cx, cy, touch);
+  if (wins(fp)) { select(staff.indexOf(fp.g) >= 0 ? { staff: fp.g } : { guest: fp.g }); sfx('click'); return; }
   const ob = op && op.ob;
   if (ob) { select({ obj: ob }); sfx('click'); }
   else if (t && !owned[idx(t[0], t[1])] && plotForSale(plotOf(t[0], t[1]))) { select(null); ui.tab = null; openTab('land'); landClick(t); }   // a tap on land for sale opens the land office
