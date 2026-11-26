@@ -167,7 +167,7 @@ function setTool(t) {
 }
 function renderToolbar() {
   const tb = $('#toolbar');
-  if (!tool) { tb.hidden = true; return; }
+  if (!tool) { tb.hidden = true; $('#hud').classList.remove('drawing'); return; }
   let h;
   if (tool.type === 'path') h = '<div class="t"><b>Weg</b><span>' + eur(5) + ' pro Feld · ziehen zum Verlegen</span></div>';
   else if (tool.type === 'track') h = trackToolbar();
@@ -185,6 +185,7 @@ function renderToolbar() {
   }
   tb.innerHTML = h + '<button class="btn red" data-act="cancel" aria-label="Werkzeug weglegen" title="Abbrechen (Esc)">' + IC.x + '</button>';
   tb.hidden = false;
+  $('#hud').classList.toggle('drawing', tool.type === 'track' && !!tool.station);   // while a track is drawn, the cards give way to the map
 }
 const anchor = (d, rot, x, y) => { const [w, h] = dims(d, rot); return [x - ((w - 1) >> 1), y - ((h - 1) >> 1), w, h]; };
 function setHl(x, y, w, h, ok, warn) { hl.visible = true; hl.position.set(x + w / 2 - HALF, 0.05, y + h / 2 - HALF); hl.scale.set(w, 1, h); hl.material.color.setHex(ok ? 0x3ddbb4 : warn ? 0xffa23f : 0xff4f64); }
@@ -260,16 +261,26 @@ function dozeTile(x, y, drag) {
 /* ----- laying a coaster ----- */
 let trackPrev = null, trackHover = null;
 const MAT_TP_OK = new T.MeshBasicMaterial({ color: 0xffd447 }), MAT_TP_BAD = new T.MeshBasicMaterial({ color: 0xff4f64 }), MAT_TP_ST = new T.MeshBasicMaterial({ color: 0x3ddbb4, transparent: true, opacity: 0.65 });
-// Where the station goes before it is set: under the mouse pointer, otherwise in the middle of the view. So on a touch
-// screen, too, the preview with the arrow for the direction of travel is there from the start, and turning shows at once.
+// the middle of the part of the map that no bar covers, in screen pixels: between the bars at the top and the toolbar
+// (on a tablet held sideways the cards and the toolbar take up much of the lower half)
+function viewMid() {
+  const m = $('#mid').getBoundingClientRect(), tb = $('#toolbar'); let bot = m.bottom;
+  if (tb && !tb.hidden) { const b = tb.getBoundingClientRect(); if (b.height && b.top > m.top + 80) bot = b.top; }
+  return [m.left + m.width / 2, (m.top + bot) / 2];
+}
+// Where the station goes before it is set: under the mouse pointer, otherwise in the middle of the free part of the
+// view. So on a touch screen, too, the preview with the arrow for the direction of travel is there from the start, and
+// turning shows at once.
 function trackSpot() {
   if (tool.mouse && trackHover) return trackHover;
-  const x = Math.floor(cam.tx + HALF), y = Math.floor(cam.tz + HALF); return inB(x, y) ? [x, y] : null;
+  const v = viewMid(); return tileAt(v[0], v[1]);
 }
 // the preview follows the middle of the view while the map is moved, as long as the station is not set
 function trackFrame() {
   const t = tool; if (!t || t.type !== 'track' || t.station || (t.mouse && trackHover)) return;
-  const k = Math.floor(cam.tx + HALF) + ',' + Math.floor(cam.tz + HALF); if (k !== t.ck) { t.ck = k; drawTrackPrev(); }
+  const k = [cam.tx, cam.tz, cam.d, cam.a, cam.e].map((v) => v.toFixed(2)).join() + innerWidth + 'x' + innerHeight + $('#toolbar').offsetHeight;
+  if (k === t.ck) return; t.ck = k;
+  const sp = trackSpot(), sk = sp ? sp.join() : ''; if (sk !== t.sk) { t.sk = sk; drawTrackPrev(); }
 }
 // Turns the station a quarter to the right, in all four directions. Before it is set, only the preview turns. A station
 // that is already set turns about its middle field; points of the track that would now lie inside it are dropped. If
