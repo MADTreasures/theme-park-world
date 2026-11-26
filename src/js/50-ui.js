@@ -24,6 +24,7 @@ const IC = {
   rotl: svg(stroke('M6.3 7.3A7.5 7.5 0 1 1 4.5 12') + '<path d="M2.3 3.3l1.2 6 5.5-2.5z"/>'),
   rotr: svg('<g transform="matrix(-1 0 0 1 24 0)">' + stroke('M6.3 7.3A7.5 7.5 0 1 1 4.5 12') + '<path d="M2.3 3.3l1.2 6 5.5-2.5z"/></g>'),
   turn: svg(stroke('M6.3 7.3A7.5 7.5 0 1 1 4.5 12') + '<path d="M2.3 3.3l1.2 6 5.5-2.5z"/>'),
+  undo: svg(stroke('M9.5 13.5L4.5 8.5l5-5M5 8.5h9.5a5.5 5.5 0 0 1 0 11H10', 2.6)),
   walk: svg('<circle cx="13" cy="4.3" r="2.4"/><path d="M10.6 7.6l3.2.5 2.4 3.3 3 .9-.5 1.9-3.9-1-1-1.3-.8 3.6 2.6 2.7.9 5.3h-2.2l-.8-4.3-2.6-2.3-1.5 6.6H7.2l2.1-9.3.3-2.8-2 1.2-.7 2.9-2-.4.9-4z"/>'),
   chev: svg(stroke('M6 9l6 6 6-6', 2.8)),
   // advertising: newspaper, radio, internet, television, influencer
@@ -197,7 +198,7 @@ function showGhost(gx, gy) {
   setHl(x, y, w, h, ok, plants); MAT_GHOST.color.setHex(ok ? 0xffffff : plants ? 0xffc35a : 0xff5a6c);
 }
 function rotateTool() {
-  if (tool && tool.type === 'track') { if (!tool.station) { tool.rot = (tool.rot + 1) % 4; sfx('click'); drawTrackPrev(); } return; }
+  if (tool && tool.type === 'track') { rotateStation(); return; }
   if (!tool || tool.type !== 'build') return;
   tool.rot = (tool.rot + 1) % 4; tool.userRot = true; sfx('click');
   if (ghostTile) showGhost(ghostTile[0], ghostTile[1]);
@@ -259,15 +260,46 @@ function dozeTile(x, y, drag) {
 /* ----- laying a coaster ----- */
 let trackPrev = null, trackHover = null;
 const MAT_TP_OK = new T.MeshBasicMaterial({ color: 0xffd447 }), MAT_TP_BAD = new T.MeshBasicMaterial({ color: 0xff4f64 }), MAT_TP_ST = new T.MeshBasicMaterial({ color: 0x3ddbb4, transparent: true, opacity: 0.65 });
+// Where the station goes before it is set: under the mouse pointer, otherwise in the middle of the view. So on a touch
+// screen, too, the preview with the arrow for the direction of travel is there from the start, and turning shows at once.
+function trackSpot() {
+  if (tool.mouse && trackHover) return trackHover;
+  const x = Math.floor(cam.tx + HALF), y = Math.floor(cam.tz + HALF); return inB(x, y) ? [x, y] : null;
+}
+// the preview follows the middle of the view while the map is moved, as long as the station is not set
+function trackFrame() {
+  const t = tool; if (!t || t.type !== 'track' || t.station || (t.mouse && trackHover)) return;
+  const k = Math.floor(cam.tx + HALF) + ',' + Math.floor(cam.tz + HALF); if (k !== t.ck) { t.ck = k; drawTrackPrev(); }
+}
+// Turns the station a quarter to the right, in all four directions. Before it is set, only the preview turns. A station
+// that is already set turns about its middle field; points of the track that would now lie inside it are dropped. If
+// the turned station has no room, it shows red and «Fertig» says why.
+function rotateStation() {
+  const t = tool; sfx('click');
+  if (t.station) {
+    const [w, h] = dims(DEFS.custom, t.rot), mx = t.station.x + ((w - 1) >> 1), my = t.station.y + ((h - 1) >> 1);
+    t.rot = (t.rot + 1) % 4;
+    const an = anchor(DEFS.custom, t.rot, mx, my); t.station = { x: an[0], y: an[1] };
+    t.nodes = t.nodes.filter((n) => { const gx = Math.floor(n[0] + 0.5), gy = Math.floor(n[1] + 0.5); return !(gx >= an[0] && gx < an[0] + an[2] && gy >= an[1] && gy < an[1] + an[3]); });
+    t.sel = null; trackChanged(); return;
+  }
+  t.rot = (t.rot + 1) % 4; drawTrackPrev(); renderToolbar();
+}
+// what is wrong with the place of a station that is set ('' when nothing)
+function stationTrouble(t) {
+  const nat = natIn(DEFS.custom, t.station.x, t.station.y, t.rot);
+  return !nat ? (ownedFoot(DEFS.custom, t.station.x, t.station.y, t.rot) ? 'Hier ist kein Platz für die Station. Drehe sie weiter.' : 'Die Station ragt über dein Land hinaus. Drehe sie weiter.') : nat.length ? 'Auf dem Platz der Station stehen Pflanzen.' : '';
+}
 function clearTrackPrev() { if (trackPrev) { scene.remove(trackPrev); trackPrev.traverse((o) => { if (o.geometry) o.geometry.dispose(); }); trackPrev = null; } }
 function drawTrackPrev() {
   clearTrackPrev(); const t = tool; if (!t || t.type !== 'track') return;
   let stn = t.station;
-  if (!stn) { if (!trackHover) return; const an = anchor(DEFS.custom, t.rot, trackHover[0], trackHover[1]); stn = { x: an[0], y: an[1] }; }
+  if (!stn) { const sp = trackSpot(); if (!sp) return; const an = anchor(DEFS.custom, t.rot, sp[0], sp[1]); stn = { x: an[0], y: an[1] }; }
   const g = new T.Group(); trackPrev = g; scene.add(g);
   const nodes = t.nodes.slice(); if (t.station && trackHover && t.mouse) nodes.push([trackHover[0], trackHover[1], t.h]);
   const { pts, cx, cz, d, w, h } = coasterPoints(stn.x, stn.y, t.rot, nodes);
-  const sb = new T.Mesh(new T.BoxGeometry(w - 0.06, 0.5, h - 0.06), t.station || natIn(DEFS.custom, stn.x, stn.y, t.rot) ? MAT_TP_ST : MAT_TP_BAD); sb.position.set(cx, 0.3, cz); g.add(sb);
+  const free = t.station ? !t.stBad : (() => { const nat = natIn(DEFS.custom, stn.x, stn.y, t.rot); return !!nat && !nat.length; })();
+  const sb = new T.Mesh(new T.BoxGeometry(w - 0.06, 0.5, h - 0.06), free ? MAT_TP_ST : MAT_TP_BAD); sb.position.set(cx, 0.3, cz); g.add(sb);
   const ar = new T.Mesh(new T.ConeGeometry(0.24, 0.55, 4), MAT_TP_OK); ar.position.set(cx + d[0] * 1.05, 0.95, cz + d[1] * 1.05); ar.quaternion.setFromUnitVectors(UP, _v.set(d[0], 0, d[1])); g.add(ar);
   if (!nodes.length) return;
   const bad = !!analyseTrack(stn.x, stn.y, t.rot, nodes).err, mat = bad ? MAT_TP_BAD : MAT_TP_OK;
@@ -281,6 +313,7 @@ function drawTrackPrev() {
 }
 function trackChanged() {
   const t = tool; t.info = t.station && t.nodes.length ? analyseTrack(t.station.x, t.station.y, t.rot, t.nodes) : null;
+  t.stBad = t.station ? stationTrouble(t) : '';
   drawTrackPrev(); renderToolbar();
 }
 function trackAdd(fx, fy) {
@@ -317,7 +350,8 @@ function finishTrack() {
   const t = tool; if (!t || t.type !== 'track' || !t.station) return;
   if (t.nodes.length < 3) { toast('Setze mindestens 3 Punkte.', 'bad'); return; }
   const a = analyseTrack(t.station.x, t.station.y, t.rot, t.nodes), nat = natIn(DEFS.custom, t.station.x, t.station.y, t.rot);
-  if (a.err || !nat || nat.length) { sfx('error'); toast(a.err || 'Die Station ist blockiert.', 'bad'); return; }
+  if (nat && nat.length) { plantsInWay(nat); return; }
+  if (a.err || !nat) { sfx('error'); toast(!nat ? stationTrouble(t) : a.err, 'bad'); return; }
   const cost = a.cost;
   if (S.money < cost) { sfx('error'); toast('Dafür reicht das Geld nicht. Die Strecke kostet ' + eur(cost) + '.', 'bad'); return; }
   spend(cost, 'build');
@@ -328,11 +362,13 @@ function finishTrack() {
 }
 function trackToolbar() {
   const t = tool, a = t.info, sn = t.sel != null ? t.nodes[t.sel] : null;
-  if (!t.station) return '<div class="t"><b>Eigene Achterbahn</b><span>Station setzen: freies Feld antippen. Der Pfeil zeigt die Fahrtrichtung.</span></div><button class="btn line" data-act="rot" aria-label="Station drehen" title="Drehen (R)">' + IC.turn + '</button>';
-  const txt = a ? (a.err || Math.round(a.len * 5) + ' m · Nervenkitzel ' + a.exc + ' · ' + eur(a.cost)) : 'Mit dem Finger zeichnen oder Punkte antippen. Zwei Finger bewegen die Karte.';
-  return '<div class="t"><b>' + (sn ? 'Punkt ' + (t.sel + 1) + ' gewählt' : 'Strecke zeichnen') + '</b><span' + (a && a.err ? ' class="err"' : '') + '>' + txt + '</span></div>' +
+  const turn = '<button class="btn line" data-act="rot" aria-label="Station drehen" title="Station drehen (R)">' + IC.turn + 'Drehen</button>';
+  if (!t.station) return '<div class="t"><b>Eigene Achterbahn</b><span>Tippe auf ein freies Feld für die Station. «Drehen» richtet sie aus, der Pfeil zeigt die Fahrtrichtung.</span></div>' + turn;
+  const err = t.stBad || (a && a.err) || '', txt = err || (a ? Math.round(a.len * 5) + ' m · Nervenkitzel ' + a.exc + ' · ' + eur(a.cost) : 'Mit dem Finger zeichnen oder Punkte antippen. Zwei Finger bewegen die Karte.');
+  const back = sn ? 'Gewählten Punkt löschen' : t.nodes.length ? 'Letzten Punkt entfernen' : 'Station wieder aufheben';
+  return '<div class="t"><b>' + (sn ? 'Punkt ' + (t.sel + 1) + ' gewählt' : 'Strecke zeichnen') + '</b><span' + (err ? ' class="err"' : '') + '>' + txt + '</span></div>' + turn +
     '<div class="hstep"><button class="sq" data-act="th" data-d="-1" aria-label="Tiefer">' + IC.minus + '</button><output title="' + (sn ? 'Höhe dieses Punkts' : 'Höhe der nächsten Punkte') + '">' + ((sn ? sn[2] : t.h) * 5).toLocaleString('de-DE') + ' m</output><button class="sq" data-act="th" data-d="1" aria-label="Höher">' + IC.plus + '</button></div>' +
-    '<button class="btn line" data-act="tundo" aria-label="' + (sn ? 'Gewählten Punkt löschen' : 'Letzten Punkt entfernen') + '" title="' + (sn ? 'Gewählten Punkt löschen' : 'Letzten Punkt entfernen') + '">' + IC.rotl + '</button>' +
+    '<button class="btn line" data-act="tundo" aria-label="' + back + '" title="' + back + '">' + IC.undo + '</button>' +
     '<button class="btn mint" data-act="tdone"' + (t.nodes.length < 3 ? ' disabled' : '') + '>' + IC.check + 'Fertig</button>';
 }
 
