@@ -20,7 +20,7 @@ const C_DAY = new T.Color(0x8fd3ff), C_DUSK = new T.Color(0xffa877), C_NIGHT = n
 const SUN_DAY = new T.Color(0xfff0d2), SUN_DUSK = new T.Color(0xff9a5a), SUN_NIGHT = new T.Color(0x8fa6ff), W_DAY = new T.Color(0x3aa9dc), W_NIGHT = new T.Color(0x122a55);
 let night = 0, shExt = 0;
 function updateSky() {
-  const d = (S.time % DAY) / DAY;
+  const d = ((STUDIO ? (STU.night ? DAY * 0.86 : DAY * 0.33) : S.time) % DAY) / DAY;   // the figure studio keeps its own time of day
   const nf = d < 0.06 ? 1 - smooth(0, 0.06, d) : smooth(0.62, 0.72, d);
   const df = Math.max(0, 1 - Math.abs(d - 0.66) / 0.07, 1 - Math.abs(d - 0.03) / 0.05, 1 - Math.abs(d - 1.03) / 0.05);
   night = nf;

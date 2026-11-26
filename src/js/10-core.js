@@ -1,6 +1,7 @@
 'use strict';
 const $ = (s) => document.querySelector(s);
 const DEV = !!window.RUMMEL_DEV || window.location.hash === '#dev';   // developer mode: own save game, test panel
+const STUDIO = !!window.RUMMEL_STUDIO || window.location.hash === '#figuren';   // the figure studio instead of a park (58-studio.js)
 const noStart = () => { $('#nogl').hidden = false; $('#title').hidden = true; document.documentElement.classList.remove('tt'); };   // the game cannot run here: say so instead of the title screen
 if (!window.THREE) { noStart(); return; }
 const T = window.THREE;

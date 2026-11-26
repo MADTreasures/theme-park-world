@@ -1,6 +1,7 @@
 // Builds the game from src/ into one self-contained page.
 //   node build.js            -> index.html (works offline: library and fonts are embedded) and dev.html (developer mode)
 //   node build.js --online F -> F, a copy without the document wrapper that loads the library and fonts from CDNs
+//   node build.js --studio F -> also F, the figure studio (every person, pose and gesture on one stage)
 const fs = require('fs'), path = require('path');
 const read = (p) => fs.readFileSync(path.join(__dirname, p), 'utf8');
 const jsDir = path.join(__dirname, 'src/js');
@@ -69,4 +70,11 @@ if (online > -1) {
   // dev.html: the same game with the developer panel switched on and its own save game
   console.log('build ' + buildId);
   fs.writeFileSync(path.join(outDir, 'dev.html'), out.replace('<title>Rummelinsel 3D</title>', '<title>Rummelinsel 3D Dev</title>').replace(script, () => '<script>window.RUMMEL_DEV = true;</script>\n' + script));
+  // --studio F: the figure studio, a stage with every person, pose and gesture, for checking figure models. Without the
+  // recordings and the logo it stays small; it never touches the saved parks.
+  if (arg('--studio')) {
+    const studio = out.replace('<title>Rummelinsel 3D</title>', '<title>Rummelinsel Figuren-Studio</title>').replace(audio, '').replace(logoTag, '')
+      .replace(script, () => '<script>window.RUMMEL_STUDIO = true;</script>\n' + script);
+    fs.writeFileSync(path.resolve(arg('--studio')), studio); console.log('studio ' + path.resolve(arg('--studio')));
+  }
 }

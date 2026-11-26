@@ -74,6 +74,7 @@ function hover(cx, cy) {
   else { const ob = tObj[i]; if (ob) setHl(ob.x, ob.y, ob.w, ob.h, false); else if (tType[i] === 1 && i !== ENT) setHl(t[0], t[1], 1, 1, false); else hl.visible = false; }
 }
 function click(cx, cy, ptype) {
+  if (STUDIO) return;   // the figure studio only shows
   const t = tileAt(cx, cy);
   if (tool) {
     if (tool.type === 'track') trackClick(t, ptype, groundPt(cx, cy));

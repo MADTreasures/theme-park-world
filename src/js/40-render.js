@@ -8,7 +8,24 @@ function inst(geo, mat, n, cast, receive) {
 // People neither cast nor receive real shadows: a soft round shadow under their feet is cheaper and suits the toy look.
 // Every part exists twice: light (FGL) for the crowd and smooth (FGH) for the people who are closest to the camera. Each
 // person is drawn from one of the two sets, depending on how large they appear; the smooth set holds a limited number.
-const FGL = figureGeos(0), FGH = figureGeos(1), MAT_FIG = MAT_INST(0.5, 0.16), MAT_EYE = new T.MeshBasicMaterial({ vertexColors: true });
+// Parts brought in from outside (26b-figure-import.js) take the place of the built-in parts of the same name; hair
+// styles and mouths are named hair-0 ... hair-16 and mouth-0 ... mouth-4.
+function figPartFrom(d) {
+  const bin = (s) => { const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u.buffer; };
+  const p = new Float32Array(bin(d.p)), n = new Float32Array(bin(d.n)), cb = new Uint8Array(bin(d.c)), c = new Float32Array(cb.length);
+  for (let i = 0; i < cb.length; i++) c[i] = cb[i] / 255;
+  return geoFrom(p, n, c);
+}
+function figImport(G, set) {
+  const src = Object.assign({}, FIG_IMPORT.hoch, set === 'leicht' ? FIG_IMPORT.leicht : {});
+  for (const name in src) {
+    const m = /^(hair|mouth)-(\d+)$/.exec(name);
+    if (m ? !(G[m[1]] && +m[2] < G[m[1]].length) : !(name in G) || Array.isArray(G[name])) { console.warn('Figurenteil unbekannt: ' + name); continue; }
+    const geo = figPartFrom(src[name]); if (m) G[m[1]][+m[2]] = geo; else G[name] = geo;
+  }
+  return G;
+}
+const FGL = figImport(figureGeos(0), 'leicht'), FGH = figImport(figureGeos(1), 'hoch'), MAT_FIG = MAT_INST(0.5, 0.16), MAT_EYE = new T.MeshBasicMaterial({ vertexColors: true });
 const MAT_TGLOW = new T.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.62, blending: T.AdditiveBlending, depthWrite: false, side: T.DoubleSide });
 function figSet(G, cap) {
   const all = [], part = (g, n, mat) => { const m = inst(g, mat || MAT_FIG, n, false, false); all.push(m); return m; };
@@ -134,10 +151,10 @@ function drawFigure(f, seat, ride, rdt) {
   }
   if (f.chatT > 0) { ar = -2.5 + 0.35 * Math.sin(rt * 9); er = -0.3; hy = 0; }
   // an open umbrella in the rain or a parasol in the sun, held in the left hand in front of the chest
-  const shade = !seat && pose < 2 && !ty && !f.thief ? (f.umb && WX.wet > 0.25 ? 1 : f.sun && WX.sunny && WX.wet < 0.1 ? 2 : 0) : 0;
+  const shade = f.showShade || (!seat && pose < 2 && !ty && !f.thief ? (f.umb && WX.wet > 0.25 ? 1 : f.sun && WX.sunny && WX.wet < 0.1 ? 2 : 0) : 0);   // showShade: the figure studio
   if (shade) { al = -0.95; el = -1.25; zl = 0.12; }
   // at night a torch from the ghost stall, held out in front so that it lights the path ahead
-  const torch = !shade && !f.prize && !seat && pose < 2 && !ty && !f.thief && f.torch && night > 0.35;
+  const torch = !!f.showTorch || (!shade && !f.prize && !seat && pose < 2 && !ty && !f.thief && f.torch && night > 0.35);
   if (torch) { al = -0.78 + Math.sin(rt * 1.7 + ph) * 0.05; el = -0.5; zl = 0.06; }
   // an influencer films with a phone on a stick, held up in front
   if (f.vip && !seat && pose < 2 && !tk && !f.chatT) { ar = -2.2 + Math.sin(rt * 1.3 + ph) * 0.06; er = -0.35; zr = 0.28; hx = -0.12; hy = Math.sin(rt * 0.8 + ph) * 0.2; }
@@ -219,7 +236,7 @@ function drawFigure(f, seat, ride, rdt) {
   limb(_rm, FIG.LX, FIG.HIP, 0, tr, spread, _tm); M.iThigh.setMatrixAt(j + 1, _tm); M.iShort.setMatrixAt(j + 1, shorts ? _tm : M0); limb(_tm, 0, -FIG.THIGH, 0, kr, 0, _km); M.iShin.setMatrixAt(j + 1, _km); M.iShoe.setMatrixAt(j + 1, _km); M.iSole.setMatrixAt(j + 1, _km);
   limb(_rm, -FIG.SX, FIG.SHO, 0, al, -zl, _tm); M.iUpper.setMatrixAt(j, _tm); M.iCap.setMatrixAt(j, tee ? _tm : M0); M.iStripe.setMatrixAt(j, long ? _tm : M0); limb(_tm, 0, -FIG.UARM, 0, el, 0, _km); M.iFore.setMatrixAt(j, _km); M.iWrist.setMatrixAt(j, _km); M.iHand.setMatrixAt(j, _km); if (u && u.handL) follow(u.handL, _km);
   if (f.prize && !shade) { M.iPlush.setMatrixAt(M.nPlush, _km); M.iPlush.setColorAt(M.nPlush, _gc.set(f.prize)); M.nPlush++; }   // a soft toy won at a game
-  else if (torch) { M.iTorch.setMatrixAt(M.nTorch, _km); M.iTorch.setColorAt(M.nTorch, _gc.set(0xffffff)); M.iTGlow.setMatrixAt(M.nTorch, _km); M.iTGlow.setColorAt(M.nTorch, _gc.set(f.torch).multiplyScalar(Math.min(1, (night - 0.35) * 3))); M.nTorch++; }
+  else if (torch) { M.iTorch.setMatrixAt(M.nTorch, _km); M.iTorch.setColorAt(M.nTorch, _gc.set(0xffffff)); M.iTGlow.setMatrixAt(M.nTorch, _km); M.iTGlow.setColorAt(M.nTorch, _gc.set(f.torch).multiplyScalar(f.showTorch ? 1 : Math.min(1, (night - 0.35) * 3))); M.nTorch++; }
   if (shade) {   // upright in the hand, leaning back over the head
     _lp.set(0, -FIG.HAND, 0).applyMatrix4(_km); _lq.setFromEuler(_eb.set(-0.3, f.rr, -0.2 + Math.sin(rt * 1.1 + ph) * 0.03));
     const U = shade === 1 ? M.iUmb : M.iSun, n = shade === 1 ? M.nUmb++ : M.nSun++;

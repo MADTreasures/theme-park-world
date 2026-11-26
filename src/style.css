@@ -517,3 +517,12 @@ html.tt #app{background:none}
 }
 @supports (height:100dvh){ @media (max-height:520px) and (orientation:landscape){ .tt-logo{max-height:calc(100dvh - 116px)} } }
 @media (prefers-reduced-motion:reduce){ .logo3d,.tt-view{animation:none} }
+
+/* ================= figure studio ================= */
+#hud.studio #topbar,#hud.studio #goalw,#hud.studio #dock,#hud.studio #toasts,#hud.studio #coach,#hud.studio #help,#hud.studio #alert{display:none}
+#studio{position:absolute;left:max(10px,var(--gl));top:max(10px,env(safe-area-inset-top,0px));z-index:6;display:grid;gap:6px;max-width:min(560px,calc(100% - 20px));padding:10px 12px;border-radius:14px;background:var(--ink-2);border:2px solid var(--ink-3);color:var(--paper);box-shadow:0 5px 0 var(--drop)}
+#studio b{font:400 16px/1.1 var(--font-display);color:var(--bulb)}
+#studio span{font-weight:800}
+#studio .row{display:flex;flex-wrap:wrap;gap:6px}
+#studio .btn{padding:7px 12px;font-size:14px}
+#studio small{opacity:.75}
